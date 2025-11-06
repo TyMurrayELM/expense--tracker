@@ -10,7 +10,7 @@ export const authOptions: NextAuthOptions = {
       authorization: {
         params: {
           prompt: 'select_account',
-          hd: process.env.ALLOWED_EMAIL_DOMAIN || 'encorelc.com', // Restrict to your domain
+          hd: process.env.ALLOWED_EMAIL_DOMAIN || 'encorelm.com', // Restrict to your domain
         },
       },
     }),
