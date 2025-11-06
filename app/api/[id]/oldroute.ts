@@ -3,10 +3,10 @@ import { supabaseAdmin } from '@/lib/supabase';
 
 export async function PATCH(
   request: Request,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: { id: string } }
 ) {
   try {
-    const { id: userId } = await params;
+    const userId = params.id;
     const body = await request.json();
     const { full_name, is_admin, is_active, branches, departments } = body;
 
@@ -127,10 +127,10 @@ export async function PATCH(
 
 export async function DELETE(
   request: Request,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: { id: string } }
 ) {
   try {
-    const { id: userId } = await params;
+    const userId = params.id;
 
     // Delete user (cascade will handle permissions)
     const { error } = await supabaseAdmin
