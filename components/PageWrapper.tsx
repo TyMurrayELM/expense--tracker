@@ -62,13 +62,21 @@ export default function PageWrapper({ initialExpenses, vendors, purchasers, curr
 
   // Filter expenses based on effective user permissions
   const filteredExpenses = useMemo(() => {
+    console.log('=== FILTERING EXPENSES ===');
+    console.log('Effective User:', effectiveUser.full_name);
+    console.log('Is Admin:', effectiveUser.is_admin);
+    console.log('Branches:', effectiveUser.branches);
+    console.log('Departments:', effectiveUser.departments);
+    console.log('Masquerading:', masqueradingAsUser ? 'YES' : 'NO');
+    
     // If effective user is admin, show all
     if (effectiveUser.is_admin) {
+      console.log('Admin user - showing all', initialExpenses.length, 'expenses');
       return initialExpenses;
     }
 
     // Filter based on user permissions
-    return initialExpenses.filter(expense => {
+    const filtered = initialExpenses.filter(expense => {
       // Check branch access
       if (effectiveUser.branches.length > 0) {
         if (!expense.branch || !effectiveUser.branches.includes(expense.branch)) {
@@ -85,7 +93,11 @@ export default function PageWrapper({ initialExpenses, vendors, purchasers, curr
 
       return true;
     });
-  }, [initialExpenses, effectiveUser]);
+    
+    console.log('Filtered to', filtered.length, 'expenses');
+    console.log('=== END FILTERING ===');
+    return filtered;
+  }, [initialExpenses, effectiveUser, masqueradingAsUser]);
 
   // Check if user has no permissions (new user scenario)
   const hasNoPermissions = !effectiveUser.is_admin && 
@@ -117,22 +129,29 @@ export default function PageWrapper({ initialExpenses, vendors, purchasers, curr
       />
 
       <main className="max-w-[1600px] mx-auto px-6 py-8">
-        {hasNoPermissions && !masqueradingAsUser ? (
-          // Welcome screen for new users with no permissions
+        {hasNoPermissions ? (
+          // Welcome screen for users with no permissions (or masquerading as one)
           <div className="bg-white border border-gray-200 rounded-lg p-12 text-center max-w-2xl mx-auto">
             <div className="text-6xl mb-4">👋</div>
-            <h2 className="text-2xl font-bold text-gray-900 mb-4">Welcome to Expense Tracker!</h2>
+            <h2 className="text-2xl font-bold text-gray-900 mb-4">
+              {masqueradingAsUser ? `Viewing as: ${effectiveUser.full_name}` : 'Welcome to Expense Tracker!'}
+            </h2>
             <p className="text-gray-600 mb-6">
-              Your account has been created, but you don't have access to any data yet.
+              {masqueradingAsUser 
+                ? `${effectiveUser.full_name} does not have access to any data yet.`
+                : 'Your account has been created, but you don\'t have access to any data yet.'
+              }
             </p>
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
               <p className="text-sm text-blue-900">
-                <strong>Next steps:</strong> An administrator needs to grant you access to specific branches and departments.
+                <strong>Next steps:</strong> An administrator needs to grant {masqueradingAsUser ? 'this user' : 'you'} access to specific branches and departments.
               </p>
             </div>
-            <p className="text-sm text-gray-500">
-              Please contact your administrator to request access.
-            </p>
+            {!masqueradingAsUser && (
+              <p className="text-sm text-gray-500">
+                Please contact your administrator to request access.
+              </p>
+            )}
           </div>
         ) : activeTab === 'admin' ? (
           currentUser.is_admin ? (

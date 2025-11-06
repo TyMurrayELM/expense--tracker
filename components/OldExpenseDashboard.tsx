@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo } from 'react';
 import { Expense } from '@/types/expense';
 import ExpenseTable from './ExpenseTable';
 import FilterBar from './FilterBar';
@@ -42,11 +42,6 @@ export default function ExpenseDashboard({
   };
 
   const [expenses, setExpenses] = useState(initialExpenses);
-  
-  // Update expenses when initialExpenses changes (masquerade mode)
-  useEffect(() => {
-    setExpenses(initialExpenses);
-  }, [initialExpenses]);
   const [filters, setFilters] = useState({
     months: [getCurrentMonth()], // Array for multi-select, default to current month
     branch: 'all',
