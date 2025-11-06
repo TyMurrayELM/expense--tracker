@@ -21,6 +21,9 @@ export default function Header({
   onMasqueradeChange,
   allUsers 
 }: HeaderProps) {
+  // Determine effective user for permission checks
+  const effectiveUser = masqueradingAsUser || currentUser;
+
   return (
     <header className="bg-white border-b border-gray-200 shadow-sm">
       <div className="max-w-[1600px] mx-auto px-6 py-4">
@@ -121,7 +124,7 @@ export default function Header({
 
           {/* Right side: User info and buttons */}
           <div className="flex items-center gap-4">
-            <SyncButton />
+            <SyncButton currentUser={effectiveUser} />
             
             {/* User menu */}
             <div className="relative">

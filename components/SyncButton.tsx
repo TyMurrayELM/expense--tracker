@@ -2,12 +2,22 @@
 
 import { useState } from 'react';
 import Image from 'next/image';
+import { UserWithPermissions } from '@/types/user';
 
-export default function SyncButton() {
+interface SyncButtonProps {
+  currentUser: UserWithPermissions;
+}
+
+export default function SyncButton({ currentUser }: SyncButtonProps) {
   const [syncingVendorBills, setSyncingVendorBills] = useState(false);
   const [syncingCreditCards, setSyncingCreditCards] = useState(false);
   const [syncingHistorical, setSyncingHistorical] = useState(false);
   const [message, setMessage] = useState('');
+
+  // Only show sync buttons for admins
+  if (!currentUser.is_admin) {
+    return null;
+  }
 
   const handleVendorBillSync = async () => {
     setSyncingVendorBills(true);
