@@ -196,6 +196,15 @@ export async function POST() {
           flagCategory = 'Needs Review';
         }
 
+        // NEW: Extract sync status from accountingIntegrationTransactions
+        // The syncStatus is nested: transaction.accountingIntegrationTransactions[0].syncStatus
+        let billSyncStatus = null;
+        const transactionWithIntegration = transaction as any;
+        if (transactionWithIntegration.accountingIntegrationTransactions && 
+            transactionWithIntegration.accountingIntegrationTransactions.length > 0) {
+          billSyncStatus = transactionWithIntegration.accountingIntegrationTransactions[0].syncStatus || null;
+        }
+
         const expenseData = {
           netsuite_id: `BILL-${transaction.id}`, // Prefix to avoid conflicts with NetSuite IDs
           transaction_date: transaction.occurredTime.split('T')[0], // Extract date part
@@ -210,10 +219,11 @@ export async function POST() {
           transaction_type: 'Credit Card',
           cardholder: cardholderName, // Person who made the purchase
           flag_category: flagCategory, // Auto-flag reimbursements
+          bill_sync_status: billSyncStatus, // NEW: Accounting system sync status from Bill.com
           last_synced_at: new Date().toISOString(),
         };
 
-        console.log(`Processing: ${cardholderName} - ${vendorName} - $${amount} - Branch: ${branch || 'None'} - Dept: ${department || 'None'} - Category: ${category} - Status: ${status}`);
+        console.log(`Processing: ${cardholderName} - ${vendorName} - $${amount} - Branch: ${branch || 'None'} - Dept: ${department || 'None'} - Category: ${category} - Status: ${status} - SyncStatus: ${billSyncStatus || 'NULL'}`);
 
         // Upsert to Supabase
         const { error: upsertError } = await supabaseAdmin

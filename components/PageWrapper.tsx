@@ -174,6 +174,8 @@ export default function PageWrapper({ initialExpenses, vendors, purchasers, curr
             purchasers={filteredPurchasers}
             activeTab={activeTab}
             onTabChange={setActiveTab}
+            isAdmin={currentUser.is_admin}
+            isMasquerading={masqueradingAsUser !== null}
           />
         )}
       </main>

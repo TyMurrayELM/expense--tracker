@@ -5,14 +5,25 @@ import { format } from 'date-fns';
 import { useState } from 'react';
 import Image from 'next/image';
 import SlackNotifyButton from './SlackNotifyButton';
+import SyncStatusIcon from './SyncStatusIcon';
 
 interface ExpenseTableProps {
   expenses: Expense[];
   onFlagUpdate?: (expenseId: string, newFlagCategory: string | null) => void;
+  isAdmin?: boolean;
+  isMasquerading?: boolean;
 }
 
-export default function ExpenseTable({ expenses, onFlagUpdate }: ExpenseTableProps) {
+export default function ExpenseTable({ 
+  expenses, 
+  onFlagUpdate, 
+  isAdmin = false,
+  isMasquerading = false 
+}: ExpenseTableProps) {
   const [updatingFlags, setUpdatingFlags] = useState<Set<string>>(new Set());
+
+  // Show Notify column only if user is admin AND not masquerading
+  const showNotifyColumn = isAdmin && !isMasquerading;
 
   const formatCurrency = (amount: number, currency: string = 'USD') => {
     // Map full currency names to codes
@@ -97,13 +108,13 @@ export default function ExpenseTable({ expenses, onFlagUpdate }: ExpenseTablePro
             <col style={{ width: '150px' }} />
             <col style={{ width: '130px' }} />
             <col style={{ width: '140px' }} />
-            <col style={{ width: '140px' }} />
             <col style={{ width: '120px' }} />
             <col style={{ width: '100px' }} />
             <col style={{ width: '100px' }} />
             <col style={{ width: '200px' }} />
             <col style={{ width: '80px' }} />
             <col style={{ width: '60px' }} />
+            {showNotifyColumn && <col style={{ width: '60px' }} />}
           </colgroup>
           <thead className="bg-gray-50 border-b border-gray-200 sticky top-0 z-10">
             <tr>
@@ -140,15 +151,17 @@ export default function ExpenseTable({ expenses, onFlagUpdate }: ExpenseTablePro
               <th className="px-3 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider bg-gray-50">
                 View
               </th>
-              <th className="px-3 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider bg-gray-50">
-                Notify
-              </th>
+              {showNotifyColumn && (
+                <th className="px-3 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider bg-gray-50">
+                  Notify
+                </th>
+              )}
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
             {expenses.length === 0 ? (
               <tr>
-                <td colSpan={12} className="px-6 py-12 text-center text-gray-500">
+                <td colSpan={showNotifyColumn ? 12 : 11} className="px-6 py-12 text-center text-gray-500">
                   No expenses found. Try adjusting your filters or sync data from NetSuite.
                 </td>
               </tr>
@@ -246,18 +259,24 @@ export default function ExpenseTable({ expenses, onFlagUpdate }: ExpenseTablePro
                     {formatCurrency(expense.amount, expense.currency)}
                   </td>
 
-                  {/* Status Column */}
+                  {/* Status Column - UPDATED with Sync Icon */}
                   <td className="px-3 py-3">
-                    {expense.status && (
-                      <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
-                        expense.status === 'Paid' || expense.status === 'Paid In Full' || expense.status === 'Complete' ? 'bg-green-100 text-green-800' :
-                        expense.status === 'Approved' ? 'bg-blue-100 text-blue-800' :
-                        expense.status === 'Pending Approval' ? 'bg-yellow-100 text-yellow-800' :
-                        'bg-gray-100 text-gray-800'
-                      }`}>
-                        {expense.status}
-                      </span>
-                    )}
+                    <div className="flex items-center gap-2">
+                      {expense.status && (
+                        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
+                          expense.status === 'Paid' || expense.status === 'Paid In Full' || expense.status === 'Complete' ? 'bg-green-100 text-green-800' :
+                          expense.status === 'Approved' ? 'bg-blue-100 text-blue-800' :
+                          expense.status === 'Pending Approval' ? 'bg-yellow-100 text-yellow-800' :
+                          'bg-gray-100 text-gray-800'
+                        }`}>
+                          {expense.status}
+                        </span>
+                      )}
+                      <SyncStatusIcon 
+                        syncStatus={expense.bill_sync_status} 
+                        transactionType={expense.transaction_type}
+                      />
+                    </div>
                   </td>
 
                   {/* Memo Column */}
@@ -280,24 +299,26 @@ export default function ExpenseTable({ expenses, onFlagUpdate }: ExpenseTablePro
                     </a>
                   </td>
 
-                  {/* Slack Notify Column */}
-                  <td className="px-3 py-3 text-center">
-                    {expense.cardholder && (
-                      <SlackNotifyButton
-                        expenseId={expense.id}
-                        netsuiteId={expense.netsuite_id}
-                        transactionType={expense.transaction_type}
-                        purchaserName={expense.cardholder}
-                        vendor={expense.vendor_name}
-                        amount={expense.amount}
-                        date={expense.transaction_date}
-                        memo={expense.memo}
-                        currentBranch={expense.branch}
-                        currentDepartment={expense.department}
-                        currentCategory={expense.category}
-                      />
-                    )}
-                  </td>
+                  {/* Slack Notify Column - Only show when admin AND not masquerading */}
+                  {showNotifyColumn && (
+                    <td className="px-3 py-3 text-center">
+                      {expense.cardholder && (
+                        <SlackNotifyButton
+                          expenseId={expense.id}
+                          netsuiteId={expense.netsuite_id}
+                          transactionType={expense.transaction_type}
+                          purchaserName={expense.cardholder}
+                          vendor={expense.vendor_name}
+                          amount={expense.amount}
+                          date={expense.transaction_date}
+                          memo={expense.memo}
+                          currentBranch={expense.branch}
+                          currentDepartment={expense.department}
+                          currentCategory={expense.category}
+                        />
+                      )}
+                    </td>
+                  )}
                 </tr>
               ))
             )}

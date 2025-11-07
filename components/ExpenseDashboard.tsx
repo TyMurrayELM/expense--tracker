@@ -12,6 +12,8 @@ interface ExpenseDashboardProps {
   purchasers: string[];
   activeTab: 'dashboard' | 'trends' | 'admin';
   onTabChange: (tab: 'dashboard' | 'trends' | 'admin') => void;
+  isAdmin: boolean;
+  isMasquerading?: boolean;  // ← ADD THIS LINE
 }
 
 export default function ExpenseDashboard({ 
@@ -19,7 +21,9 @@ export default function ExpenseDashboard({
   vendors, 
   purchasers,
   activeTab,
-  onTabChange
+  onTabChange,
+  isAdmin = false,
+  isMasquerading = false  // ← ADD THIS LINE (with default value)
 }: ExpenseDashboardProps) {
   // Get current month in YYYY-MM format
   const getCurrentMonth = () => {
@@ -922,9 +926,11 @@ export default function ExpenseDashboard({
 
       {/* Expense Table */}
       <ExpenseTable 
-        expenses={filteredExpenses}
-        onFlagUpdate={handleFlagUpdate}
-      />
+  expenses={filteredExpenses}
+  onFlagUpdate={handleFlagUpdate}
+  isAdmin={isAdmin}
+  isMasquerading={isMasquerading}  // ← ADD THIS LINE
+/>
       </>
       )}
 
