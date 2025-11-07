@@ -45,7 +45,11 @@ export default function ExpenseTable({
   };
 
   const formatDate = (dateString: string) => {
-    return format(new Date(dateString), 'MMM d');
+    // Parse date string as YYYY-MM-DD without timezone conversion
+    // Don't use new Date() directly as it interprets as UTC and converts to local timezone
+    const [year, month, day] = dateString.substring(0, 10).split('-').map(Number);
+    const date = new Date(year, month - 1, day); // month is 0-indexed
+    return format(date, 'MMM d');
   };
 
   // Generate transaction URL based on type
