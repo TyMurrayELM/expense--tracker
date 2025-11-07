@@ -44,8 +44,8 @@ export default function ExpenseTable({ expenses, onFlagUpdate }: ExpenseTablePro
       const billId = expense.netsuite_id.replace('BILL-', '');
       return `https://spend.bill.com/companies/Q29tcGFueToxNDI3OQ==/transactions/pending-and-cleared/${billId}`;
     } else {
-      // NetSuite URL - use stored URL if available, otherwise construct it
-      return expense.netsuite_url || `https://system.netsuite.com/app/accounting/transactions/vendbill.nl?id=${expense.netsuite_id}`;
+      // NetSuite URL
+      return `https://system.netsuite.com/app/accounting/transactions/vendbill.nl?id=${expense.netsuite_id}`;
     }
   };
 
