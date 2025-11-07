@@ -2,6 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import { UserWithPermissions } from '@/types/user';
+import SlackSyncButton from './SlackSyncButton';
+import AutoCreateUsersButton from './AutoCreateUsersButton';
 
 interface AdminDashboardProps {
   availableBranches: string[];
@@ -69,7 +71,7 @@ export default function AdminDashboard({ availableBranches, availableDepartments
         setUsers([...users, data.user]);
         setShowCreateModal(false);
         resetForm();
-        if (onUsersChange) onUsersChange(); // Notify parent to refresh user list
+        if (onUsersChange) onUsersChange();
       } else {
         alert(`Failed to create user: ${data.error}`);
       }
@@ -97,7 +99,7 @@ export default function AdminDashboard({ availableBranches, availableDepartments
         setUsers(users.map(u => u.id === editingUser.id ? data.user : u));
         setEditingUser(null);
         resetForm();
-        if (onUsersChange) onUsersChange(); // Notify parent to refresh user list
+        if (onUsersChange) onUsersChange();
       } else {
         alert(`Failed to update user: ${data.error}`);
       }
@@ -120,7 +122,7 @@ export default function AdminDashboard({ availableBranches, availableDepartments
 
       if (data.success) {
         setUsers(users.filter(u => u.id !== userId));
-        if (onUsersChange) onUsersChange(); // Notify parent to refresh user list
+        if (onUsersChange) onUsersChange();
       } else {
         alert(`Failed to delete user: ${data.error}`);
       }
@@ -210,15 +212,19 @@ export default function AdminDashboard({ availableBranches, availableDepartments
             Manage user access to branches and departments
           </p>
         </div>
-        <button
-          onClick={() => {
-            resetForm();
-            setShowCreateModal(true);
-          }}
-          className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 transition-colors"
-        >
-          + Add User
-        </button>
+        <div className="flex items-center gap-3">
+          <AutoCreateUsersButton onComplete={fetchUsers} />
+          <SlackSyncButton onSyncComplete={fetchUsers} />
+          <button
+            onClick={() => {
+              resetForm();
+              setShowCreateModal(true);
+            }}
+            className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors"
+          >
+            + Add User
+          </button>
+        </div>
       </div>
 
       {/* Users Table */}
@@ -232,6 +238,9 @@ export default function AdminDashboard({ availableBranches, availableDepartments
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Email
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Slack
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Role
@@ -251,13 +260,29 @@ export default function AdminDashboard({ availableBranches, availableDepartments
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {users.map((user) => (
+              {users.map(user => (
                 <tr key={user.id} className="hover:bg-gray-50">
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm font-medium text-gray-900">{user.full_name}</div>
+                    <div className="text-sm font-medium text-gray-900">
+                      {user.full_name}
+                    </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="text-sm text-gray-600">{user.email}</div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    {user.slack_id ? (
+                      <div className="flex items-center gap-2">
+                        <span className="inline-flex items-center px-2 py-1 rounded text-xs bg-purple-100 text-purple-800">
+                          <svg className="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 24 24">
+                            <path d="M5.042 15.165a2.528 2.528 0 0 1-2.52 2.523A2.528 2.528 0 0 1 0 15.165a2.527 2.527 0 0 1 2.522-2.52h2.52v2.52zM6.313 15.165a2.527 2.527 0 0 1 2.521-2.52 2.527 2.527 0 0 1 2.521 2.52v6.313A2.528 2.528 0 0 1 8.834 24a2.528 2.528 0 0 1-2.521-2.522v-6.313zM8.834 5.042a2.528 2.528 0 0 1-2.521-2.52A2.528 2.528 0 0 1 8.834 0a2.528 2.528 0 0 1 2.521 2.522v2.52H8.834zM8.834 6.313a2.528 2.528 0 0 1 2.521 2.521 2.528 2.528 0 0 1-2.521 2.521H2.522A2.528 2.528 0 0 1 0 8.834a2.528 2.528 0 0 1 2.522-2.521h6.312zM18.956 8.834a2.528 2.528 0 0 1 2.522-2.521A2.528 2.528 0 0 1 24 8.834a2.528 2.528 0 0 1-2.522 2.521h-2.522V8.834zM17.688 8.834a2.528 2.528 0 0 1-2.523 2.521 2.527 2.527 0 0 1-2.52-2.521V2.522A2.527 2.527 0 0 1 15.165 0a2.528 2.528 0 0 1 2.523 2.522v6.312zM15.165 18.956a2.528 2.528 0 0 1 2.523 2.522A2.528 2.528 0 0 1 15.165 24a2.527 2.527 0 0 1-2.52-2.522v-2.522h2.52zM15.165 17.688a2.527 2.527 0 0 1-2.52-2.523 2.526 2.526 0 0 1 2.52-2.52h6.313A2.527 2.527 0 0 1 24 15.165a2.528 2.528 0 0 1-2.522 2.523h-6.313z"/>
+                          </svg>
+                          {user.slack_display_name || 'Linked'}
+                        </span>
+                      </div>
+                    ) : (
+                      <span className="text-xs text-gray-400">Not linked</span>
+                    )}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
@@ -280,14 +305,17 @@ export default function AdminDashboard({ availableBranches, availableDepartments
                       ) : user.branches.length > 0 ? (
                         <div className="flex flex-wrap gap-1">
                           {user.branches.map(branch => (
-                            <span key={branch} className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
-                              branch === 'Phoenix - North' ? 'bg-green-100 text-green-800' :
-                              branch === 'Phoenix - SouthEast' ? 'bg-red-100 text-red-800' :
-                              branch === 'Phoenix - SouthWest' ? 'bg-blue-100 text-blue-800' :
-                              branch === 'Las Vegas' ? 'bg-yellow-100 text-yellow-800' :
-                              branch === 'Corporate' ? 'bg-gray-100 text-gray-800' :
-                              'bg-purple-100 text-purple-800'
-                            }`}>
+                            <span 
+                              key={branch} 
+                              className={`inline-flex items-center px-2 py-0.5 rounded text-xs ${
+                                branch === 'Phoenix - North' ? 'bg-green-100 text-green-800' :
+                                branch === 'Phoenix - SouthEast' ? 'bg-red-100 text-red-800' :
+                                branch === 'Phoenix - SouthWest' ? 'bg-blue-100 text-blue-800' :
+                                branch === 'Las Vegas' ? 'bg-yellow-100 text-yellow-800' :
+                                branch === 'Corporate' ? 'bg-gray-100 text-gray-800' :
+                                'bg-purple-100 text-purple-800'
+                              }`}
+                            >
                               {branch}
                             </span>
                           ))}
@@ -337,7 +365,7 @@ export default function AdminDashboard({ availableBranches, availableDepartments
 
       {/* Create/Edit Modal */}
       {(showCreateModal || editingUser) && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
             <div className="p-6 border-b border-gray-200">
               <h3 className="text-xl font-semibold text-gray-900">
@@ -346,7 +374,6 @@ export default function AdminDashboard({ availableBranches, availableDepartments
             </div>
 
             <div className="p-6 space-y-4">
-              {/* Email */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Email *
@@ -356,12 +383,11 @@ export default function AdminDashboard({ availableBranches, availableDepartments
                   value={formData.email}
                   onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                   disabled={!!editingUser}
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
-                  placeholder="user@encorelc.com"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
+                  placeholder="user@encorelm.com"
                 />
               </div>
 
-              {/* Full Name */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Full Name *
@@ -370,12 +396,11 @@ export default function AdminDashboard({ availableBranches, availableDepartments
                   type="text"
                   value={formData.full_name}
                   onChange={(e) => setFormData({ ...formData, full_name: e.target.value })}
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   placeholder="John Doe"
                 />
               </div>
 
-              {/* Admin & Active Toggles */}
               <div className="flex gap-6">
                 <label className="flex items-center gap-2">
                   <input
@@ -384,8 +409,9 @@ export default function AdminDashboard({ availableBranches, availableDepartments
                     onChange={(e) => setFormData({ ...formData, is_admin: e.target.checked })}
                     className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
                   />
-                  <span className="text-sm font-medium text-gray-700">Administrator</span>
+                  <span className="text-sm font-medium text-gray-700">Admin</span>
                 </label>
+
                 <label className="flex items-center gap-2">
                   <input
                     type="checkbox"
@@ -399,15 +425,15 @@ export default function AdminDashboard({ availableBranches, availableDepartments
 
               {!formData.is_admin && (
                 <>
-                  {/* Branch Permissions */}
                   <div>
                     <div className="flex items-center justify-between mb-2">
                       <label className="block text-sm font-medium text-gray-700">
                         Branch Access
                       </label>
                       <button
+                        type="button"
                         onClick={selectAllBranches}
-                        className="text-xs text-blue-600 hover:text-blue-800 font-medium"
+                        className="text-xs text-blue-600 hover:text-blue-800"
                       >
                         {formData.branches.length === availableBranches.length ? 'Deselect All' : 'Select All'}
                       </button>
@@ -426,19 +452,19 @@ export default function AdminDashboard({ availableBranches, availableDepartments
                       ))}
                     </div>
                     <p className="text-xs text-gray-500 mt-1">
-                      Leave empty to grant access to all branches
+                      Leave empty for no access
                     </p>
                   </div>
 
-                  {/* Department Permissions */}
                   <div>
                     <div className="flex items-center justify-between mb-2">
                       <label className="block text-sm font-medium text-gray-700">
-                        Department Access
+                        Department Restrictions
                       </label>
                       <button
+                        type="button"
                         onClick={selectAllDepartments}
-                        className="text-xs text-blue-600 hover:text-blue-800 font-medium"
+                        className="text-xs text-blue-600 hover:text-blue-800"
                       >
                         {formData.departments.length === availableDepartments.length ? 'Deselect All' : 'Select All'}
                       </button>
