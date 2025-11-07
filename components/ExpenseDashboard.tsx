@@ -16,6 +16,37 @@ interface ExpenseDashboardProps {
   isMasquerading?: boolean;  // ← ADD THIS LINE
 }
 
+// Type definition for filters state
+interface FiltersState {
+  months: string[];
+  branch: string;
+  vendor: string;
+  department: string;
+  purchaser: string;
+  category: string;
+  dateFrom: string;
+  dateTo: string;
+  showFlagged: string;
+  transactionType: string;
+  status: string;
+}
+
+// Type definition for trends filters
+interface TrendsFiltersState {
+  dateFrom: string;
+  dateTo: string;
+}
+
+// Type definition for collapsible sections
+interface SectionsCollapsedState {
+  dateFilters: boolean;
+  byBranch: boolean;
+  bySecondary: boolean;
+  byThirdLayer: boolean;
+  byFourthLayer: boolean;
+  filters: boolean;
+}
+
 export default function ExpenseDashboard({ 
   initialExpenses, 
   vendors, 
@@ -45,14 +76,37 @@ export default function ExpenseDashboard({
     return iconMap[branchName] || '';
   };
 
+  // Helper functions for localStorage
+  const getStoredFilters = (): FiltersState | null => {
+    if (typeof window === 'undefined') return null;
+    try {
+      const stored = localStorage.getItem('expenseDashboardFilters');
+      return stored ? JSON.parse(stored) : null;
+    } catch (error) {
+      console.error('Error reading filters from localStorage:', error);
+      return null;
+    }
+  };
+
+  const saveFiltersToStorage = (filters: FiltersState) => {
+    if (typeof window === 'undefined') return;
+    try {
+      localStorage.setItem('expenseDashboardFilters', JSON.stringify(filters));
+    } catch (error) {
+      console.error('Error saving filters to localStorage:', error);
+    }
+  };
+
   const [expenses, setExpenses] = useState(initialExpenses);
   
   // Update expenses when initialExpenses changes (masquerade mode)
   useEffect(() => {
     setExpenses(initialExpenses);
   }, [initialExpenses]);
-  const [filters, setFilters] = useState({
-    months: [getCurrentMonth()], // Array for multi-select, default to current month
+
+  // Initialize filters with defaults first (for SSR)
+  const getDefaultFilters = (): FiltersState => ({
+    months: [getCurrentMonth()],
     branch: 'all',
     vendor: 'all',
     department: 'all',
@@ -65,8 +119,23 @@ export default function ExpenseDashboard({
     status: 'all',
   });
 
+  const [filters, setFilters] = useState<FiltersState>(getDefaultFilters());
+
+  // Load filters from localStorage after mount (client-side only)
+  useEffect(() => {
+    const storedFilters = getStoredFilters();
+    if (storedFilters) {
+      setFilters(storedFilters);
+    }
+  }, []); // Run once on mount
+
+  // Save filters to localStorage whenever they change
+  useEffect(() => {
+    saveFiltersToStorage(filters);
+  }, [filters]);
+
   // Separate filters for Trends tab
-  const [trendsFilters, setTrendsFilters] = useState({
+  const [trendsFilters, setTrendsFilters] = useState<TrendsFiltersState>({
     dateFrom: '2025-10-01',
     dateTo: '',
   });
@@ -74,8 +143,8 @@ export default function ExpenseDashboard({
   const [secondaryView, setSecondaryView] = useState<'department' | 'purchaser' | 'vendor' | 'category'>('department');
   const [monthDropdownOpen, setMonthDropdownOpen] = useState(false);
 
-  // Collapsible sections state
-  const [sectionsCollapsed, setSectionsCollapsed] = useState({
+  // Initialize collapsible sections with defaults first (for SSR)
+  const getDefaultSectionsCollapsed = (): SectionsCollapsedState => ({
     dateFilters: false,
     byBranch: false,
     bySecondary: false,
@@ -83,6 +152,34 @@ export default function ExpenseDashboard({
     byFourthLayer: false,
     filters: false,
   });
+
+  // Collapsible sections state
+  const [sectionsCollapsed, setSectionsCollapsed] = useState<SectionsCollapsedState>(getDefaultSectionsCollapsed());
+
+  // Load collapsed sections from localStorage after mount (client-side only)
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const stored = localStorage.getItem('expenseDashboardSections');
+        if (stored) {
+          setSectionsCollapsed(JSON.parse(stored));
+        }
+      } catch (error) {
+        console.error('Error reading sections from localStorage:', error);
+      }
+    }
+  }, []); // Run once on mount
+
+  // Save collapsed sections to localStorage whenever they change
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        localStorage.setItem('expenseDashboardSections', JSON.stringify(sectionsCollapsed));
+      } catch (error) {
+        console.error('Error saving sections to localStorage:', error);
+      }
+    }
+  }, [sectionsCollapsed]);
 
   const toggleSection = (section: keyof typeof sectionsCollapsed) => {
     setSectionsCollapsed(prev => ({
@@ -127,14 +224,22 @@ export default function ExpenseDashboard({
         return false;
       }
 
-      // Date from filter (only if no specific months selected)
-      if (filters.months.includes('all') && filters.dateFrom && expense.transaction_date < filters.dateFrom) {
-        return false;
+      // Date from filter (works independently of month selection)
+      // Extract just the date portion (YYYY-MM-DD) to avoid timezone issues
+      if (filters.dateFrom) {
+        const expenseDate = expense.transaction_date.substring(0, 10); // Get YYYY-MM-DD
+        if (expenseDate < filters.dateFrom) {
+          return false;
+        }
       }
 
-      // Date to filter (only if no specific months selected)
-      if (filters.months.includes('all') && filters.dateTo && expense.transaction_date > filters.dateTo) {
-        return false;
+      // Date to filter (works independently of month selection)
+      // Extract just the date portion (YYYY-MM-DD) to avoid timezone issues
+      if (filters.dateTo) {
+        const expenseDate = expense.transaction_date.substring(0, 10); // Get YYYY-MM-DD
+        if (expenseDate > filters.dateTo) {
+          return false;
+        }
       }
 
       // Flag filter
@@ -463,7 +568,6 @@ export default function ExpenseDashboard({
                 className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                 value={filters.dateFrom || ''}
                 onChange={(e) => handleFilterChange('dateFrom', e.target.value)}
-                disabled={!filters.months.includes('all')}
               />
             </div>
 
@@ -474,15 +578,9 @@ export default function ExpenseDashboard({
                 className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                 value={filters.dateTo || ''}
                 onChange={(e) => handleFilterChange('dateTo', e.target.value)}
-                disabled={!filters.months.includes('all')}
               />
             </div>
           </div>
-          {!filters.months.includes('all') && (
-            <p className="text-xs text-gray-500 mt-2">
-              Custom date range is disabled when specific months are selected
-            </p>
-          )}
         </div>
         )}
       </div>

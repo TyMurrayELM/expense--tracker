@@ -42,6 +42,7 @@ export default function SlackNotifyButton({
     department: correctDepartment || currentDepartment || '',
     category: correctCategory || currentCategory || '',
   });
+  const [improveDescription, setImproveDescription] = useState(false);
 
   // Generate transaction URL based on type
   const getTransactionUrl = () => {
@@ -55,18 +56,19 @@ export default function SlackNotifyButton({
     }
   };
 
-  // Check if there are any actual changes
+  // Check if there are any actual changes or description improvement requested
   const hasChanges = () => {
     return (
       corrections.branch !== currentBranch ||
       corrections.department !== currentDepartment ||
-      corrections.category !== currentCategory
+      corrections.category !== currentCategory ||
+      improveDescription
     );
   };
 
   const handleSendNotification = async () => {
     if (!hasChanges()) {
-      alert('Please specify at least one correction before sending.');
+      alert('Please specify at least one correction or check "Description needs improvement" before sending.');
       return;
     }
 
@@ -92,16 +94,19 @@ export default function SlackNotifyButton({
           date,
           memo,
           billUrl: getTransactionUrl(),
+          improveDescription,
         }),
       });
 
       const data = await response.json();
 
       if (data.success) {
-        alert(`âœ… Notification sent to ${purchaserName}!`);
+        alert(`✅ Notification sent to ${purchaserName}!`);
         setShowModal(false);
+        // Reset states
+        setImproveDescription(false);
       } else {
-        alert(`âŒ Failed: ${data.error}\n${data.suggestion || ''}`);
+        alert(`❌ Failed: ${data.error}\n${data.suggestion || ''}`);
       }
     } catch (error: any) {
       console.error('Error sending notification:', error);
@@ -206,6 +211,26 @@ export default function SlackNotifyButton({
                     <span className="text-xs text-red-600">Was: {currentCategory}</span>
                   )}
                 </div>
+              </div>
+
+              {/* Description Improvement Checkbox */}
+              <div className="pt-2 border-t border-gray-200">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={improveDescription}
+                    onChange={(e) => setImproveDescription(e.target.checked)}
+                    className="w-4 h-4 text-purple-600 border-gray-300 rounded focus:ring-purple-500"
+                  />
+                  <span className="text-sm text-gray-700">
+                    Description needs improvement
+                  </span>
+                </label>
+                {memo && (
+                  <p className="mt-1 ml-6 text-xs text-gray-500">
+                    Current: "{memo}"
+                  </p>
+                )}
               </div>
             </div>
 

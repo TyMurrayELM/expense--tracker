@@ -17,6 +17,7 @@ interface SlackNotificationRequest {
   date: string;
   memo?: string | null;
   billUrl?: string | null;
+  improveDescription?: boolean;
 }
 
 export async function POST(request: Request) {
@@ -56,6 +57,7 @@ export async function POST(request: Request) {
         vendor: body.vendor,
         memo: body.memo,
         billUrl: body.billUrl,
+        improveDescription: body.improveDescription,
       });
     } catch (parseError: any) {
       console.error('JSON parse error:', parseError);
@@ -79,6 +81,7 @@ export async function POST(request: Request) {
       date,
       memo,
       billUrl,
+      improveDescription = false,
     } = body;
 
     // Find user by name (cardholder)
@@ -142,6 +145,11 @@ export async function POST(request: Request) {
       changes.push(`• *Category:* ${incorrectCategory || 'Not set'} → ${correctCategory}`);
     }
 
+    // Add description improvement notice if checked
+    if (improveDescription) {
+      changes.push(`• *Description:* Please provide a more thorough description of purchase and purpose`);
+    }
+
     if (changes.length === 0) {
       console.log('No changes to notify about');
       return NextResponse.json({
@@ -166,7 +174,7 @@ export async function POST(request: Request) {
         type: 'header',
         text: {
           type: 'plain_text',
-          text: '⚠️ Expense Entry Correction Needed',
+          text: '⚠️ Credit Card Purchase Correction Required',
           emoji: true,
         },
       },
