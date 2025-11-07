@@ -13,7 +13,7 @@ interface ExpenseDashboardProps {
   activeTab: 'dashboard' | 'trends' | 'admin';
   onTabChange: (tab: 'dashboard' | 'trends' | 'admin') => void;
   isAdmin: boolean;
-  isMasquerading?: boolean;  // ← ADD THIS LINE
+  isMasquerading?: boolean;
 }
 
 // Type definition for filters state
@@ -55,7 +55,7 @@ export default function ExpenseDashboard({
   activeTab,
   onTabChange,
   isAdmin = false,
-  isMasquerading = false  // ← ADD THIS LINE (with default value)
+  isMasquerading = false
 }: ExpenseDashboardProps) {
   // Get current month in YYYY-MM format
   const getCurrentMonth = () => {
@@ -443,6 +443,7 @@ export default function ExpenseDashboard({
       showFlagged: 'all',
       transactionType: 'all',
       status: 'all',
+      syncStatus: 'all',
     });
   };
 
@@ -1039,11 +1040,11 @@ export default function ExpenseDashboard({
 
       {/* Expense Table */}
       <ExpenseTable 
-  expenses={filteredExpenses}
-  onFlagUpdate={handleFlagUpdate}
-  isAdmin={isAdmin}
-  isMasquerading={isMasquerading}  // ← ADD THIS LINE
-/>
+        expenses={filteredExpenses}
+        onFlagUpdate={handleFlagUpdate}
+        isAdmin={isAdmin}
+        isMasquerading={isMasquerading}
+      />
       </>
       )}
 
