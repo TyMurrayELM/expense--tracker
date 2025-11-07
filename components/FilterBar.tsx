@@ -15,6 +15,7 @@ interface FilterBarProps {
     showFlagged: string;
     transactionType: string;
     status: string;
+    syncStatus: string;
   };
 }
 
@@ -87,6 +88,22 @@ export default function FilterBar({ vendors, purchasers, statuses, onFilterChang
             {statuses.map(status => (
               <option key={status} value={status}>{status}</option>
             ))}
+          </select>
+        </div>
+
+        <div className="flex-1 min-w-[200px]">
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Sync Status
+            <span className="text-xs text-gray-500 ml-1">(Credit Cards)</span>
+          </label>
+          <select 
+            className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            value={currentFilters.syncStatus}
+            onChange={(e) => onFilterChange('syncStatus', e.target.value)}
+          >
+            <option value="all">All Sync States</option>
+            <option value="synced">Synced to NetSuite</option>
+            <option value="not-synced">Not Synced</option>
           </select>
         </div>
       </div>

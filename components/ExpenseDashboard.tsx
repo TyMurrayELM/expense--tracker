@@ -29,6 +29,7 @@ interface FiltersState {
   showFlagged: string;
   transactionType: string;
   status: string;
+  syncStatus: string; // NEW: Filter for Bill.com sync status
 }
 
 // Type definition for trends filters
@@ -117,6 +118,7 @@ export default function ExpenseDashboard({
     showFlagged: 'all',
     transactionType: 'all',
     status: 'all',
+    syncStatus: 'all', // NEW: Default to showing all sync statuses
   });
 
   const [filters, setFilters] = useState<FiltersState>(getDefaultFilters());
@@ -258,6 +260,19 @@ export default function ExpenseDashboard({
       // Status filter
       if (filters.status !== 'all' && expense.status !== filters.status) {
         return false;
+      }
+
+      // Sync status filter (Bill.com credit cards only)
+      if (filters.syncStatus !== 'all') {
+        // Only filter credit card transactions by sync status
+        if (expense.transaction_type === 'Credit Card') {
+          if (filters.syncStatus === 'synced' && expense.bill_sync_status !== 'SYNCED') {
+            return false;
+          }
+          if (filters.syncStatus === 'not-synced' && expense.bill_sync_status === 'SYNCED') {
+            return false;
+          }
+        }
       }
 
       return true;
