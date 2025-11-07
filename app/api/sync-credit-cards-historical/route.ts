@@ -35,11 +35,47 @@ export async function POST() {
     console.log(`Fetching ALL credit card transactions from Oct 1, 2025 (${daysBack} days back)...`);
     console.log('⚠️  This may take several minutes for large transaction volumes...');
     
-    let transactions;
+    // Fetch transactions by sync status to get complete coverage (same approach as daily sync)
+    let allTransactions: Array<{ transaction: any; knownSyncStatus: string | null }> = [];
+    
     try {
-      // Fetch with custom date range - this will use more pages if needed
-      transactions = await billClient.fetchAllTransactionsHistorical(daysBack);
-      console.log(`✓ Successfully fetched ${transactions.length} credit card transactions`);
+      // We'll use the historical fetch method but split by sync status for accuracy
+      console.log('Fetching SYNCED transactions...');
+      const syncedTransactions = await billClient.fetchTransactionsBySyncStatusHistorical(daysBack, 'SYNCED');
+      console.log(`Found ${syncedTransactions.length} SYNCED transactions`);
+      allTransactions.push(...syncedTransactions.map(t => ({ transaction: t, knownSyncStatus: 'SYNCED' })));
+      
+      console.log('Fetching MANUAL_SYNCED transactions...');
+      const manualSyncedTransactions = await billClient.fetchTransactionsBySyncStatusHistorical(daysBack, 'MANUAL_SYNCED');
+      console.log(`Found ${manualSyncedTransactions.length} MANUAL_SYNCED transactions`);
+      allTransactions.push(...manualSyncedTransactions.map(t => ({ transaction: t, knownSyncStatus: 'SYNCED' })));
+      
+      console.log('Fetching NOT_SYNCED transactions...');
+      const notSyncedTransactions = await billClient.fetchTransactionsBySyncStatusHistorical(daysBack, 'NOT_SYNCED');
+      console.log(`Found ${notSyncedTransactions.length} NOT_SYNCED transactions`);
+      allTransactions.push(...notSyncedTransactions.map(t => ({ transaction: t, knownSyncStatus: null })));
+      
+      console.log('Fetching ERROR transactions...');
+      const errorTransactions = await billClient.fetchTransactionsBySyncStatusHistorical(daysBack, 'ERROR');
+      console.log(`Found ${errorTransactions.length} ERROR transactions`);
+      allTransactions.push(...errorTransactions.map(t => ({ transaction: t, knownSyncStatus: 'ERROR' })));
+      
+      // Remove duplicates
+      const uniqueTransactions = new Map<string, { transaction: any; knownSyncStatus: string | null }>();
+      allTransactions.forEach(item => {
+        const existingItem = uniqueTransactions.get(item.transaction.id);
+        if (!existingItem) {
+          uniqueTransactions.set(item.transaction.id, item);
+        } else {
+          if (item.knownSyncStatus && !existingItem.knownSyncStatus) {
+            uniqueTransactions.set(item.transaction.id, item);
+          }
+        }
+      });
+      
+      allTransactions = Array.from(uniqueTransactions.values());
+      console.log(`✓ Total unique transactions after deduplication: ${allTransactions.length}`);
+      
     } catch (fetchError: any) {
       console.error('Error fetching transactions:', fetchError.message);
       
@@ -74,6 +110,13 @@ export async function POST() {
     let recordsCreated = 0;
     let recordsUpdated = 0;
     const errors: any[] = [];
+    
+    // Track sync status statistics
+    const syncStatusBreakdown: Record<string, number> = {
+      'SYNCED': 0,
+      'NOT_SYNCED': 0,
+      'ERROR': 0,
+    };
 
     // Helper function to normalize Bill.com branch names to match NetSuite format
     const normalizeBranchName = (branchName: string | null): string | null => {
@@ -98,16 +141,16 @@ export async function POST() {
       return branchName;
     };
 
-    console.log(`Processing ${transactions.length} transactions...`);
+    console.log(`Processing ${allTransactions.length} transactions...`);
     let processedCount = 0;
 
     // Process each transaction
-    for (const transaction of transactions) {
+    for (const { transaction, knownSyncStatus } of allTransactions) {
       processedCount++;
       
-      // Log progress every 50 transactions
-      if (processedCount % 50 === 0) {
-        console.log(`Progress: ${processedCount}/${transactions.length} transactions processed...`);
+      // Log progress every 100 transactions for historical import
+      if (processedCount % 100 === 0) {
+        console.log(`Progress: ${processedCount}/${allTransactions.length} transactions processed...`);
       }
 
       try {
@@ -119,19 +162,17 @@ export async function POST() {
           amount = amount / 100;
         }
 
+        // Get memo from custom fields - leave blank if not provided
         let memo = null;
         if (transaction.customFields && transaction.customFields.length > 0) {
-          const descriptionField = transaction.customFields.find(cf => cf.note);
-          if (descriptionField) {
+          const descriptionField = transaction.customFields.find((cf: any) => cf.note);
+          if (descriptionField && descriptionField.note && descriptionField.note.trim() !== '') {
             memo = descriptionField.note;
           }
         }
-        
-        if (!memo || memo.trim() === '') {
-          memo = `Card purchase by ${cardholderName}`;
-        }
 
-        let category = 'Credit Card Purchase';
+        // Get Purchase Category from custom fields - leave blank if not provided
+        let category = null;
         if (purchaseCategoryUuid) {
           const purchaseCategory = billClient.extractCustomFieldValue(
             transaction,
@@ -170,13 +211,23 @@ export async function POST() {
           }
         }
 
-        // Use the 'complete' field from Bill.com API for status
         const status = transaction.complete ? 'Complete' : 'Incomplete';
 
         // Auto-flag reimbursements
         let flagCategory = null;
         if (category && category.toLowerCase().includes('reimburse')) {
           flagCategory = 'Needs Review';
+        }
+
+        // Use the known sync status from our filtered queries
+        const billSyncStatus = knownSyncStatus;
+        
+        if (billSyncStatus === 'SYNCED') {
+          syncStatusBreakdown['SYNCED']++;
+        } else if (billSyncStatus === 'ERROR') {
+          syncStatusBreakdown['ERROR']++;
+        } else {
+          syncStatusBreakdown['NOT_SYNCED']++;
         }
 
         const expenseData = {
@@ -192,7 +243,8 @@ export async function POST() {
           category: category,
           transaction_type: 'Credit Card',
           cardholder: cardholderName,
-          flag_category: flagCategory, // Auto-flag reimbursements
+          flag_category: flagCategory,
+          bill_sync_status: billSyncStatus,
           last_synced_at: new Date().toISOString(),
         };
 
@@ -233,17 +285,18 @@ export async function POST() {
     }
 
     console.log(`✓ Processing complete: ${recordsCreated} created, ${recordsUpdated} updated`);
+    console.log('Sync status breakdown:', syncStatusBreakdown);
 
     // Update sync log
     await supabaseAdmin
       .from('sync_logs')
       .update({
         sync_completed_at: new Date().toISOString(),
-        records_fetched: transactions.length,
+        records_fetched: allTransactions.length,
         records_created: recordsCreated,
         records_updated: recordsUpdated,
         errors: errors.length > 0 ? errors : null,
-        status: errors.length === transactions.length ? 'failed' : errors.length > 0 ? 'partial' : 'success',
+        status: errors.length === allTransactions.length ? 'failed' : errors.length > 0 ? 'partial' : 'success',
       })
       .eq('id', syncLog.id);
 
@@ -251,12 +304,13 @@ export async function POST() {
       success: true,
       message: `Historical import completed: ${recordsCreated} created, ${recordsUpdated} updated`,
       stats: {
-        fetched: transactions.length,
+        fetched: allTransactions.length,
         created: recordsCreated,
         updated: recordsUpdated,
         errors: errors.length,
         dateRange: `Oct 1, 2025 - ${new Date().toLocaleDateString()}`,
         daysImported: daysBack,
+        syncStatusBreakdown,
       },
       errors: errors.length > 0 ? errors : undefined,
     });

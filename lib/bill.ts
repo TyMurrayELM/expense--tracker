@@ -26,6 +26,16 @@ interface BillTransaction {
     note?: string;
     selectedValues?: Array<{ value: string; uuid?: string }>;
   }>;
+  accountingIntegrationTransactions?: Array<{
+    id?: string;
+    billable?: boolean;
+    integrationTxId?: string;
+    syncStatus?: string;
+    syncMessage?: string;
+    integrationType?: string;
+    integrationId?: string;
+    syncRequestId?: string;
+  }>;
 }
 
 interface BillUser {
@@ -152,7 +162,121 @@ export class BillClient {
   }
 
   /**
+   * Fetch transactions by sync status with automatic pagination
+   */
+  async fetchTransactionsBySyncStatus(
+    daysBack: number,
+    syncStatus: 'SYNCED' | 'MANUAL_SYNCED' | 'NOT_SYNCED' | 'ERROR',
+    includeIncomplete: boolean = true
+  ): Promise<BillTransaction[]> {
+    const transactions: BillTransaction[] = [];
+    
+    // Calculate start date
+    const today = new Date();
+    const startDate = new Date(today);
+    startDate.setDate(startDate.getDate() - daysBack);
+    const startDateStr = startDate.toISOString().split('T')[0];
+
+    // Build filters with syncStatus
+    let filters = `occurredTime:gte:${startDateStr},syncStatus:eq:${syncStatus}`;
+    if (!includeIncomplete) {
+      filters = `complete:eq:true,${filters}`;
+    }
+
+    console.log(`Fetching transactions with syncStatus=${syncStatus}, filters: ${filters}`);
+
+    let currentOptions: any = {
+      max: 25,
+      filters: filters
+    };
+
+    let pageCount = 0;
+    const maxPages = 20;
+
+    while (pageCount < maxPages) {
+      pageCount++;
+      
+      const response = await this.getTransactions(currentOptions);
+      
+      if (response.results && response.results.length > 0) {
+        transactions.push(...response.results);
+        
+        if (response.nextPage) {
+          currentOptions.nextPage = response.nextPage;
+          await new Promise(resolve => setTimeout(resolve, 500));
+        } else {
+          break;
+        }
+      } else {
+        break;
+      }
+    }
+
+    // Filter to only include CLEAR (posted) transactions
+    const filtered = transactions.filter(t => t.transactionType === 'CLEAR');
+    console.log(`Fetched ${transactions.length} total transactions with syncStatus=${syncStatus}, filtered to ${filtered.length} CLEAR transactions`);
+    
+    return filtered;
+  }
+
+  /**
+   * Fetch transactions by sync status for historical import with higher page limit
+   */
+  async fetchTransactionsBySyncStatusHistorical(
+    daysBack: number,
+    syncStatus: 'SYNCED' | 'MANUAL_SYNCED' | 'NOT_SYNCED' | 'ERROR'
+  ): Promise<BillTransaction[]> {
+    const transactions: BillTransaction[] = [];
+    
+    const today = new Date();
+    const startDate = new Date(today);
+    startDate.setDate(startDate.getDate() - daysBack);
+    const startDateStr = startDate.toISOString().split('T')[0];
+
+    const filters = `occurredTime:gte:${startDateStr},syncStatus:eq:${syncStatus}`;
+
+    console.log(`Fetching historical transactions with syncStatus=${syncStatus}, filters: ${filters}`);
+
+    let currentOptions: any = {
+      max: 50, // Larger page size for historical
+      filters: filters
+    };
+
+    let pageCount = 0;
+    const maxPages = 100; // Higher limit for historical
+
+    while (pageCount < maxPages) {
+      pageCount++;
+      
+      if (pageCount % 10 === 0) {
+        console.log(`  Page ${pageCount} for syncStatus=${syncStatus}...`);
+      }
+      
+      const response = await this.getTransactions(currentOptions);
+      
+      if (response.results && response.results.length > 0) {
+        transactions.push(...response.results);
+        
+        if (response.nextPage) {
+          currentOptions.nextPage = response.nextPage;
+          await new Promise(resolve => setTimeout(resolve, 300));
+        } else {
+          break;
+        }
+      } else {
+        break;
+      }
+    }
+
+    const filtered = transactions.filter(t => t.transactionType === 'CLEAR');
+    console.log(`Fetched ${transactions.length} total transactions with syncStatus=${syncStatus}, filtered to ${filtered.length} CLEAR transactions`);
+    
+    return filtered;
+  }
+
+  /**
    * Fetch all transactions with automatic pagination
+   * DEPRECATED: Use fetchTransactionsBySyncStatus for better sync status coverage
    */
   async fetchAllTransactions(
     daysBack: number = 8,
@@ -166,86 +290,70 @@ export class BillClient {
     startDate.setDate(startDate.getDate() - daysBack);
     const startDateStr = startDate.toISOString().split('T')[0];
 
-    // Build filters - Bill.com API doesn't support transactionType in filters
-    // So we'll filter for CLEAR transactions after fetching
     let filters = `occurredTime:gte:${startDateStr}`;
     if (!includeIncomplete) {
       filters = `complete:eq:true,${filters}`;
     }
 
     let currentOptions: any = {
-      max: 25, // Reduced from 50 to avoid timeouts
+      max: 25,
       filters: filters
     };
 
     let pageCount = 0;
-    const maxPages = 20; // Safety limit to prevent infinite loops
+    const maxPages = 20;
 
-    // Paginate through all results
     while (pageCount < maxPages) {
       pageCount++;
-      console.log(`Fetching page ${pageCount} of transactions...`);
       
       const response = await this.getTransactions(currentOptions);
       
       if (response.results && response.results.length > 0) {
         transactions.push(...response.results);
-        console.log(`Fetched ${response.results.length} transactions. Total: ${transactions.length}`);
         
         if (response.nextPage) {
           currentOptions.nextPage = response.nextPage;
-          // Small delay between requests to avoid rate limiting
           await new Promise(resolve => setTimeout(resolve, 500));
         } else {
-          console.log('No more pages to fetch');
           break;
         }
       } else {
-        console.log('No results in current page');
         break;
       }
     }
 
-    if (pageCount >= maxPages) {
-      console.log(`Reached max page limit of ${maxPages}. There may be more transactions.`);
-    }
-
-    // Filter to only include CLEAR (posted) transactions, excluding AUTHORIZATION and DECLINE
     const filtered = transactions.filter(t => t.transactionType === 'CLEAR');
     console.log(`Fetched ${transactions.length} total transactions, filtered to ${filtered.length} CLEAR (posted) transactions`);
-    console.log(`Excluded ${transactions.length - filtered.length} non-CLEAR transactions (pending authorizations, declines, etc.)`);
+    
     return filtered;
   }
 
   /**
    * Fetch all transactions for historical import (higher page limit)
+   * DEPRECATED: Use fetchTransactionsBySyncStatusHistorical for better sync status coverage
    */
   async fetchAllTransactionsHistorical(
     daysBack: number
   ): Promise<BillTransaction[]> {
     const transactions: BillTransaction[] = [];
     
-    // Calculate start date
     const today = new Date();
     const startDate = new Date(today);
     startDate.setDate(startDate.getDate() - daysBack);
     const startDateStr = startDate.toISOString().split('T')[0];
 
-    // Build filters - Bill.com API doesn't support transactionType in filters
-    // So we'll filter for CLEAR transactions after fetching
     const filters = `occurredTime:gte:${startDateStr}`;
 
     let currentOptions: any = {
-      max: 50, // Larger page size for historical import
+      max: 50,
       filters: filters
     };
 
     let pageCount = 0;
-    const maxPages = 100; // Higher limit for historical import
+    const maxPages = 100;
 
     console.log(`Starting historical fetch from ${startDateStr} (${daysBack} days)`);
 
-    // Paginate through all results
     while (pageCount < maxPages) {
       pageCount++;
       
@@ -264,7 +372,6 @@ export class BillClient {
         
         if (response.nextPage) {
           currentOptions.nextPage = response.nextPage;
-          // Smaller delay for historical import (still avoid rate limits)
           await new Promise(resolve => setTimeout(resolve, 300));
         } else {
           console.log(`Completed pagination. Total pages: ${pageCount}`);
@@ -277,15 +384,11 @@ export class BillClient {
     }
 
     if (pageCount >= maxPages) {
-      console.log(`âš ï¸  Reached max page limit of ${maxPages}. There may be more transactions to fetch.`);
-      console.log(`Consider running the import again or contact support if you need more than ${transactions.length} transactions.`);
+      console.log(`⚠️  Reached max page limit of ${maxPages}. There may be more transactions to fetch.`);
     }
 
-    // Filter to only include CLEAR (posted) transactions, excluding AUTHORIZATION and DECLINE
     const filtered = transactions.filter(t => t.transactionType === 'CLEAR');
     console.log(`Fetched ${transactions.length} total transactions, filtered to ${filtered.length} CLEAR (posted) transactions`);
-    console.log(`Excluded ${transactions.length - filtered.length} non-CLEAR transactions (pending authorizations, declines, etc.)`);
-    console.log(`Final count: ${filtered.length} CLEAR (posted) transactions ready for import`);
     
     return filtered;
   }
@@ -297,7 +400,6 @@ export class BillClient {
     const userMapping: Record<string, string> = {};
     let currentOptions: any = { max: 100 };
 
-    // Paginate through all users
     while (true) {
       const response = await this.getUsers(currentOptions);
       
@@ -367,12 +469,10 @@ export class BillClient {
       return null;
     }
 
-    // Handle NOTE type custom fields
     if (customField.note) {
       return customField.note;
     }
 
-    // Handle CUSTOM_SELECTOR type custom fields
     if (customField.selectedValues && customField.selectedValues.length > 0) {
       return customField.selectedValues.map(sv => sv.value).join(', ');
     }

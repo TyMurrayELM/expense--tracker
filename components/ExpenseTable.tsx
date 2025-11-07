@@ -45,7 +45,7 @@ export default function ExpenseTable({
   };
 
   const formatDate = (dateString: string) => {
-    return format(new Date(dateString), 'MMM d, yyyy');
+    return format(new Date(dateString), 'MMM d');
   };
 
   // Generate transaction URL based on type
@@ -104,15 +104,15 @@ export default function ExpenseTable({
         <table className="w-full table-fixed">
           <colgroup>
             <col style={{ width: '70px' }} />
-            <col style={{ width: '100px' }} />
+            <col style={{ width: '90px' }} />
             <col style={{ width: '150px' }} />
             <col style={{ width: '130px' }} />
             <col style={{ width: '140px' }} />
             <col style={{ width: '120px' }} />
             <col style={{ width: '100px' }} />
             <col style={{ width: '100px' }} />
-            <col style={{ width: '200px' }} />
-            <col style={{ width: '80px' }} />
+            <col style={{ width: '140px' }} />
+            <col style={{ width: '280px' }} />
             <col style={{ width: '60px' }} />
             {showNotifyColumn && <col style={{ width: '60px' }} />}
           </colgroup>

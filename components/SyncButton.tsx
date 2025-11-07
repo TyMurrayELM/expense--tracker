@@ -174,7 +174,6 @@ export default function SyncButton({ currentUser }: SyncButtonProps) {
           />
           {syncingCreditCards ? 'Syncing...' : 'Sync Credit Cards'}
         </button>
-        {/* Historical Import button hidden - uncomment if needed
         <button
           onClick={handleHistoricalImport}
           disabled={isAnySyncing}
@@ -190,7 +189,6 @@ export default function SyncButton({ currentUser }: SyncButtonProps) {
           </svg>
           {syncingHistorical ? 'Importing...' : 'Historical Import'}
         </button>
-        */}
       </div>
     </div>
   );
