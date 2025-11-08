@@ -118,8 +118,23 @@ export async function POST() {
       console.log('Department custom field not found');
     }
 
+    // PERFORMANCE OPTIMIZATION: Fetch all existing flags in one query
+    console.log('Fetching existing flags for preservation...');
+    const netsuiteIds = allTransactions.map(t => `BILL-${t.transaction.id}`);
+    const { data: existingFlags } = await supabaseAdmin
+      .from('expenses')
+      .select('netsuite_id, flag_category')
+      .in('netsuite_id', netsuiteIds);
+    
+    // Create a map for quick lookup
+    const existingFlagsMap = new Map(
+      (existingFlags || []).map(e => [e.netsuite_id, e.flag_category])
+    );
+    console.log(`Found ${existingFlagsMap.size} existing records with potential flags`);
+
     let recordsCreated = 0;
     let recordsUpdated = 0;
+    let flagsPreserved = 0;
     const errors: any[] = [];
     
     // Track sync status statistics
@@ -216,10 +231,20 @@ export async function POST() {
 
         const status = transaction.complete ? 'Complete' : 'Incomplete';
 
-        // Auto-flag reimbursements
+        // FLAG PRESERVATION LOGIC: Check if record exists with a manually-set flag
+        const netsuiteId = `BILL-${transaction.id}`;
+        const existingFlag = existingFlagsMap.get(netsuiteId);
+        
         let flagCategory = null;
-        if (category && category.toLowerCase().includes('reimburse')) {
-          flagCategory = 'Needs Review';
+        if (existingFlag) {
+          // Preserve existing flag - user manually set it
+          flagCategory = existingFlag;
+          flagsPreserved++;
+        } else {
+          // Only auto-flag new records or records without flags
+          if (category && category.toLowerCase().includes('reimburse')) {
+            flagCategory = 'Needs Review';
+          }
         }
 
         // Use the known sync status from our filtered queries
@@ -234,7 +259,7 @@ export async function POST() {
         }
 
         const expenseData = {
-          netsuite_id: `BILL-${transaction.id}`,
+          netsuite_id: netsuiteId,
           transaction_date: transaction.occurredTime.split('T')[0],
           vendor_name: vendorName,
           amount: parseFloat(amount.toString()) || 0,
@@ -268,7 +293,7 @@ export async function POST() {
           const { data: existing } = await supabaseAdmin
             .from('expenses')
             .select('created_at, updated_at')
-            .eq('netsuite_id', `BILL-${transaction.id}`)
+            .eq('netsuite_id', netsuiteId)
             .single();
 
           if (existing && existing.created_at === existing.updated_at) {
@@ -289,6 +314,7 @@ export async function POST() {
 
     console.log('=== SYNC STATUS STATISTICS ===');
     console.log('Sync status breakdown:', syncStatusBreakdown);
+    console.log(`Flags preserved: ${flagsPreserved}`);
     console.log('=== END STATISTICS ===');
 
     await supabaseAdmin
@@ -305,11 +331,12 @@ export async function POST() {
 
     return NextResponse.json({
       success: true,
-      message: `Credit card sync completed: ${recordsCreated} created, ${recordsUpdated} updated`,
+      message: `Credit card sync completed: ${recordsCreated} created, ${recordsUpdated} updated, ${flagsPreserved} flags preserved`,
       stats: {
         fetched: allTransactions.length,
         created: recordsCreated,
         updated: recordsUpdated,
+        flagsPreserved: flagsPreserved,
         errors: errors.length,
         syncStatusBreakdown,
       },

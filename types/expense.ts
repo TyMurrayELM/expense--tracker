@@ -22,11 +22,72 @@ export interface Expense {
 export const FLAG_CATEGORIES = [
   'Needs Review',
   'Wrong Department',
+  'Wrong Branch',
+  'Poor Description',
   'Duplicate',
   'Personal',
+  'Good to Sync',
 ] as const;
 
 export type FlagCategory = typeof FLAG_CATEGORIES[number];
+
+// Helper to get flag color styling based on category
+export function getFlagColorClasses(flagCategory: string | null): {
+  bg: string;
+  border: string;
+  text: string;
+} {
+  if (!flagCategory) {
+    return {
+      bg: 'bg-white',
+      border: 'border-gray-300',
+      text: 'text-gray-700',
+    };
+  }
+
+  // Light red for Wrong Branch, Poor Description, Wrong Department
+  if (flagCategory === 'Wrong Branch' || flagCategory === 'Poor Description' || flagCategory === 'Wrong Department') {
+    return {
+      bg: 'bg-red-100',
+      border: 'border-red-400',
+      text: 'text-red-900',
+    };
+  }
+
+  // Light green for Good to Sync
+  if (flagCategory === 'Good to Sync') {
+    return {
+      bg: 'bg-green-100',
+      border: 'border-green-400',
+      text: 'text-green-900',
+    };
+  }
+
+  // Light yellow for all other flags (Needs Review, Duplicate, Personal)
+  return {
+    bg: 'bg-yellow-100',
+    border: 'border-yellow-400',
+    text: 'text-yellow-900',
+  };
+}
+
+// Helper to get row background color based on flag category
+export function getFlagRowBgColor(flagCategory: string | null): string {
+  if (!flagCategory) return '';
+
+  // Light red for Wrong Branch, Poor Description, Wrong Department
+  if (flagCategory === 'Wrong Branch' || flagCategory === 'Poor Description' || flagCategory === 'Wrong Department') {
+    return 'bg-red-50';
+  }
+
+  // Light green for Good to Sync
+  if (flagCategory === 'Good to Sync') {
+    return 'bg-green-50';
+  }
+
+  // Light yellow for all other flags
+  return 'bg-yellow-50';
+}
 
 // Helper to check if a transaction is synced in Bill.com
 export function isBillSynced(syncStatus: string | null): boolean {

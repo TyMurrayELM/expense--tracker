@@ -38,6 +38,44 @@ export default function ExpenseTable({
     });
   };
 
+  // Helper function to determine row background color based on flag category
+  const getRowBackgroundColor = (flagCategory: string | null | undefined): string => {
+    if (!flagCategory) return '';
+    
+    // Light red for error flags
+    if (['Wrong Branch', 'Wrong Department', 'Poor Description'].includes(flagCategory)) {
+      return 'bg-red-50';
+    }
+    
+    // Light green for positive flag
+    if (flagCategory === 'Good to Sync') {
+      return 'bg-green-50';
+    }
+    
+    // Light yellow for all other flags
+    return 'bg-yellow-50';
+  };
+
+  // Helper function to determine dropdown styling based on flag category
+  const getDropdownStyling = (flagCategory: string | null | undefined): string => {
+    if (!flagCategory) {
+      return 'border-gray-300 bg-white text-gray-700';
+    }
+    
+    // Red styling for error flags
+    if (['Wrong Branch', 'Wrong Department', 'Poor Description'].includes(flagCategory)) {
+      return 'border-red-400 bg-red-100 text-red-900 font-medium';
+    }
+    
+    // Green styling for positive flag
+    if (flagCategory === 'Good to Sync') {
+      return 'border-green-400 bg-green-100 text-green-900 font-medium';
+    }
+    
+    // Yellow styling for all other flags
+    return 'border-yellow-400 bg-yellow-100 text-yellow-900 font-medium';
+  };
+
   const formatCurrency = (amount: number, currency: string = 'USD') => {
     // Map full currency names to codes
     const currencyMap: Record<string, string> = {
@@ -187,7 +225,7 @@ export default function ExpenseTable({
               expenses.map((expense) => (
                 <tr 
                   key={expense.id} 
-                  className={`hover:bg-gray-50 ${expense.flag_category ? 'bg-yellow-50' : ''}`}
+                  className={`hover:bg-gray-50 ${getRowBackgroundColor(expense.flag_category)}`}
                 >
                   {/* Flag Column */}
                   <td className="px-3 py-3">
@@ -196,9 +234,7 @@ export default function ExpenseTable({
                       onChange={(e) => handleFlagChange(expense.id, e.target.value)}
                       disabled={updatingFlags.has(expense.id)}
                       className={`text-xs border rounded px-2 py-1 w-full focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                        expense.flag_category 
-                          ? 'border-yellow-400 bg-yellow-100 text-yellow-900 font-medium' 
-                          : 'border-gray-300 bg-white text-gray-700'
+                        getDropdownStyling(expense.flag_category)
                       } ${updatingFlags.has(expense.id) ? 'opacity-50 cursor-wait' : 'cursor-pointer'}`}
                     >
                       <option value="">No Flag</option>
@@ -358,7 +394,7 @@ export default function ExpenseTable({
               return (
                 <div 
                   key={expense.id} 
-                  className={`p-4 ${expense.flag_category ? 'bg-yellow-50' : 'bg-white'}`}
+                  className={`p-4 ${getRowBackgroundColor(expense.flag_category)}`}
                 >
                   {/* Main Row - Always Visible */}
                   <div className="flex items-start justify-between gap-3">
@@ -424,9 +460,7 @@ export default function ExpenseTable({
                           onChange={(e) => handleFlagChange(expense.id, e.target.value)}
                           disabled={updatingFlags.has(expense.id)}
                           className={`text-xs border rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                            expense.flag_category 
-                              ? 'border-yellow-400 bg-yellow-100 text-yellow-900 font-medium' 
-                              : 'border-gray-300 bg-white text-gray-700'
+                            getDropdownStyling(expense.flag_category)
                           }`}
                         >
                           <option value="">No Flag</option>
