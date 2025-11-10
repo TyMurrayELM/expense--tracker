@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { FLAG_CATEGORIES } from '@/types/expense';
 
 interface FilterBarProps {
   vendors: string[];
@@ -13,6 +13,7 @@ interface FilterBarProps {
     department: string;
     purchaser: string;
     showFlagged: string;
+    flagCategory: string;
     transactionType: string;
     status: string;
     syncStatus: string;
@@ -61,6 +62,20 @@ export default function FilterBar({ vendors, purchasers, statuses, onFilterChang
             <option value="all">All Transactions</option>
             <option value="flagged">Flagged Only</option>
             <option value="unflagged">Unflagged Only</option>
+          </select>
+        </div>
+
+        <div className="flex-1 min-w-[200px]">
+          <label className="block text-sm font-medium text-gray-700 mb-1">Flag Type</label>
+          <select 
+            className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            value={currentFilters.flagCategory}
+            onChange={(e) => onFilterChange('flagCategory', e.target.value)}
+          >
+            <option value="all">All Flag Types</option>
+            {FLAG_CATEGORIES.map(category => (
+              <option key={category} value={category}>{category}</option>
+            ))}
           </select>
         </div>
 

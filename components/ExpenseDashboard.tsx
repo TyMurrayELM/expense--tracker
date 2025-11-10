@@ -27,9 +27,10 @@ interface FiltersState {
   dateFrom: string;
   dateTo: string;
   showFlagged: string;
+  flagCategory: string; // NEW: Filter for specific flag categories
   transactionType: string;
   status: string;
-  syncStatus: string; // NEW: Filter for Bill.com sync status
+  syncStatus: string; // Filter for Bill.com sync status
 }
 
 // Type definition for trends filters
@@ -116,9 +117,10 @@ export default function ExpenseDashboard({
     dateFrom: '',
     dateTo: '',
     showFlagged: 'all',
+    flagCategory: 'all', // NEW: Default to showing all flag categories
     transactionType: 'all',
     status: 'all',
-    syncStatus: 'all', // NEW: Default to showing all sync statuses
+    syncStatus: 'all', // Default to showing all sync statuses
   });
 
   const [filters, setFilters] = useState<FiltersState>(getDefaultFilters());
@@ -249,6 +251,11 @@ export default function ExpenseDashboard({
         return false;
       }
       if (filters.showFlagged === 'unflagged' && expense.flag_category) {
+        return false;
+      }
+
+      // Flag category filter (NEW)
+      if (filters.flagCategory !== 'all' && expense.flag_category !== filters.flagCategory) {
         return false;
       }
 
@@ -441,6 +448,7 @@ export default function ExpenseDashboard({
       dateFrom: '',
       dateTo: '',
       showFlagged: 'all',
+      flagCategory: 'all',
       transactionType: 'all',
       status: 'all',
       syncStatus: 'all',

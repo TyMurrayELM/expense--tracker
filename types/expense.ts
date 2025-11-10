@@ -23,10 +23,12 @@ export const FLAG_CATEGORIES = [
   'Needs Review',
   'Wrong Department',
   'Wrong Branch',
+  'Wrong Category',
   'Poor Description',
   'Duplicate',
   'Personal',
   'Good to Sync',
+  'Has WO #',
 ] as const;
 
 export type FlagCategory = typeof FLAG_CATEGORIES[number];
@@ -45,8 +47,11 @@ export function getFlagColorClasses(flagCategory: string | null): {
     };
   }
 
-  // Light red for Wrong Branch, Poor Description, Wrong Department
-  if (flagCategory === 'Wrong Branch' || flagCategory === 'Poor Description' || flagCategory === 'Wrong Department') {
+  // Light red for Wrong Branch, Wrong Department, Wrong Category, Poor Description
+  if (flagCategory === 'Wrong Branch' || 
+      flagCategory === 'Wrong Department' || 
+      flagCategory === 'Wrong Category' ||
+      flagCategory === 'Poor Description') {
     return {
       bg: 'bg-red-100',
       border: 'border-red-400',
@@ -63,6 +68,15 @@ export function getFlagColorClasses(flagCategory: string | null): {
     };
   }
 
+  // Light gray for Has WO #
+  if (flagCategory === 'Has WO #') {
+    return {
+      bg: 'bg-gray-100',
+      border: 'border-gray-400',
+      text: 'text-gray-900',
+    };
+  }
+
   // Light yellow for all other flags (Needs Review, Duplicate, Personal)
   return {
     bg: 'bg-yellow-100',
@@ -75,14 +89,22 @@ export function getFlagColorClasses(flagCategory: string | null): {
 export function getFlagRowBgColor(flagCategory: string | null): string {
   if (!flagCategory) return '';
 
-  // Light red for Wrong Branch, Poor Description, Wrong Department
-  if (flagCategory === 'Wrong Branch' || flagCategory === 'Poor Description' || flagCategory === 'Wrong Department') {
+  // Light red for Wrong Branch, Wrong Department, Wrong Category, Poor Description
+  if (flagCategory === 'Wrong Branch' || 
+      flagCategory === 'Wrong Department' || 
+      flagCategory === 'Wrong Category' ||
+      flagCategory === 'Poor Description') {
     return 'bg-red-50';
   }
 
   // Light green for Good to Sync
   if (flagCategory === 'Good to Sync') {
     return 'bg-green-50';
+  }
+
+  // Light gray for Has WO #
+  if (flagCategory === 'Has WO #') {
+    return 'bg-gray-50';
   }
 
   // Light yellow for all other flags

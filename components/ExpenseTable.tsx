@@ -43,13 +43,18 @@ export default function ExpenseTable({
     if (!flagCategory) return '';
     
     // Light red for error flags
-    if (['Wrong Branch', 'Wrong Department', 'Poor Description'].includes(flagCategory)) {
+    if (['Wrong Branch', 'Wrong Department', 'Wrong Category', 'Poor Description'].includes(flagCategory)) {
       return 'bg-red-50';
     }
     
     // Light green for positive flag
     if (flagCategory === 'Good to Sync') {
       return 'bg-green-50';
+    }
+    
+    // Light gray for Has WO #
+    if (flagCategory === 'Has WO #') {
+      return 'bg-gray-50';
     }
     
     // Light yellow for all other flags
@@ -63,13 +68,18 @@ export default function ExpenseTable({
     }
     
     // Red styling for error flags
-    if (['Wrong Branch', 'Wrong Department', 'Poor Description'].includes(flagCategory)) {
+    if (['Wrong Branch', 'Wrong Department', 'Wrong Category', 'Poor Description'].includes(flagCategory)) {
       return 'border-red-400 bg-red-100 text-red-900 font-medium';
     }
     
     // Green styling for positive flag
     if (flagCategory === 'Good to Sync') {
       return 'border-green-400 bg-green-100 text-green-900 font-medium';
+    }
+    
+    // Gray styling for Has WO #
+    if (flagCategory === 'Has WO #') {
+      return 'border-gray-400 bg-gray-100 text-gray-900 font-medium';
     }
     
     // Yellow styling for all other flags
