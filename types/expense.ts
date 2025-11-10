@@ -89,26 +89,26 @@ export function getFlagColorClasses(flagCategory: string | null): {
 export function getFlagRowBgColor(flagCategory: string | null): string {
   if (!flagCategory) return '';
 
-  // Light red for Wrong Branch, Wrong Department, Wrong Category, Poor Description
+  // Red for Wrong Branch, Wrong Department, Wrong Category, Poor Description
   if (flagCategory === 'Wrong Branch' || 
       flagCategory === 'Wrong Department' || 
       flagCategory === 'Wrong Category' ||
       flagCategory === 'Poor Description') {
-    return 'bg-red-50';
+    return 'bg-red-100';
   }
 
-  // Light green for Good to Sync
+  // Green for Good to Sync
   if (flagCategory === 'Good to Sync') {
-    return 'bg-green-50';
+    return 'bg-green-100';
   }
 
-  // Light gray for Has WO #
+  // Gray for Has WO #
   if (flagCategory === 'Has WO #') {
-    return 'bg-gray-50';
+    return 'bg-gray-100';
   }
 
-  // Light yellow for all other flags
-  return 'bg-yellow-50';
+  // Yellow for all other flags
+  return 'bg-yellow-100';
 }
 
 // Helper to check if a transaction is synced in Bill.com
