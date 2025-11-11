@@ -22,6 +22,7 @@ export default function ExpenseTable({
 }: ExpenseTableProps) {
   const [updatingFlags, setUpdatingFlags] = useState<Set<string>>(new Set());
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
+  const [openFlagDropdown, setOpenFlagDropdown] = useState<string | null>(null);
 
   // Show Notify column only if user is admin AND not masquerading
   const showNotifyColumn = isAdmin && !isMasquerading;
@@ -61,29 +62,70 @@ export default function ExpenseTable({
     return 'bg-yellow-50';
   };
 
-  // Helper function to determine dropdown styling based on flag category
-  const getDropdownStyling = (flagCategory: string | null | undefined): string => {
+  // Helper function to get the appropriate flag icon based on category
+  const getFlagIcon = (flagCategory: string | null | undefined) => {
     if (!flagCategory) {
-      return 'border-gray-300 bg-white text-gray-700';
+      // Grey flag icon for unflagged items
+      return (
+        <svg className="w-5 h-5 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
+          <path fillRule="evenodd" d="M3 6a3 3 0 013-3h10a1 1 0 01.8 1.6L14.25 8l2.55 3.4A1 1 0 0116 13H6a1 1 0 00-1 1v3a1 1 0 11-2 0V6z" clipRule="evenodd" />
+        </svg>
+      );
     }
-    
-    // Red styling for error flags
-    if (['Wrong Branch', 'Wrong Department', 'Wrong Category', 'Poor Description'].includes(flagCategory)) {
-      return 'border-red-400 bg-red-100 text-red-900 font-medium';
-    }
-    
-    // Green styling for positive flag
+
+    // Green checkmark for "Good to Sync"
     if (flagCategory === 'Good to Sync') {
-      return 'border-green-400 bg-green-100 text-green-900 font-medium';
+      return (
+        <svg className="w-5 h-5 text-green-600" fill="currentColor" viewBox="0 0 20 20">
+          <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+        </svg>
+      );
     }
-    
-    // Gray styling for Has WO #
+
+    // Red X for error flags
+    if (['Wrong Branch', 'Wrong Department', 'Wrong Category', 'Poor Description'].includes(flagCategory)) {
+      return (
+        <svg className="w-5 h-5 text-red-600" fill="currentColor" viewBox="0 0 20 20">
+          <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+        </svg>
+      );
+    }
+
+    // Construction/hard hat icon for "Has WO #"
     if (flagCategory === 'Has WO #') {
-      return 'border-gray-400 bg-gray-100 text-gray-900 font-medium';
+      return (
+        <svg className="w-5 h-5 text-gray-600" fill="currentColor" viewBox="0 0 20 20">
+          <path fillRule="evenodd" d="M6 6V5a3 3 0 013-3h2a3 3 0 013 3v1h2a2 2 0 012 2v3.57A22.952 22.952 0 0110 13a22.95 22.95 0 01-8-1.43V8a2 2 0 012-2h2zm2-1a1 1 0 011-1h2a1 1 0 011 1v1H8V5zm1 5a1 1 0 011-1h.01a1 1 0 110 2H10a1 1 0 01-1-1z" clipRule="evenodd" />
+          <path d="M2 13.692V16a2 2 0 002 2h12a2 2 0 002-2v-2.308A24.974 24.974 0 0110 15c-2.796 0-5.487-.46-8-1.308z" />
+        </svg>
+      );
     }
-    
-    // Yellow styling for all other flags
-    return 'border-yellow-400 bg-yellow-100 text-yellow-900 font-medium';
+
+    // Magnifying glass for "Needs Review"
+    if (flagCategory === 'Needs Review') {
+      return (
+        <svg className="w-5 h-5 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
+          <path d="M9 9a2 2 0 114 0 2 2 0 01-4 0z" />
+          <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-13a4 4 0 00-3.446 6.032l-2.261 2.26a1 1 0 101.414 1.415l2.261-2.261A4 4 0 1011 5z" clipRule="evenodd" />
+        </svg>
+      );
+    }
+
+    // Warning/alert icon for "Duplicate" and "Personal" (needs follow up)
+    if (['Duplicate', 'Personal'].includes(flagCategory)) {
+      return (
+        <svg className="w-5 h-5 text-yellow-600" fill="currentColor" viewBox="0 0 20 20">
+          <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+        </svg>
+      );
+    }
+
+    // Default grey flag for any other category
+    return (
+      <svg className="w-5 h-5 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
+        <path fillRule="evenodd" d="M3 6a3 3 0 013-3h10a1 1 0 01.8 1.6L14.25 8l2.55 3.4A1 1 0 0116 13H6a1 1 0 00-1 1v3a1 1 0 11-2 0V6z" clipRule="evenodd" />
+      </svg>
+    );
   };
 
   const formatCurrency = (amount: number, currency: string = 'USD') => {
@@ -127,6 +169,7 @@ export default function ExpenseTable({
 
   const handleFlagChange = async (expenseId: string, flagCategory: string | null) => {
     setUpdatingFlags(prev => new Set(prev).add(expenseId));
+    setOpenFlagDropdown(null); // Close dropdown after selection
 
     try {
       const response = await fetch('/api/expenses/flag', {
@@ -161,6 +204,10 @@ export default function ExpenseTable({
         return next;
       });
     }
+  };
+
+  const toggleFlagDropdown = (expenseId: string) => {
+    setOpenFlagDropdown(prev => prev === expenseId ? null : expenseId);
   };
 
   return (
@@ -237,23 +284,57 @@ export default function ExpenseTable({
                   key={expense.id} 
                   className={`hover:bg-gray-50 ${getRowBackgroundColor(expense.flag_category)}`}
                 >
-                  {/* Flag Column */}
-                  <td className="px-3 py-3">
-                    <select
-                      value={expense.flag_category || ''}
-                      onChange={(e) => handleFlagChange(expense.id, e.target.value)}
-                      disabled={updatingFlags.has(expense.id)}
-                      className={`text-xs border rounded px-2 py-1 w-full focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                        getDropdownStyling(expense.flag_category)
-                      } ${updatingFlags.has(expense.id) ? 'opacity-50 cursor-wait' : 'cursor-pointer'}`}
-                    >
-                      <option value="">No Flag</option>
-                      {FLAG_CATEGORIES.map(category => (
-                        <option key={category} value={category}>
-                          {category}
-                        </option>
-                      ))}
-                    </select>
+                  {/* Flag Column with Icon and Dropdown */}
+                  <td className="px-3 py-3 relative">
+                    <div className="relative">
+                      <button
+                        onClick={() => toggleFlagDropdown(expense.id)}
+                        disabled={updatingFlags.has(expense.id)}
+                        className={`flex items-center justify-center w-full hover:opacity-70 transition-opacity ${
+                          updatingFlags.has(expense.id) ? 'opacity-50 cursor-wait' : 'cursor-pointer'
+                        }`}
+                        title={expense.flag_category || 'Click to flag'}
+                      >
+                        {getFlagIcon(expense.flag_category)}
+                      </button>
+
+                      {/* Dropdown Menu */}
+                      {openFlagDropdown === expense.id && !updatingFlags.has(expense.id) && (
+                        <>
+                          {/* Backdrop to close dropdown */}
+                          <div 
+                            className="fixed inset-0 z-10" 
+                            onClick={() => setOpenFlagDropdown(null)}
+                          />
+                          
+                          {/* Dropdown */}
+                          <div className="absolute left-0 top-full mt-1 w-48 bg-white border border-gray-200 rounded-md shadow-lg z-20 py-1">
+                            <button
+                              onClick={() => handleFlagChange(expense.id, null)}
+                              className="w-full px-3 py-2 text-left text-xs hover:bg-gray-100 flex items-center gap-2"
+                            >
+                              <svg className="w-4 h-4 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
+                                <path fillRule="evenodd" d="M3 6a3 3 0 013-3h10a1 1 0 01.8 1.6L14.25 8l2.55 3.4A1 1 0 0116 13H6a1 1 0 00-1 1v3a1 1 0 11-2 0V6z" clipRule="evenodd" />
+                              </svg>
+                              <span>No Flag</span>
+                            </button>
+                            
+                            {FLAG_CATEGORIES.map(category => (
+                              <button
+                                key={category}
+                                onClick={() => handleFlagChange(expense.id, category)}
+                                className="w-full px-3 py-2 text-left text-xs hover:bg-gray-100 flex items-center gap-2"
+                              >
+                                <span className="w-4 h-4 flex-shrink-0">
+                                  {getFlagIcon(category)}
+                                </span>
+                                <span className="truncate">{category}</span>
+                              </button>
+                            ))}
+                          </div>
+                        </>
+                      )}
+                    </div>
                   </td>
 
                   {/* Date Column */}
@@ -319,32 +400,30 @@ export default function ExpenseTable({
                   </td>
 
                   {/* Amount Column */}
-                  <td className="px-3 py-3 text-sm text-right font-medium text-gray-900">
+                  <td className="px-3 py-3 text-sm text-gray-900 text-right font-medium">
                     {formatCurrency(expense.amount, expense.currency)}
                   </td>
 
-                  {/* Status Column - UPDATED with Sync Icon */}
+                  {/* Status Column with Sync Status Icon */}
                   <td className="px-3 py-3">
                     <div className="flex items-center gap-2">
-                      {expense.status && (
-                        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
-                          expense.status === 'Paid' || expense.status === 'Paid In Full' || expense.status === 'Complete' ? 'bg-green-100 text-green-800' :
-                          expense.status === 'Approved' ? 'bg-blue-100 text-blue-800' :
-                          expense.status === 'Pending Approval' ? 'bg-yellow-100 text-yellow-800' :
-                          'bg-gray-100 text-gray-800'
-                        }`}>
-                          {expense.status}
-                        </span>
-                      )}
                       <SyncStatusIcon 
-                        syncStatus={expense.bill_sync_status} 
+                        syncStatus={expense.bill_sync_status}
                         transactionType={expense.transaction_type}
                       />
+                      <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
+                        expense.status === 'Paid' || expense.status === 'Paid In Full' || expense.status === 'Complete' ? 'bg-green-100 text-green-800' :
+                        expense.status === 'Approved' ? 'bg-blue-100 text-blue-800' :
+                        expense.status === 'Pending Approval' ? 'bg-yellow-100 text-yellow-800' :
+                        'bg-gray-100 text-gray-800'
+                      }`}>
+                        {expense.status}
+                      </span>
                     </div>
                   </td>
 
                   {/* Memo Column */}
-                  <td className="px-3 py-3 text-sm text-gray-500 truncate" title={expense.memo || ''}>
+                  <td className="px-3 py-3 text-sm text-gray-600 truncate" title={expense.memo || ''}>
                     {expense.memo || '-'}
                   </td>
 
@@ -354,33 +433,31 @@ export default function ExpenseTable({
                       href={getTransactionUrl(expense)}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="text-blue-600 hover:text-blue-800 inline-block"
-                      title={expense.transaction_type === 'Credit Card' ? 'View in Bill.com' : 'View in NetSuite'}
+                      className="text-blue-600 hover:text-blue-800"
+                      title="View in NetSuite/Bill.com"
                     >
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <svg className="w-5 h-5 inline-block" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
                       </svg>
                     </a>
                   </td>
 
-                  {/* Slack Notify Column - Only show when admin AND not masquerading */}
+                  {/* Notify Column (Admin Only) */}
                   {showNotifyColumn && (
                     <td className="px-3 py-3 text-center">
-                      {expense.cardholder && (
-                        <SlackNotifyButton
-                          expenseId={expense.id}
-                          netsuiteId={expense.netsuite_id}
-                          transactionType={expense.transaction_type}
-                          purchaserName={expense.cardholder}
-                          vendor={expense.vendor_name}
-                          amount={expense.amount}
-                          date={expense.transaction_date}
-                          memo={expense.memo}
-                          currentBranch={expense.branch}
-                          currentDepartment={expense.department}
-                          currentCategory={expense.category}
-                        />
-                      )}
+                      <SlackNotifyButton
+                        expenseId={expense.id}
+                        netsuiteId={expense.netsuite_id}
+                        transactionType={expense.transaction_type}
+                        purchaserName={expense.cardholder || ''}
+                        vendor={expense.vendor_name}
+                        amount={expense.amount}
+                        date={expense.transaction_date}
+                        memo={expense.memo}
+                        currentBranch={expense.branch}
+                        currentDepartment={expense.department}
+                        currentCategory={expense.category}
+                      />
                     </td>
                   )}
                 </tr>
@@ -391,198 +468,237 @@ export default function ExpenseTable({
       </div>
 
       {/* Mobile Card View */}
-      <div className="lg:hidden max-h-[calc(100vh-300px)] overflow-y-auto">
+      <div className="lg:hidden divide-y divide-gray-200">
         {expenses.length === 0 ? (
-          <div className="px-4 py-12 text-center text-gray-500">
-            No expenses found. Try adjusting your filters.
+          <div className="px-6 py-12 text-center text-gray-500">
+            No expenses found. Try adjusting your filters or sync data from NetSuite.
           </div>
         ) : (
-          <div className="divide-y divide-gray-200">
-            {expenses.map((expense) => {
-              const isExpanded = expandedRows.has(expense.id);
-              
-              return (
-                <div 
-                  key={expense.id} 
-                  className={`p-4 ${getRowBackgroundColor(expense.flag_category)}`}
-                >
-                  {/* Main Row - Always Visible */}
-                  <div className="flex items-start justify-between gap-3">
-                    <button
-                      onClick={() => toggleRow(expense.id)}
-                      className="flex-1 text-left"
-                    >
-                      <div className="flex items-center gap-2 mb-1">
-                        {expense.transaction_type === 'Credit Card' ? (
-                          <Image
-                            src="/logos/bill.png"
-                            alt="Bill.com"
-                            width={14}
-                            height={14}
-                            className="flex-shrink-0"
-                          />
-                        ) : (
-                          <Image
-                            src="/logos/netsuite.png"
-                            alt="NetSuite"
-                            width={14}
-                            height={14}
-                            className="flex-shrink-0"
-                          />
-                        )}
-                        <span className="font-medium text-gray-900 text-sm">{expense.vendor_name}</span>
-                      </div>
-                      
-                      <div className="flex items-center justify-between text-xs text-gray-500 mb-1">
-                        <span>{formatDate(expense.transaction_date)}</span>
-                        <span className="font-semibold text-gray-900">{formatCurrency(expense.amount, expense.currency)}</span>
-                      </div>
-                      
-                      <div className="text-xs text-gray-600">
-                        {expense.cardholder || 'No purchaser'}
-                      </div>
-                    </button>
+          expenses.map((expense) => {
+            const isExpanded = expandedRows.has(expense.id);
+            return (
+              <div 
+                key={expense.id} 
+                className={`p-4 ${getRowBackgroundColor(expense.flag_category)}`}
+              >
+                {/* Main Row - Always Visible */}
+                <div className="flex items-start justify-between gap-3">
+                  <button
+                    onClick={() => toggleRow(expense.id)}
+                    className="flex-1 text-left"
+                  >
+                    <div className="flex items-center gap-2 mb-1">
+                      {expense.transaction_type === 'Credit Card' ? (
+                        <Image
+                          src="/logos/bill.png"
+                          alt="Bill.com"
+                          width={14}
+                          height={14}
+                          className="flex-shrink-0"
+                        />
+                      ) : (
+                        <Image
+                          src="/logos/netsuite.png"
+                          alt="NetSuite"
+                          width={14}
+                          height={14}
+                          className="flex-shrink-0"
+                        />
+                      )}
+                      <span className="font-medium text-gray-900 text-sm">{expense.vendor_name}</span>
+                    </div>
+                    
+                    <div className="flex items-center justify-between text-xs text-gray-500 mb-1">
+                      <span>{formatDate(expense.transaction_date)}</span>
+                      <span className="font-semibold text-gray-900">{formatCurrency(expense.amount, expense.currency)}</span>
+                    </div>
+                    
+                    <div className="text-xs text-gray-600">
+                      {expense.cardholder || 'No purchaser'}
+                    </div>
+                  </button>
 
-                    {/* Expand/Collapse Icon */}
-                    <button
-                      onClick={() => toggleRow(expense.id)}
-                      className="p-1 text-gray-400 hover:text-gray-600"
+                  {/* Expand/Collapse Icon */}
+                  <button
+                    onClick={() => toggleRow(expense.id)}
+                    className="p-1 text-gray-400 hover:text-gray-600"
+                  >
+                    <svg 
+                      className={`w-5 h-5 transition-transform ${isExpanded ? 'rotate-180' : ''}`}
+                      fill="none" 
+                      stroke="currentColor" 
+                      viewBox="0 0 24 24"
                     >
-                      <svg 
-                        className={`w-5 h-5 transition-transform ${isExpanded ? 'rotate-180' : ''}`}
-                        fill="none" 
-                        stroke="currentColor" 
-                        viewBox="0 0 24 24"
-                      >
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                      </svg>
-                    </button>
-                  </div>
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </button>
+                </div>
 
-                  {/* Expanded Details */}
-                  {isExpanded && (
-                    <div className="mt-3 pt-3 border-t border-gray-200 space-y-2">
-                      {/* Flag */}
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs font-medium text-gray-500">Flag:</span>
-                        <select
-                          value={expense.flag_category || ''}
-                          onChange={(e) => handleFlagChange(expense.id, e.target.value)}
+                {/* Expanded Details */}
+                {isExpanded && (
+                  <div className="mt-3 pt-3 border-t border-gray-200 space-y-2">
+                    {/* Flag with Icon Dropdown */}
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-medium text-gray-500">Flag:</span>
+                      <div className="relative">
+                        <button
+                          onClick={() => toggleFlagDropdown(expense.id)}
                           disabled={updatingFlags.has(expense.id)}
-                          className={`text-xs border rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                            getDropdownStyling(expense.flag_category)
+                          className={`flex items-center gap-2 px-2 py-1 border rounded text-xs focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                            updatingFlags.has(expense.id) ? 'opacity-50 cursor-wait' : 'cursor-pointer hover:bg-gray-50'
+                          } ${
+                            !expense.flag_category ? 'border-gray-300 bg-white text-gray-700' :
+                            ['Wrong Branch', 'Wrong Department', 'Wrong Category', 'Poor Description'].includes(expense.flag_category) ? 'border-red-400 bg-red-100 text-red-900 font-medium' :
+                            expense.flag_category === 'Good to Sync' ? 'border-green-400 bg-green-100 text-green-900 font-medium' :
+                            expense.flag_category === 'Has WO #' ? 'border-gray-400 bg-gray-100 text-gray-900 font-medium' :
+                            'border-yellow-400 bg-yellow-100 text-yellow-900 font-medium'
                           }`}
                         >
-                          <option value="">No Flag</option>
-                          {FLAG_CATEGORIES.map(category => (
-                            <option key={category} value={category}>
-                              {category}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-
-                      {/* Category */}
-                      {expense.category && (
-                        <div className="flex items-center justify-between">
-                          <span className="text-xs font-medium text-gray-500">Category:</span>
-                          <span className="text-xs text-gray-900">{expense.category}</span>
-                        </div>
-                      )}
-
-                      {/* Branch */}
-                      {expense.branch && expense.branch !== 'QnVkZ2V0OjcyNDQ0MQ==-' && !expense.branch.includes('=') && (
-                        <div className="flex items-center justify-between">
-                          <span className="text-xs font-medium text-gray-500">Branch:</span>
-                          <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
-                            expense.branch === 'Phoenix - North' ? 'bg-green-100 text-green-800' :
-                            expense.branch === 'Phoenix - SouthEast' ? 'bg-red-100 text-red-800' :
-                            expense.branch === 'Phoenix - SouthWest' ? 'bg-blue-100 text-blue-800' :
-                            expense.branch === 'Las Vegas' ? 'bg-yellow-100 text-yellow-800' :
-                            expense.branch === 'Corporate' ? 'bg-gray-100 text-gray-800' :
-                            'bg-purple-100 text-purple-800'
-                          }`}>
-                            {expense.branch}
+                          <span className="w-4 h-4 flex-shrink-0">
+                            {getFlagIcon(expense.flag_category)}
                           </span>
-                        </div>
-                      )}
-
-                      {/* Department */}
-                      {expense.department && (
-                        <div className="flex items-center justify-between">
-                          <span className="text-xs font-medium text-gray-500">Department:</span>
-                          <span className="text-xs text-gray-900">{expense.department}</span>
-                        </div>
-                      )}
-
-                      {/* Status */}
-                      {expense.status && (
-                        <div className="flex items-center justify-between">
-                          <span className="text-xs font-medium text-gray-500">Status:</span>
-                          <div className="flex items-center gap-2">
-                            <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
-                              expense.status === 'Paid' || expense.status === 'Paid In Full' || expense.status === 'Complete' ? 'bg-green-100 text-green-800' :
-                              expense.status === 'Approved' ? 'bg-blue-100 text-blue-800' :
-                              expense.status === 'Pending Approval' ? 'bg-yellow-100 text-yellow-800' :
-                              'bg-gray-100 text-gray-800'
-                            }`}>
-                              {expense.status}
-                            </span>
-                            <SyncStatusIcon 
-                              syncStatus={expense.bill_sync_status} 
-                              transactionType={expense.transaction_type}
-                            />
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Memo */}
-                      {expense.memo && (
-                        <div className="flex flex-col gap-1">
-                          <span className="text-xs font-medium text-gray-500">Memo:</span>
-                          <span className="text-xs text-gray-900">{expense.memo}</span>
-                        </div>
-                      )}
-
-                      {/* Action Buttons */}
-                      <div className="flex items-center gap-2 pt-2">
-                        <a
-                          href={getTransactionUrl(expense)}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="flex-1 flex items-center justify-center gap-2 px-3 py-2 text-xs font-medium text-blue-600 bg-blue-50 border border-blue-200 rounded-md hover:bg-blue-100"
-                        >
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                          <span className="truncate">{expense.flag_category || 'No Flag'}</span>
+                          <svg className="w-3 h-3 ml-1" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
                           </svg>
-                          View
-                        </a>
-                        
-                        {/* Slack Notify Button - Show for admins not masquerading */}
-                        {showNotifyColumn && expense.cardholder && (
-                          <div className="flex-1">
-                            <SlackNotifyButton
-                              expenseId={expense.id}
-                              netsuiteId={expense.netsuite_id}
-                              transactionType={expense.transaction_type}
-                              purchaserName={expense.cardholder}
-                              vendor={expense.vendor_name}
-                              amount={expense.amount}
-                              date={expense.transaction_date}
-                              memo={expense.memo}
-                              currentBranch={expense.branch}
-                              currentDepartment={expense.department}
-                              currentCategory={expense.category}
+                        </button>
+
+                        {/* Mobile Dropdown Menu */}
+                        {openFlagDropdown === expense.id && !updatingFlags.has(expense.id) && (
+                          <>
+                            <div 
+                              className="fixed inset-0 z-10" 
+                              onClick={() => setOpenFlagDropdown(null)}
                             />
-                          </div>
+                            <div className="absolute right-0 top-full mt-1 w-48 bg-white border border-gray-200 rounded-md shadow-lg z-20 py-1">
+                              <button
+                                onClick={() => handleFlagChange(expense.id, null)}
+                                className="w-full px-3 py-2 text-left text-xs hover:bg-gray-100 flex items-center gap-2"
+                              >
+                                <svg className="w-4 h-4 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
+                                  <path fillRule="evenodd" d="M3 6a3 3 0 013-3h10a1 1 0 01.8 1.6L14.25 8l2.55 3.4A1 1 0 0116 13H6a1 1 0 00-1 1v3a1 1 0 11-2 0V6z" clipRule="evenodd" />
+                                </svg>
+                                <span>No Flag</span>
+                              </button>
+                              
+                              {FLAG_CATEGORIES.map(category => (
+                                <button
+                                  key={category}
+                                  onClick={() => handleFlagChange(expense.id, category)}
+                                  className="w-full px-3 py-2 text-left text-xs hover:bg-gray-100 flex items-center gap-2"
+                                >
+                                  <span className="w-4 h-4 flex-shrink-0">
+                                    {getFlagIcon(category)}
+                                  </span>
+                                  <span className="truncate">{category}</span>
+                                </button>
+                              ))}
+                            </div>
+                          </>
                         )}
                       </div>
                     </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
+
+                    {/* Category */}
+                    {expense.category && (
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-medium text-gray-500">Category:</span>
+                        <span className="text-xs text-gray-900">{expense.category}</span>
+                      </div>
+                    )}
+
+                    {/* Branch */}
+                    {expense.branch && expense.branch !== 'QnVkZ2V0OjcyNDQ0MQ==-' && !expense.branch.includes('=') && (
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-medium text-gray-500">Branch:</span>
+                        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
+                          expense.branch === 'Phoenix - North' ? 'bg-green-100 text-green-800' :
+                          expense.branch === 'Phoenix - SouthEast' ? 'bg-red-100 text-red-800' :
+                          expense.branch === 'Phoenix - SouthWest' ? 'bg-blue-100 text-blue-800' :
+                          expense.branch === 'Las Vegas' ? 'bg-yellow-100 text-yellow-800' :
+                          expense.branch === 'Corporate' ? 'bg-gray-100 text-gray-800' :
+                          'bg-purple-100 text-purple-800'
+                        }`}>
+                          {expense.branch}
+                        </span>
+                      </div>
+                    )}
+
+                    {/* Department */}
+                    {expense.department && (
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-medium text-gray-500">Department:</span>
+                        <span className="text-xs text-gray-900">{expense.department}</span>
+                      </div>
+                    )}
+
+                    {/* Status */}
+                    {expense.status && (
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-medium text-gray-500">Status:</span>
+                        <div className="flex items-center gap-2">
+                          <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
+                            expense.status === 'Paid' || expense.status === 'Paid In Full' || expense.status === 'Complete' ? 'bg-green-100 text-green-800' :
+                            expense.status === 'Approved' ? 'bg-blue-100 text-blue-800' :
+                            expense.status === 'Pending Approval' ? 'bg-yellow-100 text-yellow-800' :
+                            'bg-gray-100 text-gray-800'
+                          }`}>
+                            {expense.status}
+                          </span>
+                          <SyncStatusIcon 
+                            syncStatus={expense.bill_sync_status} 
+                            transactionType={expense.transaction_type}
+                          />
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Memo */}
+                    {expense.memo && (
+                      <div className="flex flex-col gap-1">
+                        <span className="text-xs font-medium text-gray-500">Memo:</span>
+                        <span className="text-xs text-gray-900">{expense.memo}</span>
+                      </div>
+                    )}
+
+                    {/* Action Buttons */}
+                    <div className="flex items-center gap-2 pt-2">
+                      <a
+                        href={getTransactionUrl(expense)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex-1 flex items-center justify-center gap-2 px-3 py-2 text-xs font-medium text-blue-600 bg-blue-50 border border-blue-200 rounded-md hover:bg-blue-100"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                        </svg>
+                        View
+                      </a>
+                      
+                      {/* Slack Notify Button - Show for admins not masquerading */}
+                      {showNotifyColumn && expense.cardholder && (
+                        <div className="flex-1">
+                          <SlackNotifyButton
+                            expenseId={expense.id}
+                            netsuiteId={expense.netsuite_id}
+                            transactionType={expense.transaction_type}
+                            purchaserName={expense.cardholder}
+                            vendor={expense.vendor_name}
+                            amount={expense.amount}
+                            date={expense.transaction_date}
+                            memo={expense.memo}
+                            currentBranch={expense.branch}
+                            currentDepartment={expense.department}
+                            currentCategory={expense.category}
+                          />
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })
         )}
       </div>
     </div>
