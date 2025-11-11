@@ -151,9 +151,9 @@ export default function ExpenseDashboard({
   const getDefaultSectionsCollapsed = (): SectionsCollapsedState => ({
     dateFilters: false,
     byBranch: false,
-    bySecondary: false,
-    byThirdLayer: false,
-    byFourthLayer: false,
+    bySecondary: true,
+    byThirdLayer: true,
+    byFourthLayer: true,
     filters: false,
   });
 
