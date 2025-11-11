@@ -62,6 +62,18 @@ export default function ExpenseTable({
     return 'bg-yellow-50';
   };
 
+  // Helper function to get branch icon path
+  const getBranchIcon = (branchName: string): string => {
+    const iconMap: Record<string, string> = {
+      'Phoenix - North': '/logos/phx-north.png',
+      'Phoenix - SouthEast': '/logos/phx-se.png',
+      'Phoenix - SouthWest': '/logos/phx-sw.png',
+      'Las Vegas': '/logos/lv.png',
+      'Corporate': '/logos/corp.png',
+    };
+    return iconMap[branchName] || '';
+  };
+
   // Helper function to get the appropriate flag icon based on category
   const getFlagIcon = (flagCategory: string | null | undefined) => {
     if (!flagCategory) {
@@ -216,12 +228,12 @@ export default function ExpenseTable({
       <div className="hidden lg:block overflow-x-auto max-h-[calc(100vh-400px)] overflow-y-auto">
         <table className="w-full table-fixed">
           <colgroup>
+            {isAdmin && <col style={{ width: '50px' }} />}
             <col style={{ width: '70px' }} />
-            <col style={{ width: '90px' }} />
             <col style={{ width: '150px' }} />
             <col style={{ width: '130px' }} />
             <col style={{ width: '140px' }} />
-            <col style={{ width: '120px' }} />
+            <col style={{ width: '60px' }} />
             <col style={{ width: '100px' }} />
             <col style={{ width: '100px' }} />
             <col style={{ width: '140px' }} />
@@ -229,43 +241,45 @@ export default function ExpenseTable({
             <col style={{ width: '60px' }} />
             {showNotifyColumn && <col style={{ width: '60px' }} />}
           </colgroup>
-          <thead className="bg-gray-50 border-b border-gray-200 sticky top-0 z-10">
+          <thead className="bg-blue-900 border-b border-blue-950 sticky top-0 z-10">
             <tr>
-              <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider bg-gray-50">
-                Flag
-              </th>
-              <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider bg-gray-50">
+              {isAdmin && (
+                <th className="px-3 py-3 text-left text-xs font-medium text-white uppercase tracking-wider bg-blue-900">
+                  Flag
+                </th>
+              )}
+              <th className="px-3 py-3 text-left text-xs font-medium text-white uppercase tracking-wider bg-blue-900">
                 Date
               </th>
-              <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider bg-gray-50">
+              <th className="px-3 py-3 text-left text-xs font-medium text-white uppercase tracking-wider bg-blue-900">
                 Vendor
               </th>
-              <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider bg-gray-50">
+              <th className="px-3 py-3 text-left text-xs font-medium text-white uppercase tracking-wider bg-blue-900">
                 Purchaser
               </th>
-              <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider bg-gray-50">
+              <th className="px-3 py-3 text-left text-xs font-medium text-white uppercase tracking-wider bg-blue-900">
                 Category
               </th>
-              <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider bg-gray-50">
+              <th className="px-3 py-3 text-left text-xs font-medium text-white uppercase tracking-wider bg-blue-900">
                 Branch
               </th>
-              <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider bg-gray-50">
+              <th className="px-3 py-3 text-left text-xs font-medium text-white uppercase tracking-wider bg-blue-900">
                 Department
               </th>
-              <th className="px-3 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider bg-gray-50">
+              <th className="px-3 py-3 text-right text-xs font-medium text-white uppercase tracking-wider bg-blue-900">
                 Amount
               </th>
-              <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider bg-gray-50">
+              <th className="px-3 py-3 text-left text-xs font-medium text-white uppercase tracking-wider bg-blue-900">
                 Status
               </th>
-              <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider bg-gray-50">
+              <th className="px-3 py-3 text-left text-xs font-medium text-white uppercase tracking-wider bg-blue-900">
                 Memo
               </th>
-              <th className="px-3 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider bg-gray-50">
+              <th className="px-3 py-3 text-center text-xs font-medium text-white uppercase tracking-wider bg-blue-900">
                 View
               </th>
               {showNotifyColumn && (
-                <th className="px-3 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider bg-gray-50">
+                <th className="px-3 py-3 text-center text-xs font-medium text-white uppercase tracking-wider bg-blue-900">
                   Notify
                 </th>
               )}
@@ -274,7 +288,7 @@ export default function ExpenseTable({
           <tbody className="bg-white divide-y divide-gray-200">
             {expenses.length === 0 ? (
               <tr>
-                <td colSpan={showNotifyColumn ? 12 : 11} className="px-6 py-12 text-center text-gray-500">
+                <td colSpan={isAdmin ? (showNotifyColumn ? 12 : 11) : (showNotifyColumn ? 11 : 10)} className="px-6 py-12 text-center text-gray-500">
                   No expenses found. Try adjusting your filters or sync data from NetSuite.
                 </td>
               </tr>
@@ -284,58 +298,60 @@ export default function ExpenseTable({
                   key={expense.id} 
                   className={`hover:bg-gray-50 ${getRowBackgroundColor(expense.flag_category)}`}
                 >
-                  {/* Flag Column with Icon and Dropdown */}
-                  <td className="px-3 py-3 relative">
-                    <div className="relative">
-                      <button
-                        onClick={() => toggleFlagDropdown(expense.id)}
-                        disabled={updatingFlags.has(expense.id)}
-                        className={`flex items-center justify-center w-full hover:opacity-70 transition-opacity ${
-                          updatingFlags.has(expense.id) ? 'opacity-50 cursor-wait' : 'cursor-pointer'
-                        }`}
-                        title={expense.flag_category || 'Click to flag'}
-                      >
-                        {getFlagIcon(expense.flag_category)}
-                      </button>
+                  {/* Flag Column with Icon and Dropdown - Admin Only */}
+                  {isAdmin && (
+                    <td className="px-3 py-3 relative">
+                      <div className="relative">
+                        <button
+                          onClick={() => toggleFlagDropdown(expense.id)}
+                          disabled={updatingFlags.has(expense.id)}
+                          className={`flex items-center justify-center w-full hover:opacity-70 transition-opacity ${
+                            updatingFlags.has(expense.id) ? 'opacity-50 cursor-wait' : 'cursor-pointer'
+                          }`}
+                          title={expense.flag_category || 'Click to flag'}
+                        >
+                          {getFlagIcon(expense.flag_category)}
+                        </button>
 
-                      {/* Dropdown Menu */}
-                      {openFlagDropdown === expense.id && !updatingFlags.has(expense.id) && (
-                        <>
-                          {/* Backdrop to close dropdown */}
-                          <div 
-                            className="fixed inset-0 z-10" 
-                            onClick={() => setOpenFlagDropdown(null)}
-                          />
-                          
-                          {/* Dropdown */}
-                          <div className="absolute left-0 top-full mt-1 w-48 bg-white border border-gray-200 rounded-md shadow-lg z-20 py-1">
-                            <button
-                              onClick={() => handleFlagChange(expense.id, null)}
-                              className="w-full px-3 py-2 text-left text-xs hover:bg-gray-100 flex items-center gap-2"
-                            >
-                              <svg className="w-4 h-4 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
-                                <path fillRule="evenodd" d="M3 6a3 3 0 013-3h10a1 1 0 01.8 1.6L14.25 8l2.55 3.4A1 1 0 0116 13H6a1 1 0 00-1 1v3a1 1 0 11-2 0V6z" clipRule="evenodd" />
-                              </svg>
-                              <span>No Flag</span>
-                            </button>
+                        {/* Dropdown Menu */}
+                        {openFlagDropdown === expense.id && !updatingFlags.has(expense.id) && (
+                          <>
+                            {/* Backdrop to close dropdown */}
+                            <div 
+                              className="fixed inset-0 z-10" 
+                              onClick={() => setOpenFlagDropdown(null)}
+                            />
                             
-                            {FLAG_CATEGORIES.map(category => (
+                            {/* Dropdown */}
+                            <div className="absolute left-0 top-full mt-1 w-48 bg-white border border-gray-200 rounded-md shadow-lg z-20 py-1">
                               <button
-                                key={category}
-                                onClick={() => handleFlagChange(expense.id, category)}
+                                onClick={() => handleFlagChange(expense.id, null)}
                                 className="w-full px-3 py-2 text-left text-xs hover:bg-gray-100 flex items-center gap-2"
                               >
-                                <span className="w-4 h-4 flex-shrink-0">
-                                  {getFlagIcon(category)}
-                                </span>
-                                <span className="truncate">{category}</span>
+                                <svg className="w-4 h-4 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
+                                  <path fillRule="evenodd" d="M3 6a3 3 0 013-3h10a1 1 0 01.8 1.6L14.25 8l2.55 3.4A1 1 0 0116 13H6a1 1 0 00-1 1v3a1 1 0 11-2 0V6z" clipRule="evenodd" />
+                                </svg>
+                                <span>No Flag</span>
                               </button>
-                            ))}
-                          </div>
-                        </>
-                      )}
-                    </div>
-                  </td>
+                              
+                              {FLAG_CATEGORIES.map(category => (
+                                <button
+                                  key={category}
+                                  onClick={() => handleFlagChange(expense.id, category)}
+                                  className="w-full px-3 py-2 text-left text-xs hover:bg-gray-100 flex items-center gap-2"
+                                >
+                                  <span className="w-4 h-4 flex-shrink-0">
+                                    {getFlagIcon(category)}
+                                  </span>
+                                  <span className="truncate">{category}</span>
+                                </button>
+                              ))}
+                            </div>
+                          </>
+                        )}
+                      </div>
+                    </td>
+                  )}
 
                   {/* Date Column */}
                   <td className="px-3 py-3 text-sm text-gray-900">
@@ -380,17 +396,17 @@ export default function ExpenseTable({
 
                   {/* Branch Column */}
                   <td className="px-3 py-3">
-                    {expense.branch && expense.branch !== 'QnVkZ2V0OjcyNDQ0MQ==-' && !expense.branch.includes('=') && (
-                      <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
-                        expense.branch === 'Phoenix - North' ? 'bg-green-100 text-green-800' :
-                        expense.branch === 'Phoenix - SouthEast' ? 'bg-red-100 text-red-800' :
-                        expense.branch === 'Phoenix - SouthWest' ? 'bg-blue-100 text-blue-800' :
-                        expense.branch === 'Las Vegas' ? 'bg-yellow-100 text-yellow-800' :
-                        expense.branch === 'Corporate' ? 'bg-gray-100 text-gray-800' :
-                        'bg-purple-100 text-purple-800'
-                      }`}>
-                        {expense.branch}
-                      </span>
+                    {expense.branch && expense.branch !== 'QnVkZ2V0OjcyNDQ0MQ==-' && !expense.branch.includes('=') && getBranchIcon(expense.branch) && (
+                      <div className="flex items-center justify-center">
+                        <Image
+                          src={getBranchIcon(expense.branch)}
+                          alt={expense.branch}
+                          width={24}
+                          height={24}
+                          className="object-contain"
+                          title={expense.branch}
+                        />
+                      </div>
                     )}
                   </td>
 
@@ -537,67 +553,69 @@ export default function ExpenseTable({
                 {/* Expanded Details */}
                 {isExpanded && (
                   <div className="mt-3 pt-3 border-t border-gray-200 space-y-2">
-                    {/* Flag with Icon Dropdown */}
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-medium text-gray-500">Flag:</span>
-                      <div className="relative">
-                        <button
-                          onClick={() => toggleFlagDropdown(expense.id)}
-                          disabled={updatingFlags.has(expense.id)}
-                          className={`flex items-center gap-2 px-2 py-1 border rounded text-xs focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                            updatingFlags.has(expense.id) ? 'opacity-50 cursor-wait' : 'cursor-pointer hover:bg-gray-50'
-                          } ${
-                            !expense.flag_category ? 'border-gray-300 bg-white text-gray-700' :
-                            ['Wrong Branch', 'Wrong Department', 'Wrong Category', 'Poor Description'].includes(expense.flag_category) ? 'border-red-400 bg-red-100 text-red-900 font-medium' :
-                            expense.flag_category === 'Good to Sync' ? 'border-green-400 bg-green-100 text-green-900 font-medium' :
-                            expense.flag_category === 'Has WO #' ? 'border-gray-400 bg-gray-100 text-gray-900 font-medium' :
-                            'border-yellow-400 bg-yellow-100 text-yellow-900 font-medium'
-                          }`}
-                        >
-                          <span className="w-4 h-4 flex-shrink-0">
-                            {getFlagIcon(expense.flag_category)}
-                          </span>
-                          <span className="truncate">{expense.flag_category || 'No Flag'}</span>
-                          <svg className="w-3 h-3 ml-1" fill="currentColor" viewBox="0 0 20 20">
-                            <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
-                          </svg>
-                        </button>
+                    {/* Flag with Icon Dropdown - Admin Only */}
+                    {isAdmin && (
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-medium text-gray-500">Flag:</span>
+                        <div className="relative">
+                          <button
+                            onClick={() => toggleFlagDropdown(expense.id)}
+                            disabled={updatingFlags.has(expense.id)}
+                            className={`flex items-center gap-2 px-2 py-1 border rounded text-xs focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                              updatingFlags.has(expense.id) ? 'opacity-50 cursor-wait' : 'cursor-pointer hover:bg-gray-50'
+                            } ${
+                              !expense.flag_category ? 'border-gray-300 bg-white text-gray-700' :
+                              ['Wrong Branch', 'Wrong Department', 'Wrong Category', 'Poor Description'].includes(expense.flag_category) ? 'border-red-400 bg-red-100 text-red-900 font-medium' :
+                              expense.flag_category === 'Good to Sync' ? 'border-green-400 bg-green-100 text-green-900 font-medium' :
+                              expense.flag_category === 'Has WO #' ? 'border-gray-400 bg-gray-100 text-gray-900 font-medium' :
+                              'border-yellow-400 bg-yellow-100 text-yellow-900 font-medium'
+                            }`}
+                          >
+                            <span className="w-4 h-4 flex-shrink-0">
+                              {getFlagIcon(expense.flag_category)}
+                            </span>
+                            <span className="truncate">{expense.flag_category || 'No Flag'}</span>
+                            <svg className="w-3 h-3 ml-1" fill="currentColor" viewBox="0 0 20 20">
+                              <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
+                            </svg>
+                          </button>
 
-                        {/* Mobile Dropdown Menu */}
-                        {openFlagDropdown === expense.id && !updatingFlags.has(expense.id) && (
-                          <>
-                            <div 
-                              className="fixed inset-0 z-10" 
-                              onClick={() => setOpenFlagDropdown(null)}
-                            />
-                            <div className="absolute right-0 top-full mt-1 w-48 bg-white border border-gray-200 rounded-md shadow-lg z-20 py-1">
-                              <button
-                                onClick={() => handleFlagChange(expense.id, null)}
-                                className="w-full px-3 py-2 text-left text-xs hover:bg-gray-100 flex items-center gap-2"
-                              >
-                                <svg className="w-4 h-4 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
-                                  <path fillRule="evenodd" d="M3 6a3 3 0 013-3h10a1 1 0 01.8 1.6L14.25 8l2.55 3.4A1 1 0 0116 13H6a1 1 0 00-1 1v3a1 1 0 11-2 0V6z" clipRule="evenodd" />
-                                </svg>
-                                <span>No Flag</span>
-                              </button>
-                              
-                              {FLAG_CATEGORIES.map(category => (
+                          {/* Mobile Dropdown Menu */}
+                          {openFlagDropdown === expense.id && !updatingFlags.has(expense.id) && (
+                            <>
+                              <div 
+                                className="fixed inset-0 z-10" 
+                                onClick={() => setOpenFlagDropdown(null)}
+                              />
+                              <div className="absolute right-0 top-full mt-1 w-48 bg-white border border-gray-200 rounded-md shadow-lg z-20 py-1">
                                 <button
-                                  key={category}
-                                  onClick={() => handleFlagChange(expense.id, category)}
+                                  onClick={() => handleFlagChange(expense.id, null)}
                                   className="w-full px-3 py-2 text-left text-xs hover:bg-gray-100 flex items-center gap-2"
                                 >
-                                  <span className="w-4 h-4 flex-shrink-0">
-                                    {getFlagIcon(category)}
-                                  </span>
-                                  <span className="truncate">{category}</span>
+                                  <svg className="w-4 h-4 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fillRule="evenodd" d="M3 6a3 3 0 013-3h10a1 1 0 01.8 1.6L14.25 8l2.55 3.4A1 1 0 0116 13H6a1 1 0 00-1 1v3a1 1 0 11-2 0V6z" clipRule="evenodd" />
+                                  </svg>
+                                  <span>No Flag</span>
                                 </button>
-                              ))}
-                            </div>
-                          </>
-                        )}
+                                
+                                {FLAG_CATEGORIES.map(category => (
+                                  <button
+                                    key={category}
+                                    onClick={() => handleFlagChange(expense.id, category)}
+                                    className="w-full px-3 py-2 text-left text-xs hover:bg-gray-100 flex items-center gap-2"
+                                  >
+                                    <span className="w-4 h-4 flex-shrink-0">
+                                      {getFlagIcon(category)}
+                                    </span>
+                                    <span className="truncate">{category}</span>
+                                  </button>
+                                ))}
+                              </div>
+                            </>
+                          )}
+                        </div>
                       </div>
-                    </div>
+                    )}
 
                     {/* Category */}
                     {expense.category && (
@@ -611,16 +629,20 @@ export default function ExpenseTable({
                     {expense.branch && expense.branch !== 'QnVkZ2V0OjcyNDQ0MQ==-' && !expense.branch.includes('=') && (
                       <div className="flex items-center justify-between">
                         <span className="text-xs font-medium text-gray-500">Branch:</span>
-                        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
-                          expense.branch === 'Phoenix - North' ? 'bg-green-100 text-green-800' :
-                          expense.branch === 'Phoenix - SouthEast' ? 'bg-red-100 text-red-800' :
-                          expense.branch === 'Phoenix - SouthWest' ? 'bg-blue-100 text-blue-800' :
-                          expense.branch === 'Las Vegas' ? 'bg-yellow-100 text-yellow-800' :
-                          expense.branch === 'Corporate' ? 'bg-gray-100 text-gray-800' :
-                          'bg-purple-100 text-purple-800'
-                        }`}>
-                          {expense.branch}
-                        </span>
+                        {getBranchIcon(expense.branch) ? (
+                          <div className="flex items-center gap-2">
+                            <Image
+                              src={getBranchIcon(expense.branch)}
+                              alt={expense.branch}
+                              width={20}
+                              height={20}
+                              className="object-contain"
+                            />
+                            <span className="text-xs text-gray-900">{expense.branch}</span>
+                          </div>
+                        ) : (
+                          <span className="text-xs text-gray-900">{expense.branch}</span>
+                        )}
                       </div>
                     )}
 
