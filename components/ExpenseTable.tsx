@@ -2,7 +2,7 @@
 
 import { Expense, FLAG_CATEGORIES } from '@/types/expense';
 import { format } from 'date-fns';
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import Image from 'next/image';
 import SlackNotifyButton from './SlackNotifyButton';
 import SyncStatusIcon from './SyncStatusIcon';
@@ -27,12 +27,36 @@ export default function ExpenseTable({
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
   const [openFlagDropdown, setOpenFlagDropdown] = useState<string | null>(null);
   const [openApprovalDropdown, setOpenApprovalDropdown] = useState<string | null>(null);
+  const [dropdownPosition, setDropdownPosition] = useState<'bottom' | 'top'>('bottom');
+  
+  const flagButtonRefs = useRef<{ [key: string]: HTMLButtonElement | null }>({});
+  const approvalButtonRefs = useRef<{ [key: string]: HTMLButtonElement | null }>({});
 
   // Show Notify column only if user is admin AND not masquerading
   const showNotifyColumn = isAdmin && !isMasquerading;
   
   // Show Flag column only if user is admin AND not masquerading
   const showFlagColumn = isAdmin && !isMasquerading;
+
+  // Calculate dropdown position when opening
+  const calculateDropdownPosition = (buttonElement: HTMLButtonElement | null): 'bottom' | 'top' => {
+    if (!buttonElement) return 'bottom';
+    
+    const rect = buttonElement.getBoundingClientRect();
+    const viewportHeight = window.innerHeight;
+    const spaceBelow = viewportHeight - rect.bottom;
+    const spaceAbove = rect.top;
+    
+    // Estimate dropdown height (roughly 200px for flag dropdown, 150px for approval)
+    const estimatedDropdownHeight = 200;
+    
+    // If not enough space below but more space above, open upward
+    if (spaceBelow < estimatedDropdownHeight && spaceAbove > spaceBelow) {
+      return 'top';
+    }
+    
+    return 'bottom';
+  };
 
   const toggleRow = (expenseId: string) => {
     setExpandedRows(prev => {
@@ -263,7 +287,12 @@ export default function ExpenseTable({
   };
 
   const toggleFlagDropdown = (expenseId: string) => {
-    setOpenFlagDropdown(prev => prev === expenseId ? null : expenseId);
+    const newDropdownId = openFlagDropdown === expenseId ? null : expenseId;
+    if (newDropdownId) {
+      const position = calculateDropdownPosition(flagButtonRefs.current[expenseId]);
+      setDropdownPosition(position);
+    }
+    setOpenFlagDropdown(newDropdownId);
   };
 
   const handleApprovalChange = async (expenseId: string, approvalStatus: 'approved' | 'rejected' | null) => {
@@ -306,7 +335,12 @@ export default function ExpenseTable({
   };
 
   const toggleApprovalDropdown = (expenseId: string) => {
-    setOpenApprovalDropdown(prev => prev === expenseId ? null : expenseId);
+    const newDropdownId = openApprovalDropdown === expenseId ? null : expenseId;
+    if (newDropdownId) {
+      const position = calculateDropdownPosition(approvalButtonRefs.current[expenseId]);
+      setDropdownPosition(position);
+    }
+    setOpenApprovalDropdown(newDropdownId);
   };
 
   return (
@@ -329,7 +363,7 @@ export default function ExpenseTable({
             <col style={{ width: '60px' }} />
             {showNotifyColumn && <col style={{ width: '60px' }} />}
           </colgroup>
-          <thead className="bg-blue-900 border-b border-blue-950 sticky top-0 z-10">
+          <thead className="sticky top-0 z-10">
             <tr>
               {showFlagColumn && (
                 <th className="px-3 py-3 text-left text-xs font-medium text-white uppercase tracking-wider bg-blue-900">
@@ -401,6 +435,7 @@ export default function ExpenseTable({
                     <td className="px-3 py-3 relative">
                       <div className="relative">
                         <button
+                          ref={(el) => { flagButtonRefs.current[expense.id] = el; }}
                           onClick={() => toggleFlagDropdown(expense.id)}
                           disabled={updatingFlags.has(expense.id)}
                           className={`flex items-center justify-center w-full hover:opacity-70 transition-opacity ${
@@ -420,8 +455,8 @@ export default function ExpenseTable({
                               onClick={() => setOpenFlagDropdown(null)}
                             />
                             
-                            {/* Dropdown */}
-                            <div className="absolute left-0 top-full mt-1 w-48 bg-white border border-gray-200 rounded-md shadow-lg z-20 py-1">
+                            {/* Dropdown with smart positioning */}
+                            <div className={`absolute left-0 ${dropdownPosition === 'top' ? 'bottom-full mb-1' : 'top-full mt-1'} w-48 bg-white border border-gray-200 rounded-md shadow-lg z-20 py-1`}>
                               <button
                                 onClick={() => handleFlagChange(expense.id, null)}
                                 className="w-full px-3 py-2 text-left text-xs hover:bg-gray-100 flex items-center gap-2"
@@ -455,6 +490,7 @@ export default function ExpenseTable({
                   <td className="px-3 py-3 relative">
                     <div className="relative">
                       <button
+                        ref={(el) => { approvalButtonRefs.current[expense.id] = el; }}
                         onClick={() => toggleApprovalDropdown(expense.id)}
                         disabled={updatingApprovals.has(expense.id)}
                         className={`flex items-center justify-center w-full hover:opacity-70 transition-opacity ${
@@ -474,8 +510,8 @@ export default function ExpenseTable({
                             onClick={() => setOpenApprovalDropdown(null)}
                           />
                           
-                          {/* Dropdown */}
-                          <div className="absolute left-0 top-full mt-1 w-32 bg-white border border-gray-200 rounded-md shadow-lg z-20 py-1">
+                          {/* Dropdown with smart positioning */}
+                          <div className={`absolute left-0 ${dropdownPosition === 'top' ? 'bottom-full mb-1' : 'top-full mt-1'} w-32 bg-white border border-gray-200 rounded-md shadow-lg z-20 py-1`}>
                             <button
                               onClick={() => handleApprovalChange(expense.id, null)}
                               className="w-full px-3 py-2 text-left text-xs hover:bg-gray-100 flex items-center gap-2"
@@ -650,199 +686,224 @@ export default function ExpenseTable({
         ) : (
           expenses.map((expense) => {
             const isExpanded = expandedRows.has(expense.id);
+            const rowBgColor = getRowBackgroundColor(expense.flag_category);
+            
             return (
               <div 
                 key={expense.id} 
-                className={`p-4 ${getRowBackgroundColor(expense.flag_category)}`}
+                className={`p-4 ${rowBgColor}`}
               >
-                {/* Main Row - Always Visible */}
-                <div className="flex items-start justify-between gap-3">
-                  <button
-                    onClick={() => toggleRow(expense.id)}
-                    className="flex-1 text-left"
-                  >
-                    <div className="flex items-center gap-2 mb-1">
-                      {expense.transaction_type === 'Credit Card' ? (
-                        <Image
-                          src="/logos/bill.png"
-                          alt="Bill.com"
-                          width={14}
-                          height={14}
-                          className="flex-shrink-0"
-                        />
-                      ) : (
-                        <Image
-                          src="/logos/netsuite.png"
-                          alt="NetSuite"
-                          width={14}
-                          height={14}
-                          className="flex-shrink-0"
-                        />
+                {/* Card Header - Always Visible */}
+                <div 
+                  className="cursor-pointer"
+                  onClick={() => toggleRow(expense.id)}
+                >
+                  <div className="flex items-start justify-between mb-2">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-1">
+                        {expense.transaction_type === 'Credit Card' ? (
+                          <Image
+                            src="/logos/bill.png"
+                            alt="Bill.com"
+                            width={16}
+                            height={16}
+                            className="flex-shrink-0"
+                          />
+                        ) : (
+                          <Image
+                            src="/logos/netsuite.png"
+                            alt="NetSuite"
+                            width={16}
+                            height={16}
+                            className="flex-shrink-0"
+                          />
+                        )}
+                        <div className="font-medium text-gray-900 truncate">
+                          {expense.vendor_name}
+                        </div>
+                      </div>
+                      <div className="text-sm text-gray-500">
+                        {formatDate(expense.transaction_date)}
+                      </div>
+                    </div>
+                    <div className="text-right ml-4 flex-shrink-0">
+                      <div className="text-lg font-semibold text-gray-900">
+                        {formatCurrency(expense.amount, expense.currency)}
+                      </div>
+                      {expense.cardholder && (
+                        <div className="text-sm text-gray-500">
+                          {expense.cardholder}
+                        </div>
                       )}
-                      <span className="font-medium text-gray-900 text-sm">{expense.vendor_name}</span>
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <SyncStatusIcon 
+                        syncStatus={expense.bill_sync_status}
+                        transactionType={expense.transaction_type}
+                      />
+                      <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
+                        expense.status === 'Paid' || expense.status === 'Paid In Full' || expense.status === 'Complete' ? 'bg-green-100 text-green-800' :
+                        expense.status === 'Approved' ? 'bg-blue-100 text-blue-800' :
+                        expense.status === 'Pending Approval' ? 'bg-yellow-100 text-yellow-800' :
+                        'bg-gray-100 text-gray-800'
+                      }`}>
+                        {expense.status}
+                      </span>
                     </div>
                     
-                    <div className="flex items-center justify-between text-xs text-gray-500 mb-1">
-                      <span>{formatDate(expense.transaction_date)}</span>
-                      <span className="font-semibold text-gray-900">{formatCurrency(expense.amount, expense.currency)}</span>
-                    </div>
-                    
-                    <div className="text-xs text-gray-600">
-                      {expense.cardholder || 'No purchaser'}
-                    </div>
-                  </button>
-
-                  {/* Expand/Collapse Icon */}
-                  <button
-                    onClick={() => toggleRow(expense.id)}
-                    className="p-1 text-gray-400 hover:text-gray-600"
-                  >
-                    <svg 
-                      className={`w-5 h-5 transition-transform ${isExpanded ? 'rotate-180' : ''}`}
-                      fill="none" 
-                      stroke="currentColor" 
-                      viewBox="0 0 24 24"
-                    >
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                    </svg>
-                  </button>
+                    <button className="text-gray-400 hover:text-gray-600">
+                      <svg 
+                        className={`w-5 h-5 transition-transform ${isExpanded ? 'rotate-180' : ''}`}
+                        fill="none" 
+                        stroke="currentColor" 
+                        viewBox="0 0 24 24"
+                      >
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                      </svg>
+                    </button>
+                  </div>
                 </div>
 
-                {/* Expanded Details */}
+                {/* Expanded Content */}
                 {isExpanded && (
-                  <div className="mt-3 pt-3 border-t border-gray-200 space-y-2">
-                    {/* Flag with Icon Dropdown - Admin Only (Not Masquerading) */}
+                  <div className="mt-3 pt-3 border-t border-gray-200 space-y-3">
+                    {/* Flag Dropdown - Show for admins not masquerading */}
                     {showFlagColumn && (
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs font-medium text-gray-500">Flag:</span>
+                      <div className="relative">
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="text-xs font-medium text-gray-500">Flag:</span>
+                        </div>
+                        {updatingFlags.has(expense.id) ? (
+                          <div className="flex items-center gap-2 py-2">
+                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+                            <span className="text-xs text-gray-500">Updating...</span>
+                          </div>
+                        ) : (
+                          <button
+                            ref={(el) => { flagButtonRefs.current[expense.id] = el; }}
+                            onClick={() => toggleFlagDropdown(expense.id)}
+                            className="w-full flex items-center justify-between gap-2 px-3 py-2 text-sm border border-gray-300 rounded-md hover:bg-gray-50 transition-colors bg-white"
+                          >
+                            <span className="flex items-center gap-2">
+                              {getFlagIcon(expense.flag_category)}
+                              <span className="truncate">
+                                {expense.flag_category || 'No Flag'}
+                              </span>
+                            </span>
+                            <svg className="w-3 h-3 ml-1 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                              <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
+                            </svg>
+                          </button>
+                        )}
+
+                        {/* Mobile Dropdown Menu */}
+                        {openFlagDropdown === expense.id && !updatingFlags.has(expense.id) && (
+                          <>
+                            <div 
+                              className="fixed inset-0 z-10" 
+                              onClick={() => setOpenFlagDropdown(null)}
+                            />
+                            <div className={`absolute ${dropdownPosition === 'top' ? 'bottom-full mb-1' : 'top-full mt-1'} right-0 w-48 bg-white border border-gray-200 rounded-md shadow-lg z-20 py-1 max-h-60 overflow-y-auto`}>
+                              <button
+                                onClick={() => handleFlagChange(expense.id, null)}
+                                className="w-full px-3 py-2 text-left text-xs hover:bg-gray-100 flex items-center gap-2"
+                              >
+                                <svg className="w-4 h-4 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
+                                  <path fillRule="evenodd" d="M3 6a3 3 0 013-3h10a1 1 0 01.8 1.6L14.25 8l2.55 3.4A1 1 0 0116 13H6a1 1 0 00-1 1v3a1 1 0 11-2 0V6z" clipRule="evenodd" />
+                                </svg>
+                                <span>No Flag</span>
+                              </button>
+                              
+                              {FLAG_CATEGORIES.map((category) => (
+                                <button
+                                  key={category}
+                                  onClick={() => handleFlagChange(expense.id, category)}
+                                  className="w-full px-3 py-2 text-left text-xs hover:bg-gray-100 flex items-center gap-2"
+                                >
+                                  {getFlagIcon(category)}
+                                  <span>{category}</span>
+                                </button>
+                              ))}
+                            </div>
+                          </>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Approval Dropdown */}
+                    <div className="relative">
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-xs font-medium text-gray-500">Approval:</span>
+                      </div>
+                      {updatingApprovals.has(expense.id) ? (
+                        <div className="flex items-center gap-2 py-2">
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+                          <span className="text-xs text-gray-500">Updating...</span>
+                        </div>
+                      ) : (
                         <div className="relative">
                           <button
-                            onClick={() => toggleFlagDropdown(expense.id)}
-                            disabled={updatingFlags.has(expense.id)}
-                            className={`flex items-center gap-2 px-2 py-1 border rounded text-xs focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                              updatingFlags.has(expense.id) ? 'opacity-50 cursor-wait' : 'cursor-pointer hover:bg-gray-50'
-                            } ${
-                              !expense.flag_category ? 'border-gray-300 bg-white text-gray-700' :
-                              ['Wrong Branch', 'Wrong Department', 'Wrong Category', 'Poor Description'].includes(expense.flag_category) ? 'border-red-400 bg-red-100 text-red-900 font-medium' :
-                              expense.flag_category === 'Good to Sync' ? 'border-green-400 bg-green-100 text-green-900 font-medium' :
-                              expense.flag_category === 'Has WO #' ? 'border-gray-400 bg-gray-100 text-gray-900 font-medium' :
-                              'border-yellow-400 bg-yellow-100 text-yellow-900 font-medium'
-                            }`}
+                            ref={(el) => { approvalButtonRefs.current[expense.id] = el; }}
+                            onClick={() => toggleApprovalDropdown(expense.id)}
+                            className="w-full flex items-center justify-between gap-2 px-3 py-2 text-sm border border-gray-300 rounded-md hover:bg-gray-50 transition-colors bg-white"
                           >
-                            <span className="w-4 h-4 flex-shrink-0">
-                              {getFlagIcon(expense.flag_category)}
+                            <span className="flex items-center gap-2">
+                              {getApprovalIcon(expense.approval_status)}
+                              <span className="truncate">
+                                {!expense.approval_status ? 'No Status' : 
+                                 expense.approval_status === 'approved' ? 'Approved' : 'Rejected'}
+                              </span>
                             </span>
-                            <span className="truncate">{expense.flag_category || 'No Flag'}</span>
-                            <svg className="w-3 h-3 ml-1" fill="currentColor" viewBox="0 0 20 20">
+                            <svg className="w-3 h-3 ml-1 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
                               <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
                             </svg>
                           </button>
 
                           {/* Mobile Dropdown Menu */}
-                          {openFlagDropdown === expense.id && !updatingFlags.has(expense.id) && (
+                          {openApprovalDropdown === expense.id && !updatingApprovals.has(expense.id) && (
                             <>
                               <div 
                                 className="fixed inset-0 z-10" 
-                                onClick={() => setOpenFlagDropdown(null)}
+                                onClick={() => setOpenApprovalDropdown(null)}
                               />
-                              <div className="absolute right-0 top-full mt-1 w-48 bg-white border border-gray-200 rounded-md shadow-lg z-20 py-1">
+                              <div className={`absolute ${dropdownPosition === 'top' ? 'bottom-full mb-1' : 'top-full mt-1'} right-0 w-32 bg-white border border-gray-200 rounded-md shadow-lg z-20 py-1`}>
                                 <button
-                                  onClick={() => handleFlagChange(expense.id, null)}
+                                  onClick={() => handleApprovalChange(expense.id, null)}
                                   className="w-full px-3 py-2 text-left text-xs hover:bg-gray-100 flex items-center gap-2"
                                 >
                                   <svg className="w-4 h-4 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
-                                    <path fillRule="evenodd" d="M3 6a3 3 0 013-3h10a1 1 0 01.8 1.6L14.25 8l2.55 3.4A1 1 0 0116 13H6a1 1 0 00-1 1v3a1 1 0 11-2 0V6z" clipRule="evenodd" />
+                                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16z" clipRule="evenodd" />
                                   </svg>
-                                  <span>No Flag</span>
+                                  <span>No Status</span>
                                 </button>
                                 
-                                {FLAG_CATEGORIES.map(category => (
-                                  <button
-                                    key={category}
-                                    onClick={() => handleFlagChange(expense.id, category)}
-                                    className="w-full px-3 py-2 text-left text-xs hover:bg-gray-100 flex items-center gap-2"
-                                  >
-                                    <span className="w-4 h-4 flex-shrink-0">
-                                      {getFlagIcon(category)}
-                                    </span>
-                                    <span className="truncate">{category}</span>
-                                  </button>
-                                ))}
+                                <button
+                                  onClick={() => handleApprovalChange(expense.id, 'approved')}
+                                  className="w-full px-3 py-2 text-left text-xs hover:bg-gray-100 flex items-center gap-2"
+                                >
+                                  <svg className="w-4 h-4 text-green-600" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                                  </svg>
+                                  <span>Approved</span>
+                                </button>
+
+                                <button
+                                  onClick={() => handleApprovalChange(expense.id, 'rejected')}
+                                  className="w-full px-3 py-2 text-left text-xs hover:bg-gray-100 flex items-center gap-2"
+                                >
+                                  <svg className="w-4 h-4 text-red-600" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                                  </svg>
+                                  <span>Rejected</span>
+                                </button>
                               </div>
                             </>
                           )}
                         </div>
-                      </div>
-                    )}
-
-                    {/* Approval - All Users */}
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-medium text-gray-500">Approval:</span>
-                      <div className="relative">
-                        <button
-                          onClick={() => toggleApprovalDropdown(expense.id)}
-                          disabled={updatingApprovals.has(expense.id)}
-                          className={`flex items-center gap-2 px-2 py-1 border rounded text-xs focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                            updatingApprovals.has(expense.id) ? 'opacity-50 cursor-wait' : 'cursor-pointer hover:bg-gray-50'
-                          } ${
-                            !expense.approval_status ? 'border-gray-300 bg-white text-gray-700' :
-                            expense.approval_status === 'approved' ? 'border-green-400 bg-green-100 text-green-900 font-medium' :
-                            'border-red-400 bg-red-100 text-red-900 font-medium'
-                          }`}
-                        >
-                          <span className="w-4 h-4 flex-shrink-0">
-                            {getApprovalIcon(expense.approval_status)}
-                          </span>
-                          <span className="truncate">
-                            {!expense.approval_status ? 'No Status' : 
-                             expense.approval_status === 'approved' ? 'Approved' : 'Rejected'}
-                          </span>
-                          <svg className="w-3 h-3 ml-1" fill="currentColor" viewBox="0 0 20 20">
-                            <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
-                          </svg>
-                        </button>
-
-                        {/* Mobile Dropdown Menu */}
-                        {openApprovalDropdown === expense.id && !updatingApprovals.has(expense.id) && (
-                          <>
-                            <div 
-                              className="fixed inset-0 z-10" 
-                              onClick={() => setOpenApprovalDropdown(null)}
-                            />
-                            <div className="absolute right-0 top-full mt-1 w-32 bg-white border border-gray-200 rounded-md shadow-lg z-20 py-1">
-                              <button
-                                onClick={() => handleApprovalChange(expense.id, null)}
-                                className="w-full px-3 py-2 text-left text-xs hover:bg-gray-100 flex items-center gap-2"
-                              >
-                                <svg className="w-4 h-4 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
-                                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16z" clipRule="evenodd" />
-                                </svg>
-                                <span>No Status</span>
-                              </button>
-                              
-                              <button
-                                onClick={() => handleApprovalChange(expense.id, 'approved')}
-                                className="w-full px-3 py-2 text-left text-xs hover:bg-gray-100 flex items-center gap-2"
-                              >
-                                <svg className="w-4 h-4 text-green-600" fill="currentColor" viewBox="0 0 20 20">
-                                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                                </svg>
-                                <span>Approved</span>
-                              </button>
-
-                              <button
-                                onClick={() => handleApprovalChange(expense.id, 'rejected')}
-                                className="w-full px-3 py-2 text-left text-xs hover:bg-gray-100 flex items-center gap-2"
-                              >
-                                <svg className="w-4 h-4 text-red-600" fill="currentColor" viewBox="0 0 20 20">
-                                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
-                                </svg>
-                                <span>Rejected</span>
-                              </button>
-                            </div>
-                          </>
-                        )}
-                      </div>
+                      )}
                     </div>
 
                     {/* Category */}
@@ -879,27 +940,6 @@ export default function ExpenseTable({
                       <div className="flex items-center justify-between">
                         <span className="text-xs font-medium text-gray-500">Department:</span>
                         <span className="text-xs text-gray-900">{expense.department}</span>
-                      </div>
-                    )}
-
-                    {/* Status */}
-                    {expense.status && (
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs font-medium text-gray-500">Status:</span>
-                        <div className="flex items-center gap-2">
-                          <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
-                            expense.status === 'Paid' || expense.status === 'Paid In Full' || expense.status === 'Complete' ? 'bg-green-100 text-green-800' :
-                            expense.status === 'Approved' ? 'bg-blue-100 text-blue-800' :
-                            expense.status === 'Pending Approval' ? 'bg-yellow-100 text-yellow-800' :
-                            'bg-gray-100 text-gray-800'
-                          }`}>
-                            {expense.status}
-                          </span>
-                          <SyncStatusIcon 
-                            syncStatus={expense.bill_sync_status} 
-                            transactionType={expense.transaction_type}
-                          />
-                        </div>
                       </div>
                     )}
 
