@@ -34,7 +34,7 @@ async function getFilterOptions() {
     .not('cardholder', 'is', null)
     .gte('transaction_date', '2025-10-01');
 
-  const vendors = [...new Set(vendorData?.map(d => d.vendor_name) || [])];
+  const vendors = [...new Set(vendorData?.map(d => d.vendor_name) || [])].sort();
   const purchasers = [...new Set(purchaserData?.map(d => d.cardholder) || [])].sort();
 
   return { vendors, purchasers };
