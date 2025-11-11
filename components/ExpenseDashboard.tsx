@@ -247,10 +247,10 @@ export default function ExpenseDashboard({
       }
 
       // Flag filter
-      if (filters.showFlagged === 'flagged' && !expense.flag_category) {
+      if (filters.showFlagged === 'flagged' && (!expense.flag_category || expense.flag_category === 'Good to Sync')) {
         return false;
       }
-      if (filters.showFlagged === 'unflagged' && expense.flag_category) {
+      if (filters.showFlagged === 'unflagged' && expense.flag_category && expense.flag_category !== 'Good to Sync') {
         return false;
       }
 
@@ -307,7 +307,7 @@ export default function ExpenseDashboard({
   const kpis = useMemo(() => {
     const totalAmount = filteredExpenses.reduce((sum, exp) => sum + Number(exp.amount), 0);
     const totalCount = filteredExpenses.length;
-    const flaggedCount = filteredExpenses.filter(exp => exp.flag_category).length;
+    const flaggedCount = filteredExpenses.filter(exp => exp.flag_category && exp.flag_category !== 'Good to Sync').length;
 
     const byBranch: Record<string, { amount: number; count: number }> = {};
     const byDepartment: Record<string, { amount: number; count: number }> = {};
@@ -468,6 +468,15 @@ export default function ExpenseDashboard({
     setExpenses(prev => prev.map(expense => 
       expense.id === expenseId 
         ? { ...expense, flag_category: newFlagCategory }
+        : expense
+    ));
+  };
+
+  const handleApprovalUpdate = (expenseId: string, newApprovalStatus: 'approved' | 'rejected' | null) => {
+    // Update the local expense state with the new approval status
+    setExpenses(prev => prev.map(expense => 
+      expense.id === expenseId 
+        ? { ...expense, approval_status: newApprovalStatus }
         : expense
     ));
   };
@@ -639,7 +648,7 @@ export default function ExpenseDashboard({
           <KPICard
             title="Flagged Items"
             value={kpis.flaggedCount.toString()}
-            subtitle={`${formatCurrency(filteredExpenses.filter(e => e.flag_category).reduce((sum, e) => sum + Number(e.amount), 0))}`}
+            subtitle={`${formatCurrency(filteredExpenses.filter(e => e.flag_category && e.flag_category !== 'Good to Sync').reduce((sum, e) => sum + Number(e.amount), 0))}`}
             bgColor={filters.showFlagged === 'flagged' ? 'bg-yellow-100' : 'bg-yellow-50'}
             size="small"
             onClick={handleFlaggedClick}
@@ -1050,6 +1059,7 @@ export default function ExpenseDashboard({
       <ExpenseTable 
         expenses={filteredExpenses}
         onFlagUpdate={handleFlagUpdate}
+        onApprovalUpdate={handleApprovalUpdate}
         isAdmin={isAdmin}
         isMasquerading={isMasquerading}
       />

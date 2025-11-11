@@ -10,22 +10,29 @@ import SyncStatusIcon from './SyncStatusIcon';
 interface ExpenseTableProps {
   expenses: Expense[];
   onFlagUpdate?: (expenseId: string, newFlagCategory: string | null) => void;
+  onApprovalUpdate?: (expenseId: string, newApprovalStatus: 'approved' | 'rejected' | null) => void;
   isAdmin?: boolean;
   isMasquerading?: boolean;
 }
 
 export default function ExpenseTable({ 
   expenses, 
-  onFlagUpdate, 
+  onFlagUpdate,
+  onApprovalUpdate, 
   isAdmin = false,
   isMasquerading = false 
 }: ExpenseTableProps) {
   const [updatingFlags, setUpdatingFlags] = useState<Set<string>>(new Set());
+  const [updatingApprovals, setUpdatingApprovals] = useState<Set<string>>(new Set());
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
   const [openFlagDropdown, setOpenFlagDropdown] = useState<string | null>(null);
+  const [openApprovalDropdown, setOpenApprovalDropdown] = useState<string | null>(null);
 
   // Show Notify column only if user is admin AND not masquerading
   const showNotifyColumn = isAdmin && !isMasquerading;
+  
+  // Show Flag column only if user is admin AND not masquerading
+  const showFlagColumn = isAdmin && !isMasquerading;
 
   const toggleRow = (expenseId: string) => {
     setExpandedRows(prev => {
@@ -140,6 +147,43 @@ export default function ExpenseTable({
     );
   };
 
+  // Helper function to get the appropriate approval icon based on status
+  const getApprovalIcon = (approvalStatus: 'approved' | 'rejected' | null | undefined) => {
+    if (!approvalStatus) {
+      // Grey circle for no status
+      return (
+        <svg className="w-5 h-5 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
+          <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16z" clipRule="evenodd" />
+        </svg>
+      );
+    }
+
+    // Green checkmark for approved
+    if (approvalStatus === 'approved') {
+      return (
+        <svg className="w-5 h-5 text-green-600" fill="currentColor" viewBox="0 0 20 20">
+          <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+        </svg>
+      );
+    }
+
+    // Red X for rejected
+    if (approvalStatus === 'rejected') {
+      return (
+        <svg className="w-5 h-5 text-red-600" fill="currentColor" viewBox="0 0 20 20">
+          <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+        </svg>
+      );
+    }
+
+    // Default grey circle
+    return (
+      <svg className="w-5 h-5 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
+        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16z" clipRule="evenodd" />
+      </svg>
+    );
+  };
+
   const formatCurrency = (amount: number, currency: string = 'USD') => {
     // Map full currency names to codes
     const currencyMap: Record<string, string> = {
@@ -222,13 +266,57 @@ export default function ExpenseTable({
     setOpenFlagDropdown(prev => prev === expenseId ? null : expenseId);
   };
 
+  const handleApprovalChange = async (expenseId: string, approvalStatus: 'approved' | 'rejected' | null) => {
+    setUpdatingApprovals(prev => new Set(prev).add(expenseId));
+    setOpenApprovalDropdown(null); // Close dropdown after selection
+
+    try {
+      const response = await fetch('/api/expenses/approval', {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          expenseId,
+          approvalStatus,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        // Trigger a refresh of the data with the new approval status
+        if (onApprovalUpdate) {
+          onApprovalUpdate(expenseId, approvalStatus);
+        }
+      } else {
+        console.error('Failed to update approval:', data.error);
+        alert('Failed to update approval. Please try again.');
+      }
+    } catch (error) {
+      console.error('Error updating approval:', error);
+      alert('Error updating approval. Please try again.');
+    } finally {
+      setUpdatingApprovals(prev => {
+        const next = new Set(prev);
+        next.delete(expenseId);
+        return next;
+      });
+    }
+  };
+
+  const toggleApprovalDropdown = (expenseId: string) => {
+    setOpenApprovalDropdown(prev => prev === expenseId ? null : expenseId);
+  };
+
   return (
     <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
       {/* Desktop Table View */}
       <div className="hidden lg:block overflow-x-auto max-h-[calc(100vh-400px)] overflow-y-auto">
         <table className="w-full table-fixed">
           <colgroup>
-            {isAdmin && <col style={{ width: '50px' }} />}
+            {showFlagColumn && <col style={{ width: '50px' }} />}
+            <col style={{ width: '50px' }} />
             <col style={{ width: '70px' }} />
             <col style={{ width: '150px' }} />
             <col style={{ width: '130px' }} />
@@ -243,11 +331,21 @@ export default function ExpenseTable({
           </colgroup>
           <thead className="bg-blue-900 border-b border-blue-950 sticky top-0 z-10">
             <tr>
-              {isAdmin && (
+              {showFlagColumn && (
                 <th className="px-3 py-3 text-left text-xs font-medium text-white uppercase tracking-wider bg-blue-900">
                   Flag
                 </th>
               )}
+              <th className="px-3 py-3 text-center text-xs font-medium text-white uppercase tracking-wider bg-blue-900">
+                <div className="flex items-center justify-center gap-1" title="Approval">
+                  <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                    <path d="M2 10.5a1.5 1.5 0 113 0v6a1.5 1.5 0 01-3 0v-6zM6 10.333v5.43a2 2 0 001.106 1.79l.05.025A4 4 0 008.943 18h5.416a2 2 0 001.962-1.608l1.2-6A2 2 0 0015.56 8H12V4a2 2 0 00-2-2 1 1 0 00-1 1v.667a4 4 0 01-.8 2.4L6.8 7.933a4 4 0 00-.8 2.4z" />
+                  </svg>
+                  <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                    <path d="M18 9.5a1.5 1.5 0 11-3 0v-6a1.5 1.5 0 013 0v6zM14 9.667v-5.43a2 2 0 00-1.105-1.79l-.05-.025A4 4 0 0011.055 2H5.64a2 2 0 00-1.962 1.608l-1.2 6A2 2 0 004.44 12H8v4a2 2 0 002 2 1 1 0 001-1v-.667a4 4 0 01.8-2.4l1.4-1.866a4 4 0 00.8-2.4z" />
+                  </svg>
+                </div>
+              </th>
               <th className="px-3 py-3 text-left text-xs font-medium text-white uppercase tracking-wider bg-blue-900">
                 Date
               </th>
@@ -288,7 +386,7 @@ export default function ExpenseTable({
           <tbody className="bg-white divide-y divide-gray-200">
             {expenses.length === 0 ? (
               <tr>
-                <td colSpan={isAdmin ? (showNotifyColumn ? 12 : 11) : (showNotifyColumn ? 11 : 10)} className="px-6 py-12 text-center text-gray-500">
+                <td colSpan={showFlagColumn ? (showNotifyColumn ? 13 : 12) : (showNotifyColumn ? 12 : 11)} className="px-6 py-12 text-center text-gray-500">
                   No expenses found. Try adjusting your filters or sync data from NetSuite.
                 </td>
               </tr>
@@ -298,8 +396,8 @@ export default function ExpenseTable({
                   key={expense.id} 
                   className={`hover:bg-gray-50 ${getRowBackgroundColor(expense.flag_category)}`}
                 >
-                  {/* Flag Column with Icon and Dropdown - Admin Only */}
-                  {isAdmin && (
+                  {/* Flag Column with Icon and Dropdown - Admin Only (Not Masquerading) */}
+                  {showFlagColumn && (
                     <td className="px-3 py-3 relative">
                       <div className="relative">
                         <button
@@ -352,6 +450,66 @@ export default function ExpenseTable({
                       </div>
                     </td>
                   )}
+
+                  {/* Approval Column with Icon and Dropdown */}
+                  <td className="px-3 py-3 relative">
+                    <div className="relative">
+                      <button
+                        onClick={() => toggleApprovalDropdown(expense.id)}
+                        disabled={updatingApprovals.has(expense.id)}
+                        className={`flex items-center justify-center w-full hover:opacity-70 transition-opacity ${
+                          updatingApprovals.has(expense.id) ? 'opacity-50 cursor-wait' : 'cursor-pointer'
+                        }`}
+                        title={expense.approval_status ? (expense.approval_status === 'approved' ? 'Approved' : 'Rejected') : 'Click to set approval'}
+                      >
+                        {getApprovalIcon(expense.approval_status)}
+                      </button>
+
+                      {/* Dropdown Menu */}
+                      {openApprovalDropdown === expense.id && !updatingApprovals.has(expense.id) && (
+                        <>
+                          {/* Backdrop to close dropdown */}
+                          <div 
+                            className="fixed inset-0 z-10" 
+                            onClick={() => setOpenApprovalDropdown(null)}
+                          />
+                          
+                          {/* Dropdown */}
+                          <div className="absolute left-0 top-full mt-1 w-32 bg-white border border-gray-200 rounded-md shadow-lg z-20 py-1">
+                            <button
+                              onClick={() => handleApprovalChange(expense.id, null)}
+                              className="w-full px-3 py-2 text-left text-xs hover:bg-gray-100 flex items-center gap-2"
+                            >
+                              <svg className="w-4 h-4 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
+                                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16z" clipRule="evenodd" />
+                              </svg>
+                              <span>No Status</span>
+                            </button>
+                            
+                            <button
+                              onClick={() => handleApprovalChange(expense.id, 'approved')}
+                              className="w-full px-3 py-2 text-left text-xs hover:bg-gray-100 flex items-center gap-2"
+                            >
+                              <svg className="w-4 h-4 text-green-600" fill="currentColor" viewBox="0 0 20 20">
+                                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                              </svg>
+                              <span>Approved</span>
+                            </button>
+
+                            <button
+                              onClick={() => handleApprovalChange(expense.id, 'rejected')}
+                              className="w-full px-3 py-2 text-left text-xs hover:bg-gray-100 flex items-center gap-2"
+                            >
+                              <svg className="w-4 h-4 text-red-600" fill="currentColor" viewBox="0 0 20 20">
+                                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                              </svg>
+                              <span>Rejected</span>
+                            </button>
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  </td>
 
                   {/* Date Column */}
                   <td className="px-3 py-3 text-sm text-gray-900">
@@ -553,8 +711,8 @@ export default function ExpenseTable({
                 {/* Expanded Details */}
                 {isExpanded && (
                   <div className="mt-3 pt-3 border-t border-gray-200 space-y-2">
-                    {/* Flag with Icon Dropdown - Admin Only */}
-                    {isAdmin && (
+                    {/* Flag with Icon Dropdown - Admin Only (Not Masquerading) */}
+                    {showFlagColumn && (
                       <div className="flex items-center justify-between">
                         <span className="text-xs font-medium text-gray-500">Flag:</span>
                         <div className="relative">
@@ -616,6 +774,76 @@ export default function ExpenseTable({
                         </div>
                       </div>
                     )}
+
+                    {/* Approval - All Users */}
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-medium text-gray-500">Approval:</span>
+                      <div className="relative">
+                        <button
+                          onClick={() => toggleApprovalDropdown(expense.id)}
+                          disabled={updatingApprovals.has(expense.id)}
+                          className={`flex items-center gap-2 px-2 py-1 border rounded text-xs focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                            updatingApprovals.has(expense.id) ? 'opacity-50 cursor-wait' : 'cursor-pointer hover:bg-gray-50'
+                          } ${
+                            !expense.approval_status ? 'border-gray-300 bg-white text-gray-700' :
+                            expense.approval_status === 'approved' ? 'border-green-400 bg-green-100 text-green-900 font-medium' :
+                            'border-red-400 bg-red-100 text-red-900 font-medium'
+                          }`}
+                        >
+                          <span className="w-4 h-4 flex-shrink-0">
+                            {getApprovalIcon(expense.approval_status)}
+                          </span>
+                          <span className="truncate">
+                            {!expense.approval_status ? 'No Status' : 
+                             expense.approval_status === 'approved' ? 'Approved' : 'Rejected'}
+                          </span>
+                          <svg className="w-3 h-3 ml-1" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
+                          </svg>
+                        </button>
+
+                        {/* Mobile Dropdown Menu */}
+                        {openApprovalDropdown === expense.id && !updatingApprovals.has(expense.id) && (
+                          <>
+                            <div 
+                              className="fixed inset-0 z-10" 
+                              onClick={() => setOpenApprovalDropdown(null)}
+                            />
+                            <div className="absolute right-0 top-full mt-1 w-32 bg-white border border-gray-200 rounded-md shadow-lg z-20 py-1">
+                              <button
+                                onClick={() => handleApprovalChange(expense.id, null)}
+                                className="w-full px-3 py-2 text-left text-xs hover:bg-gray-100 flex items-center gap-2"
+                              >
+                                <svg className="w-4 h-4 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
+                                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16z" clipRule="evenodd" />
+                                </svg>
+                                <span>No Status</span>
+                              </button>
+                              
+                              <button
+                                onClick={() => handleApprovalChange(expense.id, 'approved')}
+                                className="w-full px-3 py-2 text-left text-xs hover:bg-gray-100 flex items-center gap-2"
+                              >
+                                <svg className="w-4 h-4 text-green-600" fill="currentColor" viewBox="0 0 20 20">
+                                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                                </svg>
+                                <span>Approved</span>
+                              </button>
+
+                              <button
+                                onClick={() => handleApprovalChange(expense.id, 'rejected')}
+                                className="w-full px-3 py-2 text-left text-xs hover:bg-gray-100 flex items-center gap-2"
+                              >
+                                <svg className="w-4 h-4 text-red-600" fill="currentColor" viewBox="0 0 20 20">
+                                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                                </svg>
+                                <span>Rejected</span>
+                              </button>
+                            </div>
+                          </>
+                        )}
+                      </div>
+                    </div>
 
                     {/* Category */}
                     {expense.category && (

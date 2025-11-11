@@ -13,6 +13,7 @@ export interface Expense {
   transaction_type: string;
   cardholder: string | null;
   flag_category: string | null;
+  approval_status: 'approved' | 'rejected' | null; // NEW: Approval status
   last_synced_at: string;
   created_at: string;
   updated_at: string;
