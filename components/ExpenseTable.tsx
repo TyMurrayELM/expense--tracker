@@ -236,7 +236,7 @@ export default function ExpenseTable({
             <col style={{ width: '60px' }} />
             <col style={{ width: '100px' }} />
             <col style={{ width: '100px' }} />
-            <col style={{ width: '140px' }} />
+            <col style={{ width: '110px' }} />
             <col style={{ width: '280px' }} />
             <col style={{ width: '60px' }} />
             {showNotifyColumn && <col style={{ width: '60px' }} />}
