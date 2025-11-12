@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 interface SlackNotifyButtonProps {
   expenseId: string;
@@ -17,6 +17,13 @@ interface SlackNotifyButtonProps {
   correctBranch?: string | null;
   correctDepartment?: string | null;
   correctCategory?: string | null;
+}
+
+interface User {
+  id: string;
+  full_name: string;
+  email: string;
+  slack_id: string;
 }
 
 export default function SlackNotifyButton({
@@ -43,6 +50,38 @@ export default function SlackNotifyButton({
     category: correctCategory || currentCategory || '',
   });
   const [improveDescription, setImproveDescription] = useState(false);
+  
+  // New state for additional recipient
+  const [includeAdditionalUser, setIncludeAdditionalUser] = useState(false);
+  const [additionalUserId, setAdditionalUserId] = useState('');
+  const [availableUsers, setAvailableUsers] = useState<User[]>([]);
+  const [loadingUsers, setLoadingUsers] = useState(false);
+
+  // Fetch users with Slack IDs when modal opens and checkbox is checked
+  useEffect(() => {
+    if (showModal && includeAdditionalUser && availableUsers.length === 0) {
+      fetchUsersWithSlack();
+    }
+  }, [showModal, includeAdditionalUser]);
+
+  const fetchUsersWithSlack = async () => {
+    setLoadingUsers(true);
+    try {
+      const response = await fetch('/api/users');
+      if (response.ok) {
+        const data = await response.json();
+        // Filter to only users with Slack IDs and exclude the current purchaser
+        const usersWithSlack = data.users.filter(
+          (user: User) => user.slack_id && user.full_name !== purchaserName
+        );
+        setAvailableUsers(usersWithSlack);
+      }
+    } catch (error) {
+      console.error('Error fetching users:', error);
+    } finally {
+      setLoadingUsers(false);
+    }
+  };
 
   // Generate transaction URL based on type
   const getTransactionUrl = () => {
@@ -72,9 +111,21 @@ export default function SlackNotifyButton({
       return;
     }
 
+    if (includeAdditionalUser && !additionalUserId) {
+      alert('Please select an additional recipient or uncheck the option.');
+      return;
+    }
+
     setSending(true);
 
     try {
+      // Find the additional user's Slack ID if selected
+      let additionalSlackId = null;
+      if (includeAdditionalUser && additionalUserId) {
+        const selectedUser = availableUsers.find(user => user.id === additionalUserId);
+        additionalSlackId = selectedUser?.slack_id || null;
+      }
+
       const response = await fetch('/api/notify/slack', {
         method: 'POST',
         headers: {
@@ -95,16 +146,19 @@ export default function SlackNotifyButton({
           memo,
           billUrl: getTransactionUrl(),
           improveDescription,
+          additionalSlackId, // New: pass additional recipient
         }),
       });
 
       const data = await response.json();
 
       if (data.success) {
-        alert(`✅ Notification sent to ${purchaserName}!`);
+        alert(`✅ ${data.message}`);
         setShowModal(false);
         // Reset states
         setImproveDescription(false);
+        setIncludeAdditionalUser(false);
+        setAdditionalUserId('');
       } else {
         alert(`❌ Failed: ${data.error}\n${data.suggestion || ''}`);
       }
@@ -131,7 +185,7 @@ export default function SlackNotifyButton({
       {/* Modal */}
       {showModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg shadow-xl max-w-lg w-full p-6">
+          <div className="bg-white rounded-lg shadow-xl max-w-lg w-full p-6 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
                 <svg className="w-5 h-5 text-purple-600" fill="currentColor" viewBox="0 0 24 24">
@@ -152,6 +206,11 @@ export default function SlackNotifyButton({
             <div className="mb-4 p-3 bg-gray-50 rounded">
               <p className="text-sm text-gray-700">
                 <strong>To:</strong> {purchaserName}
+                {includeAdditionalUser && additionalUserId && (
+                  <span className="text-purple-600">
+                    {' '}+ {availableUsers.find(u => u.id === additionalUserId)?.full_name}
+                  </span>
+                )}
               </p>
               <p className="text-sm text-gray-700">
                 <strong>Expense:</strong> {vendor} - ${amount.toFixed(2)} on {date}
@@ -230,6 +289,55 @@ export default function SlackNotifyButton({
                   <p className="mt-1 ml-6 text-xs text-gray-500">
                     Current: "{memo}"
                   </p>
+                )}
+              </div>
+
+              {/* Additional Recipient Section */}
+              <div className="pt-2 border-t border-gray-200">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={includeAdditionalUser}
+                    onChange={(e) => {
+                      setIncludeAdditionalUser(e.target.checked);
+                      if (!e.target.checked) {
+                        setAdditionalUserId('');
+                      }
+                    }}
+                    className="w-4 h-4 text-purple-600 border-gray-300 rounded focus:ring-purple-500"
+                  />
+                  <span className="text-sm text-gray-700">
+                    Include additional recipient (group message)
+                  </span>
+                </label>
+
+                {includeAdditionalUser && (
+                  <div className="mt-3 ml-6">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Select User
+                    </label>
+                    {loadingUsers ? (
+                      <p className="text-sm text-gray-500">Loading users...</p>
+                    ) : (
+                      <select
+                        value={additionalUserId}
+                        onChange={(e) => setAdditionalUserId(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-purple-500 focus:border-purple-500"
+                      >
+                        <option value="">Select a user...</option>
+                        {availableUsers.map((user) => (
+                          <option key={user.id} value={user.id}>
+                            {user.full_name} ({user.email})
+                          </option>
+                        ))}
+                      </select>
+                    )}
+                    {availableUsers.length === 0 && !loadingUsers && (
+                      <p className="mt-1 text-xs text-gray-500">
+                        No other users with Slack IDs found
+                      </p>
+                    )}
+                  </div>
                 )}
               </div>
             </div>

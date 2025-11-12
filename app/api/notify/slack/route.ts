@@ -18,6 +18,7 @@ interface SlackNotificationRequest {
   memo?: string | null;
   billUrl?: string | null;
   improveDescription?: boolean;
+  additionalSlackId?: string | null; // New: optional additional recipient
 }
 
 export async function POST(request: Request) {
@@ -58,6 +59,7 @@ export async function POST(request: Request) {
         memo: body.memo,
         billUrl: body.billUrl,
         improveDescription: body.improveDescription,
+        additionalSlackId: body.additionalSlackId,
       });
     } catch (parseError: any) {
       console.error('JSON parse error:', parseError);
@@ -82,6 +84,7 @@ export async function POST(request: Request) {
       memo,
       billUrl,
       improveDescription = false,
+      additionalSlackId,
     } = body;
 
     // Find user by name (cardholder)
@@ -231,13 +234,6 @@ export async function POST(request: Request) {
       }
     );
 
-    // Build Slack message
-    const message = {
-      channel: targetUser.slack_id,
-      text: `Hey ${targetUser.slack_display_name || targetUser.full_name}! 👋 One of your credit card transactions needs attention.`,
-      blocks: blocks,
-    };
-
     // Check for Slack token
     const slackToken = process.env.SLACK_API_TOKEN;
     if (!slackToken) {
@@ -247,6 +243,69 @@ export async function POST(request: Request) {
         error: 'Slack API token not configured on server',
       }, { status: 500 });
     }
+
+    // Determine channel: if additionalSlackId provided, create group DM; otherwise, send to individual
+    let channelId = targetUser.slack_id;
+    let recipientNames = purchaserName;
+
+    if (additionalSlackId) {
+      console.log('Creating group DM with additional recipient:', additionalSlackId);
+      
+      // Open a multi-party DM conversation
+      try {
+        const conversationResponse = await fetch('https://slack.com/api/conversations.open', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${slackToken}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            users: `${targetUser.slack_id},${additionalSlackId}`, // Comma-separated user IDs
+          }),
+        });
+
+        const conversationData = await conversationResponse.json();
+        
+        if (!conversationData.ok) {
+          console.error('Failed to open group conversation:', conversationData.error);
+          return NextResponse.json({
+            success: false,
+            error: `Failed to create group conversation: ${conversationData.error}`,
+          }, { status: 500 });
+        }
+
+        channelId = conversationData.channel.id;
+        console.log('Group DM channel created:', channelId);
+
+        // Get the additional user's name for confirmation message
+        try {
+          const additionalUserResult = await supabaseAdmin
+            .from('users')
+            .select('full_name')
+            .eq('slack_id', additionalSlackId)
+            .single();
+
+          if (additionalUserResult.data) {
+            recipientNames = `${purchaserName} and ${additionalUserResult.data.full_name}`;
+          }
+        } catch (error) {
+          console.log('Could not fetch additional user name, continuing anyway');
+        }
+      } catch (conversationError: any) {
+        console.error('Error creating group conversation:', conversationError);
+        return NextResponse.json({
+          success: false,
+          error: `Failed to create group conversation: ${conversationError.message}`,
+        }, { status: 500 });
+      }
+    }
+
+    // Build Slack message
+    const message = {
+      channel: channelId,
+      text: `Hey ${targetUser.slack_display_name || targetUser.full_name}! 👋 One of your credit card transactions needs attention.`,
+      blocks: blocks,
+    };
 
     console.log('Sending message to Slack...');
 
@@ -305,7 +364,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json({
       success: true,
-      message: `Notification sent to ${purchaserName}`,
+      message: `Notification sent to ${recipientNames}`,
       slackMessageId: slackData.ts,
       slackChannel: slackData.channel,
     });
