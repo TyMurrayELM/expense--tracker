@@ -27,7 +27,7 @@ interface FiltersState {
   dateFrom: string;
   dateTo: string;
   showFlagged: string;
-  flagCategory: string; // NEW: Filter for specific flag categorie
+  flagCategory: string; // NEW: Filter for specific flag categories
   transactionType: string;
   status: string;
   syncStatus: string; // Filter for Bill.com sync status
