@@ -56,6 +56,10 @@ export default function SlackNotifyButton({
   const [additionalUserId, setAdditionalUserId] = useState('');
   const [availableUsers, setAvailableUsers] = useState<User[]>([]);
   const [loadingUsers, setLoadingUsers] = useState(false);
+  
+  // New state for additional message
+  const [includeAdditionalMessage, setIncludeAdditionalMessage] = useState(false);
+  const [additionalMessage, setAdditionalMessage] = useState('');
 
   // Fetch users with Slack IDs when modal opens and checkbox is checked
   useEffect(() => {
@@ -147,6 +151,7 @@ export default function SlackNotifyButton({
           billUrl: getTransactionUrl(),
           improveDescription,
           additionalSlackId, // New: pass additional recipient
+          additionalMessage: includeAdditionalMessage ? additionalMessage : null, // New: pass additional message
         }),
       });
 
@@ -159,6 +164,8 @@ export default function SlackNotifyButton({
         setImproveDescription(false);
         setIncludeAdditionalUser(false);
         setAdditionalUserId('');
+        setIncludeAdditionalMessage(false);
+        setAdditionalMessage('');
       } else {
         alert(`❌ Failed: ${data.error}\n${data.suggestion || ''}`);
       }
@@ -337,6 +344,44 @@ export default function SlackNotifyButton({
                         No other users with Slack IDs found
                       </p>
                     )}
+                  </div>
+                )}
+              </div>
+
+              {/* Additional Message Section */}
+              <div className="pt-2 border-t border-gray-200">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={includeAdditionalMessage}
+                    onChange={(e) => {
+                      setIncludeAdditionalMessage(e.target.checked);
+                      if (!e.target.checked) {
+                        setAdditionalMessage('');
+                      }
+                    }}
+                    className="w-4 h-4 text-purple-600 border-gray-300 rounded focus:ring-purple-500"
+                  />
+                  <span className="text-sm text-gray-700">
+                    Include additional message (optional)
+                  </span>
+                </label>
+
+                {includeAdditionalMessage && (
+                  <div className="mt-3 ml-6">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Additional Message
+                    </label>
+                    <textarea
+                      value={additionalMessage}
+                      onChange={(e) => setAdditionalMessage(e.target.value)}
+                      placeholder="Add any extra context or instructions..."
+                      rows={3}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-purple-500 focus:border-purple-500 resize-none"
+                    />
+                    <p className="mt-1 text-xs text-gray-500">
+                      This message will appear at the end of the notification
+                    </p>
                   </div>
                 )}
               </div>

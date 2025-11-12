@@ -19,6 +19,7 @@ interface SlackNotificationRequest {
   billUrl?: string | null;
   improveDescription?: boolean;
   additionalSlackId?: string | null; // New: optional additional recipient
+  additionalMessage?: string | null; // New: optional additional message
 }
 
 export async function POST(request: Request) {
@@ -60,6 +61,7 @@ export async function POST(request: Request) {
         billUrl: body.billUrl,
         improveDescription: body.improveDescription,
         additionalSlackId: body.additionalSlackId,
+        additionalMessage: body.additionalMessage,
       });
     } catch (parseError: any) {
       console.error('JSON parse error:', parseError);
@@ -85,6 +87,7 @@ export async function POST(request: Request) {
       billUrl,
       improveDescription = false,
       additionalSlackId,
+      additionalMessage,
     } = body;
 
     // Find user by name (cardholder)
@@ -233,6 +236,22 @@ export async function POST(request: Request) {
         ],
       }
     );
+
+    // Add additional message if provided
+    if (additionalMessage && additionalMessage.trim()) {
+      blocks.push(
+        {
+          type: 'divider',
+        },
+        {
+          type: 'section',
+          text: {
+            type: 'mrkdwn',
+            text: `*Additional Note:*\n${additionalMessage.trim()}`,
+          },
+        }
+      );
+    }
 
     // Check for Slack token
     const slackToken = process.env.SLACK_API_TOKEN;
