@@ -69,7 +69,7 @@ export default function Header({
               )}
             </div>
 
-            {/* View As Dropdown (Admin only) */}
+            {/* View As Dropdown (Admin only) - Desktop */}
             {currentUser.is_admin && allUsers.length > 0 && (
               <div className="flex items-center gap-2">
                 <label className="text-sm font-medium text-gray-700">View As:</label>
@@ -101,7 +101,7 @@ export default function Header({
               </div>
             )}
 
-            {/* Masquerading Indicator */}
+            {/* Masquerading Indicator - Desktop */}
             {masqueradingAsUser && (
               <div className="flex items-center gap-2 px-3 py-1.5 bg-orange-100 border border-orange-300 rounded-md">
                 <svg className="w-4 h-4 text-orange-600" fill="currentColor" viewBox="0 0 20 20">
