@@ -107,30 +107,44 @@ export async function POST() {
     if (branchUuid) console.log(`✓ Branch field found`);
     if (departmentUuid) console.log(`✓ Department field found`);
 
-    // PERFORMANCE OPTIMIZATION: Fetch all existing flags in one query
+    // CRITICAL FIX: Batch the flag fetching to avoid connection issues with large queries
     console.log('Fetching existing flags for preservation...');
     const netsuiteIds = allTransactions.map(t => `BILL-${t.transaction.id}`);
+    console.log(`Built ${netsuiteIds.length} NetSuite IDs to check`);
     
-    // For large historical imports, batch the flag fetching
-    const batchSize = 1000;
+    const batchSize = 100; // Conservative batch size to avoid connection issues
     const existingFlagsMap = new Map<string, string | null>();
     
     for (let i = 0; i < netsuiteIds.length; i += batchSize) {
       const batch = netsuiteIds.slice(i, i + batchSize);
-      const { data: batchFlags } = await supabaseAdmin
-        .from('expenses')
-        .select('netsuite_id, flag_category')
-        .in('netsuite_id', batch);
       
-      (batchFlags || []).forEach(e => {
-        existingFlagsMap.set(e.netsuite_id, e.flag_category);
-      });
+      try {
+        const { data: batchFlags, error: flagError } = await supabaseAdmin
+          .from('expenses')
+          .select('netsuite_id, flag_category')
+          .in('netsuite_id', batch);
+        
+        if (flagError) {
+          console.error(`Error fetching batch ${Math.floor(i / batchSize) + 1}:`, flagError);
+        } else {
+          (batchFlags || []).forEach(e => {
+            existingFlagsMap.set(e.netsuite_id, e.flag_category);
+          });
+        }
+      } catch (batchError: any) {
+        console.error(`Exception in batch ${Math.floor(i / batchSize) + 1}:`, batchError.message);
+      }
       
       if (i + batchSize < netsuiteIds.length) {
-        console.log(`Fetched flags for ${i + batchSize}/${netsuiteIds.length} transactions...`);
+        console.log(`  Checked ${Math.min(i + batchSize, netsuiteIds.length)}/${netsuiteIds.length} transactions...`);
       }
     }
-    console.log(`Found ${existingFlagsMap.size} existing records with potential flags`);
+    
+    console.log(`✓ Loaded ${existingFlagsMap.size} existing records into map`);
+    
+    // Count records with actual flags
+    const recordsWithActualFlags = Array.from(existingFlagsMap.values()).filter(v => v !== null).length;
+    console.log(`Records with non-null flags: ${recordsWithActualFlags}`);
 
     let recordsCreated = 0;
     let recordsUpdated = 0;

@@ -27,32 +27,32 @@ export async function POST() {
     console.log('Bill.com client initialized');
 
     // Fetch transactions by sync status to get complete coverage
-    console.log('Fetching credit card transactions from Bill.com (last 8 days) by sync status...');
+    console.log('Fetching credit card transactions from Bill.com (last 14 days) by sync status...');
     
     let allTransactions: Array<{ transaction: any; knownSyncStatus: string | null }> = [];
     
     try {
       // Fetch SYNCED transactions
       console.log('Fetching SYNCED transactions...');
-      const syncedTransactions = await billClient.fetchTransactionsBySyncStatus(8, 'SYNCED', true);
+      const syncedTransactions = await billClient.fetchTransactionsBySyncStatus(14, 'SYNCED', true);
       console.log(`Found ${syncedTransactions.length} SYNCED transactions`);
       allTransactions.push(...syncedTransactions.map(t => ({ transaction: t, knownSyncStatus: 'SYNCED' })));
       
       // Fetch MANUAL_SYNCED transactions
       console.log('Fetching MANUAL_SYNCED transactions...');
-      const manualSyncedTransactions = await billClient.fetchTransactionsBySyncStatus(8, 'MANUAL_SYNCED', true);
+      const manualSyncedTransactions = await billClient.fetchTransactionsBySyncStatus(14, 'MANUAL_SYNCED', true);
       console.log(`Found ${manualSyncedTransactions.length} MANUAL_SYNCED transactions`);
       allTransactions.push(...manualSyncedTransactions.map(t => ({ transaction: t, knownSyncStatus: 'SYNCED' })));
       
       // Fetch NOT_SYNCED transactions
       console.log('Fetching NOT_SYNCED transactions...');
-      const notSyncedTransactions = await billClient.fetchTransactionsBySyncStatus(8, 'NOT_SYNCED', true);
+      const notSyncedTransactions = await billClient.fetchTransactionsBySyncStatus(14, 'NOT_SYNCED', true);
       console.log(`Found ${notSyncedTransactions.length} NOT_SYNCED transactions`);
       allTransactions.push(...notSyncedTransactions.map(t => ({ transaction: t, knownSyncStatus: null })));
       
       // Fetch ERROR transactions
       console.log('Fetching ERROR transactions...');
-      const errorTransactions = await billClient.fetchTransactionsBySyncStatus(8, 'ERROR', true);
+      const errorTransactions = await billClient.fetchTransactionsBySyncStatus(14, 'ERROR', true);
       console.log(`Found ${errorTransactions.length} ERROR transactions`);
       allTransactions.push(...errorTransactions.map(t => ({ transaction: t, knownSyncStatus: 'ERROR' })));
       
@@ -118,19 +118,40 @@ export async function POST() {
       console.log('Department custom field not found');
     }
 
-    // PERFORMANCE OPTIMIZATION: Fetch all existing flags in one query
+    // CRITICAL FIX: Batch the flag fetching to avoid connection issues with large queries
     console.log('Fetching existing flags for preservation...');
     const netsuiteIds = allTransactions.map(t => `BILL-${t.transaction.id}`);
-    const { data: existingFlags } = await supabaseAdmin
-      .from('expenses')
-      .select('netsuite_id, flag_category')
-      .in('netsuite_id', netsuiteIds);
+    console.log(`Built ${netsuiteIds.length} NetSuite IDs to check`);
     
-    // Create a map for quick lookup
-    const existingFlagsMap = new Map(
-      (existingFlags || []).map(e => [e.netsuite_id, e.flag_category])
-    );
-    console.log(`Found ${existingFlagsMap.size} existing records with potential flags`);
+    const batchSize = 100; // Conservative batch size to avoid connection issues
+    const existingFlagsMap = new Map<string, string | null>();
+    
+    for (let i = 0; i < netsuiteIds.length; i += batchSize) {
+      const batch = netsuiteIds.slice(i, i + batchSize);
+      
+      try {
+        const { data: batchFlags, error: flagError } = await supabaseAdmin
+          .from('expenses')
+          .select('netsuite_id, flag_category')
+          .in('netsuite_id', batch);
+        
+        if (flagError) {
+          console.error(`Error fetching batch ${Math.floor(i / batchSize) + 1}:`, flagError);
+        } else {
+          (batchFlags || []).forEach(e => {
+            existingFlagsMap.set(e.netsuite_id, e.flag_category);
+          });
+        }
+      } catch (batchError: any) {
+        console.error(`Exception in batch ${Math.floor(i / batchSize) + 1}:`, batchError.message);
+      }
+    }
+    
+    console.log(`Loaded ${existingFlagsMap.size} existing records into map`);
+    
+    // Count records with actual flags
+    const recordsWithActualFlags = Array.from(existingFlagsMap.values()).filter(v => v !== null).length;
+    console.log(`Records with non-null flags: ${recordsWithActualFlags}`);
 
     let recordsCreated = 0;
     let recordsUpdated = 0;
