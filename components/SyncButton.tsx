@@ -77,8 +77,7 @@ export default function SyncButton({ currentUser }: SyncButtonProps) {
 
       if (data.success) {
         setMessage(`✓ Vendor Bills synced: ${data.stats.created} created, ${data.stats.updated} updated`);
-        fetchLastSyncTime(); // Refresh sync time
-        // Refresh the page to show new data
+        fetchLastSyncTime();
         setTimeout(() => window.location.reload(), 2000);
       } else {
         setMessage(`✗ Vendor Bill sync failed: ${data.error}`);
@@ -103,8 +102,7 @@ export default function SyncButton({ currentUser }: SyncButtonProps) {
 
       if (data.success) {
         setMessage(`✓ Credit Cards synced: ${data.stats.created} created, ${data.stats.updated} updated`);
-        fetchLastSyncTime(); // Refresh sync time
-        // Refresh the page to show new data
+        fetchLastSyncTime();
         setTimeout(() => window.location.reload(), 2000);
       } else {
         setMessage(`✗ Credit Card sync failed: ${data.error}`);
@@ -133,8 +131,7 @@ export default function SyncButton({ currentUser }: SyncButtonProps) {
 
       if (data.success) {
         setMessage(`✓ Historical import complete: ${data.stats.created} created, ${data.stats.updated} updated (${data.stats.dateRange})`);
-        fetchLastSyncTime(); // Refresh sync time
-        // Refresh the page to show new data
+        fetchLastSyncTime();
         setTimeout(() => window.location.reload(), 3000);
       } else {
         setMessage(`✗ Historical import failed: ${data.error}`);
@@ -149,13 +146,15 @@ export default function SyncButton({ currentUser }: SyncButtonProps) {
   const isAnySyncing = syncingVendorBills || syncingCreditCards || syncingHistorical;
 
   return (
-    <div className="flex flex-col items-end gap-2">
+    <div className="flex flex-col items-end gap-2 w-full lg:w-auto">
       {message && (
         <span className={`text-sm ${message.startsWith('✓') ? 'text-green-600' : message.startsWith('⏳') ? 'text-blue-600' : 'text-red-600'}`}>
           {message}
         </span>
       )}
-      <div className="flex flex-col items-end gap-1">
+      
+      {/* Desktop Layout */}
+      <div className="hidden lg:flex flex-col items-end gap-1">
         <div className="flex gap-2">
           <div className="flex flex-col items-center">
             <button
@@ -217,6 +216,61 @@ export default function SyncButton({ currentUser }: SyncButtonProps) {
               Last: {formatLastSyncTime()}
             </span>
           </div>
+        </div>
+      </div>
+
+      {/* Mobile Layout */}
+      <div className="lg:hidden w-full space-y-3">
+        <div className="flex flex-col gap-2">
+          <button
+            onClick={handleVendorBillSync}
+            disabled={isAnySyncing}
+            className="w-full px-4 py-3 bg-teal-700 text-white text-sm font-medium rounded-lg hover:bg-teal-800 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+          >
+            <Image
+              src="/logos/netsuite.png"
+              alt="NetSuite"
+              width={20}
+              height={20}
+              className="flex-shrink-0"
+            />
+            <span>{syncingVendorBills ? 'Syncing...' : 'Sync Vendor Bills'}</span>
+          </button>
+          
+          <button
+            onClick={handleCreditCardSync}
+            disabled={isAnySyncing}
+            className="w-full px-4 py-3 bg-orange-600 text-white text-sm font-medium rounded-lg hover:bg-orange-700 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+          >
+            <Image
+              src="/logos/bill.png"
+              alt="Bill.com"
+              width={20}
+              height={20}
+              className="flex-shrink-0"
+            />
+            <span>{syncingCreditCards ? 'Syncing...' : 'Sync Credit Cards'}</span>
+          </button>
+          
+          <button
+            onClick={handleHistoricalImport}
+            disabled={isAnySyncing}
+            className="w-full px-4 py-3 bg-purple-600 text-white text-sm font-medium rounded-lg hover:bg-purple-700 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+            title="One-time import of all transactions since Oct 1, 2025"
+          >
+            <svg 
+              className="w-5 h-5" 
+              fill="currentColor" 
+              viewBox="0 0 20 20"
+            >
+              <path fillRule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clipRule="evenodd" />
+            </svg>
+            <span>{syncingHistorical ? 'Importing...' : 'Historical Import'}</span>
+          </button>
+        </div>
+        
+        <div className="text-xs text-gray-500 text-center">
+          Last sync: {formatLastSyncTime()}
         </div>
       </div>
     </div>
