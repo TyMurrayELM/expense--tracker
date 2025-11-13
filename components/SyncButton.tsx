@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Image from 'next/image';
 import { UserWithPermissions } from '@/types/user';
 
@@ -13,11 +13,56 @@ export default function SyncButton({ currentUser }: SyncButtonProps) {
   const [syncingCreditCards, setSyncingCreditCards] = useState(false);
   const [syncingHistorical, setSyncingHistorical] = useState(false);
   const [message, setMessage] = useState('');
+  const [lastSyncTime, setLastSyncTime] = useState<string | null>(null);
 
   // Only show sync buttons for admins
   if (!currentUser.is_admin) {
     return null;
   }
+
+  // Fetch last sync time on mount
+  useEffect(() => {
+    fetchLastSyncTime();
+  }, []);
+
+  const fetchLastSyncTime = async () => {
+    try {
+      const response = await fetch('/api/sync/last-sync');
+      const data = await response.json();
+      
+      if (data.success && data.lastSyncTime) {
+        setLastSyncTime(data.lastSyncTime);
+      }
+    } catch (error) {
+      console.error('Error fetching last sync time:', error);
+    }
+  };
+
+  const formatLastSyncTime = () => {
+    if (!lastSyncTime) return 'Never';
+    
+    const date = new Date(lastSyncTime);
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMs / 3600000);
+    const diffDays = Math.floor(diffMs / 86400000);
+    
+    // Format as relative time if recent
+    if (diffMins < 1) return 'Just now';
+    if (diffMins < 60) return `${diffMins}m ago`;
+    if (diffHours < 24) return `${diffHours}h ago`;
+    if (diffDays < 7) return `${diffDays}d ago`;
+    
+    // Otherwise show full date/time in local timezone
+    return date.toLocaleString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true
+    });
+  };
 
   const handleVendorBillSync = async () => {
     setSyncingVendorBills(true);
@@ -32,6 +77,7 @@ export default function SyncButton({ currentUser }: SyncButtonProps) {
 
       if (data.success) {
         setMessage(`✓ Vendor Bills synced: ${data.stats.created} created, ${data.stats.updated} updated`);
+        fetchLastSyncTime(); // Refresh sync time
         // Refresh the page to show new data
         setTimeout(() => window.location.reload(), 2000);
       } else {
@@ -57,6 +103,7 @@ export default function SyncButton({ currentUser }: SyncButtonProps) {
 
       if (data.success) {
         setMessage(`✓ Credit Cards synced: ${data.stats.created} created, ${data.stats.updated} updated`);
+        fetchLastSyncTime(); // Refresh sync time
         // Refresh the page to show new data
         setTimeout(() => window.location.reload(), 2000);
       } else {
@@ -86,6 +133,7 @@ export default function SyncButton({ currentUser }: SyncButtonProps) {
 
       if (data.success) {
         setMessage(`✓ Historical import complete: ${data.stats.created} created, ${data.stats.updated} updated (${data.stats.dateRange})`);
+        fetchLastSyncTime(); // Refresh sync time
         // Refresh the page to show new data
         setTimeout(() => window.location.reload(), 3000);
       } else {
@@ -98,44 +146,6 @@ export default function SyncButton({ currentUser }: SyncButtonProps) {
     }
   };
 
-  const handleSyncBoth = async () => {
-    setSyncingVendorBills(true);
-    setSyncingCreditCards(true);
-    setMessage('Syncing both vendor bills and credit cards...');
-
-    try {
-      // Run both syncs in parallel
-      const [vendorResponse, creditResponse] = await Promise.all([
-        fetch('/api/sync', { method: 'POST' }),
-        fetch('/api/sync-credit-cards', { method: 'POST' })
-      ]);
-
-      const vendorData = await vendorResponse.json();
-      const creditData = await creditResponse.json();
-
-      const vendorSuccess = vendorData.success;
-      const creditSuccess = creditData.success;
-
-      if (vendorSuccess && creditSuccess) {
-        setMessage(
-          `✓ Sync complete! Vendor Bills: ${vendorData.stats.created}/${vendorData.stats.updated}, Credit Cards: ${creditData.stats.created}/${creditData.stats.updated}`
-        );
-        setTimeout(() => window.location.reload(), 2000);
-      } else if (vendorSuccess) {
-        setMessage(`✓ Vendor Bills synced, ✗ Credit Cards failed: ${creditData.error}`);
-      } else if (creditSuccess) {
-        setMessage(`✗ Vendor Bills failed: ${vendorData.error}, ✓ Credit Cards synced`);
-      } else {
-        setMessage(`✗ Both syncs failed`);
-      }
-    } catch (error: any) {
-      setMessage(`✗ Error: ${error.message}`);
-    } finally {
-      setSyncingVendorBills(false);
-      setSyncingCreditCards(false);
-    }
-  };
-
   const isAnySyncing = syncingVendorBills || syncingCreditCards || syncingHistorical;
 
   return (
@@ -145,50 +155,69 @@ export default function SyncButton({ currentUser }: SyncButtonProps) {
           {message}
         </span>
       )}
-      <div className="flex gap-2">
-        <button
-          onClick={handleVendorBillSync}
-          disabled={isAnySyncing}
-          className="px-4 py-2 bg-teal-700 text-white text-sm font-medium rounded-md hover:bg-teal-800 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center gap-2"
-        >
-          <Image
-            src="/logos/netsuite.png"
-            alt="NetSuite"
-            width={20}
-            height={20}
-            className="flex-shrink-0"
-          />
-          {syncingVendorBills ? 'Syncing...' : 'Sync Vendor Bills'}
-        </button>
-        <button
-          onClick={handleCreditCardSync}
-          disabled={isAnySyncing}
-          className="px-4 py-2 bg-orange-600 text-white text-sm font-medium rounded-md hover:bg-orange-700 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center gap-2"
-        >
-          <Image
-            src="/logos/bill.png"
-            alt="Bill.com"
-            width={20}
-            height={20}
-            className="flex-shrink-0"
-          />
-          {syncingCreditCards ? 'Syncing...' : 'Sync Credit Cards'}
-        </button>
-        <button
-          onClick={handleHistoricalImport}
-          disabled={isAnySyncing}
-          className="px-4 py-2 bg-purple-600 text-white text-sm font-medium rounded-md hover:bg-purple-700 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center gap-2"
-          title="One-time import of all transactions since Oct 1, 2025"
-        >
-          <svg 
-            className="w-5 h-5" 
-            fill="currentColor" 
-            viewBox="0 0 20 20"
-          >
-            <path fillRule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clipRule="evenodd" />
-          </svg>
-          {syncingHistorical ? 'Importing...' : 'Historical Import'}
-        </button>
+      <div className="flex flex-col items-end gap-1">
+        <div className="flex gap-2">
+          <div className="flex flex-col items-center">
+            <button
+              onClick={handleVendorBillSync}
+              disabled={isAnySyncing}
+              className="px-4 py-2 bg-teal-700 text-white text-sm font-medium rounded-md hover:bg-teal-800 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center gap-2"
+            >
+              <Image
+                src="/logos/netsuite.png"
+                alt="NetSuite"
+                width={20}
+                height={20}
+                className="flex-shrink-0"
+              />
+              {syncingVendorBills ? 'Syncing...' : 'Sync Vendor Bills'}
+            </button>
+            <span className="text-xs text-gray-500 mt-1">
+              Last: {formatLastSyncTime()}
+            </span>
+          </div>
+          
+          <div className="flex flex-col items-center">
+            <button
+              onClick={handleCreditCardSync}
+              disabled={isAnySyncing}
+              className="px-4 py-2 bg-orange-600 text-white text-sm font-medium rounded-md hover:bg-orange-700 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center gap-2"
+            >
+              <Image
+                src="/logos/bill.png"
+                alt="Bill.com"
+                width={20}
+                height={20}
+                className="flex-shrink-0"
+              />
+              {syncingCreditCards ? 'Syncing...' : 'Sync Credit Cards'}
+            </button>
+            <span className="text-xs text-gray-500 mt-1">
+              Last: {formatLastSyncTime()}
+            </span>
+          </div>
+          
+          <div className="flex flex-col items-center">
+            <button
+              onClick={handleHistoricalImport}
+              disabled={isAnySyncing}
+              className="px-4 py-2 bg-purple-600 text-white text-sm font-medium rounded-md hover:bg-purple-700 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center gap-2"
+              title="One-time import of all transactions since Oct 1, 2025"
+            >
+              <svg 
+                className="w-5 h-5" 
+                fill="currentColor" 
+                viewBox="0 0 20 20"
+              >
+                <path fillRule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clipRule="evenodd" />
+              </svg>
+              {syncingHistorical ? 'Importing...' : 'Historical Import'}
+            </button>
+            <span className="text-xs text-gray-500 mt-1">
+              Last: {formatLastSyncTime()}
+            </span>
+          </div>
+        </div>
       </div>
     </div>
   );
