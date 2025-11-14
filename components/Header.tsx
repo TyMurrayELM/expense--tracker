@@ -126,7 +126,7 @@ export default function Header({
 
           {/* Right side: User info and buttons */}
           <div className="flex items-center gap-4">
-            <SyncButton currentUser={effectiveUser} />
+            <SyncButton currentUser={currentUser} />
             
             {/* User menu */}
             <div className="relative">
@@ -379,7 +379,7 @@ export default function Header({
 
               {/* Sync Buttons (Mobile) */}
               <div className="pt-2">
-                <SyncButton currentUser={effectiveUser} />
+                <SyncButton currentUser={currentUser} />
               </div>
             </div>
           )}

@@ -15,15 +15,12 @@ export default function SyncButton({ currentUser }: SyncButtonProps) {
   const [message, setMessage] = useState('');
   const [lastSyncTime, setLastSyncTime] = useState<string | null>(null);
 
-  // Only show sync buttons for admins
-  if (!currentUser.is_admin) {
-    return null;
-  }
-
-  // Fetch last sync time on mount
+  // Fetch last sync time on mount - MUST be before the early return
   useEffect(() => {
-    fetchLastSyncTime();
-  }, []);
+    if (currentUser.is_admin) {
+      fetchLastSyncTime();
+    }
+  }, [currentUser.is_admin]);
 
   const fetchLastSyncTime = async () => {
     try {
@@ -144,6 +141,11 @@ export default function SyncButton({ currentUser }: SyncButtonProps) {
   };
 
   const isAnySyncing = syncingVendorBills || syncingCreditCards || syncingHistorical;
+
+  // Only show sync buttons for admins - MUST be after all hooks
+  if (!currentUser.is_admin) {
+    return null;
+  }
 
   return (
     <div className="flex flex-col items-end gap-2 w-full lg:w-auto">

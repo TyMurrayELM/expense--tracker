@@ -60,7 +60,11 @@ export default function PageWrapper({ initialExpenses, vendors, purchasers, curr
     return Array.from(departments).sort();
   }, [initialExpenses]);
 
-  // Filter expenses based on effective user permissions
+  // Filter expenses based on effective user permissions using useMemo with stable key
+  const filterKey = useMemo(() => 
+    `${effectiveUser.id}-${effectiveUser.is_admin}-${effectiveUser.branches.join(',')}-${effectiveUser.departments.join(',')}`
+  , [effectiveUser.id, effectiveUser.is_admin, effectiveUser.branches, effectiveUser.departments]);
+
   const filteredExpenses = useMemo(() => {
     console.log('=== FILTERING EXPENSES ===');
     console.log('Effective User:', effectiveUser.full_name);
@@ -97,7 +101,7 @@ export default function PageWrapper({ initialExpenses, vendors, purchasers, curr
     console.log('Filtered to', filtered.length, 'expenses');
     console.log('=== END FILTERING ===');
     return filtered;
-  }, [initialExpenses, effectiveUser, masqueradingAsUser]);
+  }, [initialExpenses, filterKey, effectiveUser.full_name, effectiveUser.is_admin, effectiveUser.branches, effectiveUser.departments, masqueradingAsUser]);
 
   // Check if user has no permissions (new user scenario)
   const hasNoPermissions = !effectiveUser.is_admin && 
@@ -109,13 +113,13 @@ export default function PageWrapper({ initialExpenses, vendors, purchasers, curr
     if (effectiveUser.is_admin && !masqueradingAsUser) return vendors;
     const vendorSet = new Set(filteredExpenses.map(e => e.vendor_name));
     return vendors.filter(v => vendorSet.has(v));
-  }, [vendors, filteredExpenses, effectiveUser, masqueradingAsUser]);
+  }, [vendors, filteredExpenses, effectiveUser.is_admin, masqueradingAsUser]);
 
   const filteredPurchasers = useMemo(() => {
     if (effectiveUser.is_admin && !masqueradingAsUser) return purchasers;
     const purchaserSet = new Set(filteredExpenses.map(e => e.cardholder).filter(Boolean));
     return purchasers.filter(p => purchaserSet.has(p));
-  }, [purchasers, filteredExpenses, effectiveUser, masqueradingAsUser]);
+  }, [purchasers, filteredExpenses, effectiveUser.is_admin, masqueradingAsUser]);
 
   return (
     <div className="min-h-screen bg-blue-50">
