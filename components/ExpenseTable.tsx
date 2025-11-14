@@ -2,7 +2,7 @@
 
 import { Expense, FLAG_CATEGORIES } from '@/types/expense';
 import { format } from 'date-fns';
-import { useState, useRef } from 'react';
+import { useState, useRef, useMemo } from 'react';
 import Image from 'next/image';
 import SlackNotifyButton from './SlackNotifyButton';
 import SyncStatusIcon from './SyncStatusIcon';
@@ -14,6 +14,9 @@ interface ExpenseTableProps {
   isAdmin?: boolean;
   isMasquerading?: boolean;
 }
+
+type SortField = 'date' | 'vendor' | 'purchaser' | 'branch' | 'department' | 'amount' | 'status';
+type SortDirection = 'asc' | 'desc';
 
 export default function ExpenseTable({ 
   expenses, 
@@ -28,6 +31,8 @@ export default function ExpenseTable({
   const [openFlagDropdown, setOpenFlagDropdown] = useState<string | null>(null);
   const [openApprovalDropdown, setOpenApprovalDropdown] = useState<string | null>(null);
   const [dropdownPosition, setDropdownPosition] = useState<'bottom' | 'top'>('bottom');
+  const [sortField, setSortField] = useState<SortField>('date');
+  const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
   
   const flagButtonRefs = useRef<{ [key: string]: HTMLButtonElement | null }>({});
   const approvalButtonRefs = useRef<{ [key: string]: HTMLButtonElement | null }>({});
@@ -37,6 +42,81 @@ export default function ExpenseTable({
   
   // Show Flag column only if user is admin AND not masquerading
   const showFlagColumn = isAdmin && !isMasquerading;
+
+  // Handle column sort
+  const handleSort = (field: SortField) => {
+    if (sortField === field) {
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortField(field);
+      setSortDirection(field === 'date' || field === 'amount' ? 'desc' : 'asc');
+    }
+  };
+
+  // Sort expenses
+  const sortedExpenses = useMemo(() => {
+    return [...expenses].sort((a, b) => {
+      let aValue: any, bValue: any;
+      switch (sortField) {
+        case 'date':
+          aValue = new Date(a.transaction_date).getTime();
+          bValue = new Date(b.transaction_date).getTime();
+          break;
+        case 'vendor':
+          aValue = a.vendor_name?.toLowerCase() || '';
+          bValue = b.vendor_name?.toLowerCase() || '';
+          break;
+        case 'purchaser':
+          aValue = a.cardholder?.toLowerCase() || '';
+          bValue = b.cardholder?.toLowerCase() || '';
+          break;
+        case 'branch':
+          aValue = a.branch?.toLowerCase() || '';
+          bValue = b.branch?.toLowerCase() || '';
+          break;
+        case 'department':
+          aValue = a.department?.toLowerCase() || '';
+          bValue = b.department?.toLowerCase() || '';
+          break;
+        case 'amount':
+          aValue = a.amount || 0;
+          bValue = b.amount || 0;
+          break;
+        case 'status':
+          aValue = a.approval_status || '';
+          bValue = b.approval_status || '';
+          break;
+        default:
+          return 0;
+      }
+      if (aValue < bValue) return sortDirection === 'asc' ? -1 : 1;
+      if (aValue > bValue) return sortDirection === 'asc' ? 1 : -1;
+      return 0;
+    });
+  }, [expenses, sortField, sortDirection]);
+
+  // Render sort icon
+  const SortIcon = ({ field }: { field: SortField }) => {
+    if (sortField !== field) {
+      return (
+        <svg className="w-3 h-3 text-gray-300 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4" />
+        </svg>
+      );
+    }
+    if (sortDirection === 'asc') {
+      return (
+        <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+        </svg>
+      );
+    }
+    return (
+      <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+      </svg>
+    );
+  };
 
   // Calculate dropdown position when opening
   const calculateDropdownPosition = (buttonElement: HTMLButtonElement | null): 'bottom' | 'top' => {
@@ -380,29 +460,71 @@ export default function ExpenseTable({
                   </svg>
                 </div>
               </th>
-              <th className="px-3 py-3 text-left text-xs font-medium text-white uppercase tracking-wider bg-blue-900">
-                Date
+              <th 
+                className="px-3 py-3 text-left text-xs font-medium text-white uppercase tracking-wider bg-blue-900 cursor-pointer hover:bg-blue-800"
+                onClick={() => handleSort('date')}
+              >
+                <div className="flex items-center gap-1">
+                  <span>Date</span>
+                  <SortIcon field="date" />
+                </div>
               </th>
-              <th className="px-3 py-3 text-left text-xs font-medium text-white uppercase tracking-wider bg-blue-900">
-                Vendor
+              <th 
+                className="px-3 py-3 text-left text-xs font-medium text-white uppercase tracking-wider bg-blue-900 cursor-pointer hover:bg-blue-800"
+                onClick={() => handleSort('vendor')}
+              >
+                <div className="flex items-center gap-1">
+                  <span>Vendor</span>
+                  <SortIcon field="vendor" />
+                </div>
               </th>
-              <th className="px-3 py-3 text-left text-xs font-medium text-white uppercase tracking-wider bg-blue-900">
-                Purchaser
+              <th 
+                className="px-3 py-3 text-left text-xs font-medium text-white uppercase tracking-wider bg-blue-900 cursor-pointer hover:bg-blue-800"
+                onClick={() => handleSort('purchaser')}
+              >
+                <div className="flex items-center gap-1">
+                  <span>Purchaser</span>
+                  <SortIcon field="purchaser" />
+                </div>
               </th>
               <th className="px-3 py-3 text-left text-xs font-medium text-white uppercase tracking-wider bg-blue-900">
                 Category
               </th>
-              <th className="px-3 py-3 text-left text-xs font-medium text-white uppercase tracking-wider bg-blue-900">
-                Branch
+              <th 
+                className="px-3 py-3 text-left text-xs font-medium text-white uppercase tracking-wider bg-blue-900 cursor-pointer hover:bg-blue-800"
+                onClick={() => handleSort('branch')}
+              >
+                <div className="flex items-center gap-1">
+                  <span>Branch</span>
+                  <SortIcon field="branch" />
+                </div>
               </th>
-              <th className="px-3 py-3 text-left text-xs font-medium text-white uppercase tracking-wider bg-blue-900">
-                Department
+              <th 
+                className="px-3 py-3 text-left text-xs font-medium text-white uppercase tracking-wider bg-blue-900 cursor-pointer hover:bg-blue-800"
+                onClick={() => handleSort('department')}
+              >
+                <div className="flex items-center gap-1">
+                  <span>Department</span>
+                  <SortIcon field="department" />
+                </div>
               </th>
-              <th className="px-3 py-3 text-right text-xs font-medium text-white uppercase tracking-wider bg-blue-900">
-                Amount
+              <th 
+                className="px-3 py-3 text-right text-xs font-medium text-white uppercase tracking-wider bg-blue-900 cursor-pointer hover:bg-blue-800"
+                onClick={() => handleSort('amount')}
+              >
+                <div className="flex items-center justify-end gap-1">
+                  <span>Amount</span>
+                  <SortIcon field="amount" />
+                </div>
               </th>
-              <th className="px-3 py-3 text-left text-xs font-medium text-white uppercase tracking-wider bg-blue-900">
-                Status
+              <th 
+                className="px-3 py-3 text-left text-xs font-medium text-white uppercase tracking-wider bg-blue-900 cursor-pointer hover:bg-blue-800"
+                onClick={() => handleSort('status')}
+              >
+                <div className="flex items-center gap-1">
+                  <span>Status</span>
+                  <SortIcon field="status" />
+                </div>
               </th>
               <th className="px-3 py-3 text-left text-xs font-medium text-white uppercase tracking-wider bg-blue-900">
                 Memo
@@ -425,7 +547,7 @@ export default function ExpenseTable({
                 </td>
               </tr>
             ) : (
-              expenses.map((expense) => (
+              sortedExpenses.map((expense) => (
                 <tr 
                   key={expense.id} 
                   className={`hover:bg-gray-50 ${getRowBackgroundColor(expense.flag_category)}`}
@@ -684,7 +806,7 @@ export default function ExpenseTable({
             No expenses found. Try adjusting your filters or sync data from NetSuite.
           </div>
         ) : (
-          expenses.map((expense) => {
+          sortedExpenses.map((expense) => {
             const isExpanded = expandedRows.has(expense.id);
             const rowBgColor = getRowBackgroundColor(expense.flag_category);
             
