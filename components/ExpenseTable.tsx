@@ -701,8 +701,22 @@ export default function ExpenseTable({
                   </td>
 
                   {/* Purchaser Column */}
-                  <td className="px-3 py-3 text-sm text-gray-600 truncate" title={expense.cardholder || ''}>
-                    {expense.cardholder || '-'}
+                  <td className="px-3 py-3 text-sm text-gray-600">
+                    <div className="flex items-center gap-1">
+                      <span className="truncate" title={expense.cardholder || ''}>
+                        {expense.cardholder || '-'}
+                      </span>
+                      {expense.flag_category && expense.flag_category !== 'Good to Sync' && (
+                        <span 
+                          className="flex-shrink-0 cursor-help" 
+                          title={`🚩 ${expense.flag_category}`}
+                        >
+                          <span className="text-base">
+                            {getFlagIcon(expense.flag_category)}
+                          </span>
+                        </span>
+                      )}
+                    </div>
                   </td>
 
                   {/* Category Column */}
@@ -853,8 +867,18 @@ export default function ExpenseTable({
                         {formatCurrency(expense.amount, expense.currency)}
                       </div>
                       {expense.cardholder && (
-                        <div className="text-sm text-gray-500">
-                          {expense.cardholder}
+                        <div className="text-sm text-gray-500 flex items-center justify-end gap-1">
+                          <span>{expense.cardholder}</span>
+                          {expense.flag_category && expense.flag_category !== 'Good to Sync' && (
+                            <span 
+                              className="flex-shrink-0 cursor-help inline-flex items-center" 
+                              title={`🚩 ${expense.flag_category}`}
+                            >
+                              <span className="text-xs">
+                                {getFlagIcon(expense.flag_category)}
+                              </span>
+                            </span>
+                          )}
                         </div>
                       )}
                     </div>
@@ -892,6 +916,14 @@ export default function ExpenseTable({
                 {/* Expanded Content */}
                 {isExpanded && (
                   <div className="mt-3 pt-3 border-t border-gray-200 space-y-3">
+                    {/* Flag Display - Show for non-admins (read-only) */}
+                    {!showFlagColumn && expense.flag_category && expense.flag_category !== 'Good to Sync' && (
+                      <div className="flex items-center gap-2 px-3 py-2 bg-gray-50 rounded-md border border-gray-200">
+                        {getFlagIcon(expense.flag_category)}
+                        <span className="text-sm font-medium text-gray-700">Flag: {expense.flag_category}</span>
+                      </div>
+                    )}
+
                     {/* Flag Dropdown - Show for admins not masquerading */}
                     {showFlagColumn && (
                       <div className="relative">
