@@ -17,6 +17,8 @@ export interface Expense {
   last_synced_at: string;
   created_at: string;
   updated_at: string;
+  approval_modified_by: string | null;
+  approval_modified_at: string | null;
   bill_sync_status: string | null; // NEW: PENDING, SYNCED, ERROR, MANUAL_SYNCED, NOT_SYNCED
 }
 

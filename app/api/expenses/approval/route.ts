@@ -1,8 +1,21 @@
-import { NextRequest, NextResponse } from 'next/server';
+// app/api/expenses/approval/route.ts
+import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/auth';
 
-export async function PATCH(request: NextRequest) {
+export async function PATCH(request: Request) {
   try {
+    // Get the current user from session
+    const session = await getServerSession(authOptions);
+    
+    if (!session || !session.user) {
+      return NextResponse.json(
+        { success: false, error: 'Unauthorized' },
+        { status: 401 }
+      );
+    }
+
     const body = await request.json();
     const { expenseId, approvalStatus } = body;
 
@@ -13,42 +26,40 @@ export async function PATCH(request: NextRequest) {
       );
     }
 
-    // Validate approval status
-    if (approvalStatus !== null && approvalStatus !== 'approved' && approvalStatus !== 'rejected') {
-      return NextResponse.json(
-        { success: false, error: 'Invalid approval status. Must be null, "approved", or "rejected"' },
-        { status: 400 }
-      );
-    }
+    // Get the username from session
+    // Assuming session.user.name contains the full name
+    const username = session.user.name || session.user.email || 'Unknown User';
 
-    console.log(`Updating approval status for expense ${expenseId} to:`, approvalStatus);
+    // Update the expense with new approval status and tracking info
+    const updateData: any = {
+      approval_status: approvalStatus,
+      approval_modified_by: username,
+      approval_modified_at: new Date().toISOString(),
+    };
 
-    // Update the expense approval status in the database
     const { data, error } = await supabaseAdmin
       .from('expenses')
-      .update({ approval_status: approvalStatus })
+      .update(updateData)
       .eq('id', expenseId)
       .select()
       .single();
 
     if (error) {
-      console.error('Error updating approval status:', error);
+      console.error('Error updating approval:', error);
       return NextResponse.json(
         { success: false, error: error.message },
         { status: 500 }
       );
     }
 
-    console.log('Successfully updated approval status:', data);
-
     return NextResponse.json({
       success: true,
-      data,
+      data: data,
     });
-  } catch (error) {
-    console.error('Error in approval update endpoint:', error);
+  } catch (error: any) {
+    console.error('Error in approval API:', error);
     return NextResponse.json(
-      { success: false, error: 'Internal server error' },
+      { success: false, error: error.message },
       { status: 500 }
     );
   }

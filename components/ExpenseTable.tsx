@@ -288,6 +288,23 @@ export default function ExpenseTable({
     );
   };
 
+  // Helper function to format the approval tooltip text
+  const getApprovalTooltip = (expense: Expense): string => {
+    if (!expense.approval_status) {
+      return 'Click to set approval';
+    }
+
+    const statusText = expense.approval_status === 'approved' ? 'Approved' : 'Rejected';
+    
+    if (expense.approval_modified_by && expense.approval_modified_at) {
+      const date = new Date(expense.approval_modified_at);
+      const formattedDate = format(date, 'MMM d, yyyy h:mm a');
+      return `${statusText} by ${expense.approval_modified_by} on ${formattedDate}`;
+    }
+
+    return statusText;
+  };
+
   const formatCurrency = (amount: number, currency: string = 'USD') => {
     // Map full currency names to codes
     const currencyMap: Record<string, string> = {
@@ -394,10 +411,14 @@ export default function ExpenseTable({
       const data = await response.json();
 
       if (data.success) {
-        // Trigger a refresh of the data with the new approval status
+        // Trigger a refresh of the data with the new approval status AND tracking info
         if (onApprovalUpdate) {
           onApprovalUpdate(expenseId, approvalStatus);
         }
+        
+        // IMPORTANT: Force a page refresh to get the updated tracking data
+        // This ensures we get approval_modified_by and approval_modified_at from the database
+        window.location.reload();
       } else {
         console.error('Failed to update approval:', data.error);
         alert('Failed to update approval. Please try again.');
@@ -618,7 +639,7 @@ export default function ExpenseTable({
                         className={`flex items-center justify-center w-full hover:opacity-70 transition-opacity ${
                           updatingApprovals.has(expense.id) ? 'opacity-50 cursor-wait' : 'cursor-pointer'
                         }`}
-                        title={expense.approval_status ? (expense.approval_status === 'approved' ? 'Approved' : 'Rejected') : 'Click to set approval'}
+                        title={getApprovalTooltip(expense)}
                       >
                         {getApprovalIcon(expense.approval_status)}
                       </button>
