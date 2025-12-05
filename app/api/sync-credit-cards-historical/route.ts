@@ -27,8 +27,8 @@ export async function POST() {
     const billClient = createBillClient();
     console.log('Bill.com client initialized');
 
-    // Calculate days back from Oct 1, 2025 to today
-    const oct1 = new Date('2025-10-01');
+    // Calculate days back from Nov 1, 2025 to today
+    const oct1 = new Date('2025-11-01');
     const today = new Date();
     const daysBack = Math.ceil((today.getTime() - oct1.getTime()) / (1000 * 60 * 60 * 24));
     
