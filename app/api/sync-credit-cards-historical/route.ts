@@ -5,7 +5,7 @@ import { supabaseAdmin } from '@/lib/supabase';
 export async function POST() {
   try {
     console.log('=== Starting HISTORICAL Credit Card Import ===');
-    console.log('Import range: October 1, 2025 to present');
+    console.log('Import range: November 1, 2025 to present');
     
     // Create sync log
     const { data: syncLog, error: syncLogError } = await supabaseAdmin
@@ -28,11 +28,11 @@ export async function POST() {
     console.log('Bill.com client initialized');
 
     // Calculate days back from Nov 1, 2025 to today
-    const oct1 = new Date('2025-11-01');
+    const nov1 = new Date('2025-11-01');
     const today = new Date();
-    const daysBack = Math.ceil((today.getTime() - oct1.getTime()) / (1000 * 60 * 60 * 24));
+    const daysBack = Math.ceil((today.getTime() - nov1.getTime()) / (1000 * 60 * 60 * 24));
     
-    console.log(`Fetching ALL credit card transactions from Oct 1, 2025 (${daysBack} days back)...`);
+    console.log(`Fetching ALL credit card transactions from Nov 1, 2025 (${daysBack} days back)...`);
     console.log('⚠️  This may take several minutes for large transaction volumes...');
     
     // Fetch transactions by sync status to get complete coverage (same approach as daily sync)
