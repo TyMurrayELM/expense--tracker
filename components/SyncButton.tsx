@@ -112,7 +112,7 @@ export default function SyncButton({ currentUser }: SyncButtonProps) {
   };
 
   const handleHistoricalImport = async () => {
-    if (!confirm('Import ALL credit card transactions from October 1, 2025 to present?\n\nThis may take several minutes. Run this once to get historical data.')) {
+    if (!confirm('Import ALL credit card transactions from November 1, 2025 to present?\n\nThis may take several minutes. Run this once to get historical data.')) {
       return;
     }
 
