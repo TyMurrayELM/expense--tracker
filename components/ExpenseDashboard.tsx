@@ -662,7 +662,7 @@ export default function ExpenseDashboard({
             bgColor="bg-white"
             size="small"
             onClick={handleTotalClick}
-            isActive={filters.branch === 'all' && filters.department === 'all' && filters.vendor === 'all' && filters.purchaser === 'all' && filters.months.length === 1 && filters.months[0] === getCurrentMonth() && filters.showFlagged === 'all' && filters.transactionType === 'all' && filters.status === 'all'}
+            isActive={filters.branch === 'all' && filters.department === 'all' && filters.vendor === 'all' && filters.purchaser === 'all' && filters.showFlagged === 'all' && filters.transactionType === 'all' && filters.status === 'all' && filters.category === 'all'}
           />
           <KPICard
             title="Flagged Items"
