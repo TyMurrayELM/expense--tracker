@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import { Expense } from '@/types/expense';
 import ExpenseTable from './ExpenseTable';
 import FilterBar from './FilterBar';
@@ -124,6 +124,9 @@ export default function ExpenseDashboard({
   });
 
   const [filters, setFilters] = useState<FiltersState>(getDefaultFilters());
+  
+  // Track if initial load from localStorage has completed
+  const hasLoadedFromStorage = useRef(false);
 
   // Load filters from localStorage after mount (client-side only)
   useEffect(() => {
@@ -131,16 +134,20 @@ export default function ExpenseDashboard({
     if (storedFilters) {
       setFilters(storedFilters);
     }
+    // Mark that we've completed the initial load
+    hasLoadedFromStorage.current = true;
   }, []); // Run once on mount
 
-  // Save filters to localStorage whenever they change
+  // Save filters to localStorage whenever they change (but only after initial load)
   useEffect(() => {
+    // Skip saving on the initial render - only save after user makes changes
+    if (!hasLoadedFromStorage.current) return;
     saveFiltersToStorage(filters);
   }, [filters]);
 
   // Separate filters for Trends tab
   const [trendsFilters, setTrendsFilters] = useState<TrendsFiltersState>({
-    dateFrom: '2025-10-01',
+    dateFrom: '2025-12-01',
     dateTo: '',
   });
 
