@@ -78,12 +78,42 @@ export default function ExpenseDashboard({
     return iconMap[branchName] || '';
   };
 
+  // Initialize filters with defaults first (for SSR)
+  const getDefaultFilters = (): FiltersState => ({
+    months: [getCurrentMonth()],
+    branch: 'all',
+    vendor: 'all',
+    department: 'all',
+    purchaser: 'all',
+    category: 'all',
+    dateFrom: '',
+    dateTo: '',
+    showFlagged: 'all',
+    flagCategory: 'all',
+    transactionType: 'all',
+    status: 'all',
+    syncStatus: 'all',
+  });
+
   // Helper functions for localStorage
   const getStoredFilters = (): FiltersState | null => {
     if (typeof window === 'undefined') return null;
     try {
       const stored = localStorage.getItem('expenseDashboardFilters');
-      return stored ? JSON.parse(stored) : null;
+      if (!stored) return null;
+      
+      const parsed = JSON.parse(stored);
+      
+      // Merge with defaults to handle any missing fields from older stored data
+      const defaults = getDefaultFilters();
+      return {
+        ...defaults,
+        ...parsed,
+        // Ensure months is always a valid array
+        months: Array.isArray(parsed.months) && parsed.months.length > 0 
+          ? parsed.months 
+          : defaults.months,
+      };
     } catch (error) {
       console.error('Error reading filters from localStorage:', error);
       return null;
@@ -105,23 +135,6 @@ export default function ExpenseDashboard({
   useEffect(() => {
     setExpenses(initialExpenses);
   }, [initialExpenses]);
-
-  // Initialize filters with defaults first (for SSR)
-  const getDefaultFilters = (): FiltersState => ({
-    months: [getCurrentMonth()],
-    branch: 'all',
-    vendor: 'all',
-    department: 'all',
-    purchaser: 'all',
-    category: 'all',
-    dateFrom: '',
-    dateTo: '',
-    showFlagged: 'all',
-    flagCategory: 'all', // NEW: Default to showing all flag categories
-    transactionType: 'all',
-    status: 'all',
-    syncStatus: 'all', // Default to showing all sync statuses
-  });
 
   const [filters, setFilters] = useState<FiltersState>(getDefaultFilters());
   
@@ -429,7 +442,6 @@ export default function ExpenseDashboard({
       setFilters(prev => ({ ...prev, purchaser: 'all', vendor: 'all' }));
     } else {
       setFilters(prev => ({ ...prev, purchaser: purchaser, vendor: 'all' }));
-      // Don't switch views - third layer will appear below
     }
   };
 
@@ -444,9 +456,9 @@ export default function ExpenseDashboard({
   };
 
   const handleTotalClick = () => {
-    // Reset all filters when clicking Total (keep current month)
-    setFilters({
-      months: [getCurrentMonth()],
+    // Reset all filters EXCEPT month selection
+    setFilters(prev => ({
+      ...prev,
       branch: 'all',
       vendor: 'all',
       department: 'all',
@@ -459,7 +471,7 @@ export default function ExpenseDashboard({
       transactionType: 'all',
       status: 'all',
       syncStatus: 'all',
-    });
+    }));
   };
 
   const handleFlaggedClick = () => {
