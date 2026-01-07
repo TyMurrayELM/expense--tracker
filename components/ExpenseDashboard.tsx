@@ -30,6 +30,7 @@ interface FiltersState {
   flagCategory: string; // NEW: Filter for specific flag category
   transactionType: string;
   status: string;
+  approvalStatus: string; // Filter for approval status
   syncStatus: string; // Filter for Bill.com sync status
 }
 
@@ -92,6 +93,7 @@ export default function ExpenseDashboard({
     flagCategory: 'all',
     transactionType: 'all',
     status: 'all',
+    approvalStatus: 'all',
     syncStatus: 'all',
   });
 
@@ -166,6 +168,7 @@ export default function ExpenseDashboard({
 
   const [secondaryView, setSecondaryView] = useState<'department' | 'purchaser' | 'vendor' | 'category'>('department');
   const [monthDropdownOpen, setMonthDropdownOpen] = useState(false);
+  const [slackSendingDepartment, setSlackSendingDepartment] = useState<string | null>(null);
 
   // Initialize collapsible sections with defaults first (for SSR)
   const getDefaultSectionsCollapsed = (): SectionsCollapsedState => ({
@@ -212,6 +215,20 @@ export default function ExpenseDashboard({
     }));
   };
 
+  // Helper function to normalize department names (combine variants)
+  const normalizeDepartmentName = (department: string): string => {
+    const lower = department.toLowerCase();
+    // Combine all Maintenance variants into "Maintenance"
+    if (lower.includes('maintenance')) {
+      return 'Maintenance';
+    }
+    // Combine Fleet & Equipment variants
+    if (lower.includes('fleet') || lower.includes('equipment & fleet')) {
+      return 'Fleet & Equipment';
+    }
+    return department;
+  };
+
   // Filter expenses based on current filters
   const filteredExpenses = useMemo(() => {
     return expenses.filter(expense => {
@@ -233,9 +250,12 @@ export default function ExpenseDashboard({
         return false;
       }
 
-      // Department filter
-      if (filters.department !== 'all' && expense.department !== filters.department) {
-        return false;
+      // Department filter (use normalized name to match combined departments)
+      if (filters.department !== 'all') {
+        const normalizedExpDept = expense.department ? normalizeDepartmentName(expense.department) : '';
+        if (normalizedExpDept !== filters.department) {
+          return false;
+        }
       }
 
       // Purchaser filter (cardholder)
@@ -284,9 +304,22 @@ export default function ExpenseDashboard({
         return false;
       }
 
-      // Status filter
+      // Completion Status filter (renamed from Status)
       if (filters.status !== 'all' && expense.status !== filters.status) {
         return false;
+      }
+
+      // Approval Status filter
+      if (filters.approvalStatus !== 'all') {
+        if (filters.approvalStatus === 'approved' && expense.approval_status !== 'approved') {
+          return false;
+        }
+        if (filters.approvalStatus === 'rejected' && expense.approval_status !== 'rejected') {
+          return false;
+        }
+        if (filters.approvalStatus === 'pending' && expense.approval_status !== null) {
+          return false;
+        }
       }
 
       // Sync status filter (Bill.com credit cards only)
@@ -329,46 +362,59 @@ export default function ExpenseDashboard({
     const totalCount = filteredExpenses.length;
     const flaggedCount = filteredExpenses.filter(exp => exp.flag_category && exp.flag_category !== 'Good to Sync').length;
 
-    const byBranch: Record<string, { amount: number; count: number }> = {};
-    const byDepartment: Record<string, { amount: number; count: number }> = {};
+    const byBranch: Record<string, { amount: number; count: number; unapprovedAmount: number; unapprovedCount: number }> = {};
+    const byDepartment: Record<string, { amount: number; count: number; unapprovedAmount: number; unapprovedCount: number }> = {};
     const byVendor: Record<string, { amount: number; count: number }> = {};
     const byPurchaser: Record<string, { amount: number; count: number }> = {};
     const byCategory: Record<string, { amount: number; count: number }> = {};
     
     filteredExpenses.forEach(exp => {
+      const isUnapproved = exp.approval_status !== 'approved';
+      const amount = Number(exp.amount);
+      
       if (exp.branch) {
         if (!byBranch[exp.branch]) {
-          byBranch[exp.branch] = { amount: 0, count: 0 };
+          byBranch[exp.branch] = { amount: 0, count: 0, unapprovedAmount: 0, unapprovedCount: 0 };
         }
-        byBranch[exp.branch].amount += Number(exp.amount);
+        byBranch[exp.branch].amount += amount;
         byBranch[exp.branch].count += 1;
+        if (isUnapproved) {
+          byBranch[exp.branch].unapprovedAmount += amount;
+          byBranch[exp.branch].unapprovedCount += 1;
+        }
       }
       if (exp.department) {
-        if (!byDepartment[exp.department]) {
-          byDepartment[exp.department] = { amount: 0, count: 0 };
+        // Normalize department name to combine variants (e.g., "Maintenance Recurring" -> "Maintenance")
+        const normalizedDept = normalizeDepartmentName(exp.department);
+        if (!byDepartment[normalizedDept]) {
+          byDepartment[normalizedDept] = { amount: 0, count: 0, unapprovedAmount: 0, unapprovedCount: 0 };
         }
-        byDepartment[exp.department].amount += Number(exp.amount);
-        byDepartment[exp.department].count += 1;
+        byDepartment[normalizedDept].amount += amount;
+        byDepartment[normalizedDept].count += 1;
+        if (isUnapproved) {
+          byDepartment[normalizedDept].unapprovedAmount += amount;
+          byDepartment[normalizedDept].unapprovedCount += 1;
+        }
       }
       if (exp.vendor_name) {
         if (!byVendor[exp.vendor_name]) {
           byVendor[exp.vendor_name] = { amount: 0, count: 0 };
         }
-        byVendor[exp.vendor_name].amount += Number(exp.amount);
+        byVendor[exp.vendor_name].amount += amount;
         byVendor[exp.vendor_name].count += 1;
       }
       if (exp.cardholder) {
         if (!byPurchaser[exp.cardholder]) {
           byPurchaser[exp.cardholder] = { amount: 0, count: 0 };
         }
-        byPurchaser[exp.cardholder].amount += Number(exp.amount);
+        byPurchaser[exp.cardholder].amount += amount;
         byPurchaser[exp.cardholder].count += 1;
       }
       if (exp.category) {
         if (!byCategory[exp.category]) {
           byCategory[exp.category] = { amount: 0, count: 0 };
         }
-        byCategory[exp.category].amount += Number(exp.amount);
+        byCategory[exp.category].amount += amount;
         byCategory[exp.category].count += 1;
       }
     });
@@ -470,6 +516,7 @@ export default function ExpenseDashboard({
       flagCategory: 'all',
       transactionType: 'all',
       status: 'all',
+      approvalStatus: 'all',
       syncStatus: 'all',
     }));
   };
@@ -498,6 +545,52 @@ export default function ExpenseDashboard({
         ? { ...expense, approval_status: newApprovalStatus }
         : expense
     ));
+  };
+
+  // Handler for sending department summary to Slack
+  const handleSlackDepartmentSummary = async (department: string, data: { amount: number; count: number; unapprovedAmount: number; unapprovedCount: number }) => {
+    if (!filters.branch || filters.branch === 'all') {
+      alert('Please select a branch first before sending to Slack.');
+      return;
+    }
+
+    const selectedMonth = filters.months.length === 1 && filters.months[0] !== 'all' 
+      ? filters.months[0] 
+      : getCurrentMonth();
+
+    setSlackSendingDepartment(department);
+
+    try {
+      const response = await fetch('/api/notify/slack-department-summary', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          branch: filters.branch,
+          department: department,
+          month: selectedMonth,
+          totalAmount: data.amount,
+          totalCount: data.count,
+          unapprovedAmount: data.unapprovedAmount,
+          unapprovedCount: data.unapprovedCount,
+          dashboardUrl: typeof window !== 'undefined' ? window.location.href : undefined,
+        }),
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        alert(`✅ ${result.message}`);
+      } else {
+        alert(`❌ Failed: ${result.error}\n${result.suggestion || ''}`);
+      }
+    } catch (error: any) {
+      console.error('Error sending Slack notification:', error);
+      alert(`Error: ${error.message}`);
+    } finally {
+      setSlackSendingDepartment(null);
+    }
   };
 
   return (
@@ -823,6 +916,11 @@ export default function ExpenseDashboard({
                     size="small"
                     onClick={() => handleDepartmentClick(department)}
                     isActive={filters.department === department}
+                    showSlackButton={isAdmin && filters.branch !== 'all'}
+                    onSlackClick={() => handleSlackDepartmentSummary(department, data)}
+                    slackSending={slackSendingDepartment === department}
+                    unapprovedCount={data.unapprovedCount}
+                    unapprovedAmount={data.unapprovedAmount}
                   />
                 ))}
               {Object.keys(kpis.byDepartment).length === 0 && (
