@@ -31,6 +31,7 @@ export default function ExpenseTable({
   const [openFlagDropdown, setOpenFlagDropdown] = useState<string | null>(null);
   const [openApprovalDropdown, setOpenApprovalDropdown] = useState<string | null>(null);
   const [dropdownPosition, setDropdownPosition] = useState<'bottom' | 'top'>('bottom');
+  const [dropdownCoords, setDropdownCoords] = useState<{ top: number; left: number } | null>(null);
   const [sortField, setSortField] = useState<SortField>('date');
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
   
@@ -118,24 +119,25 @@ export default function ExpenseTable({
     );
   };
 
-  // Calculate dropdown position when opening
-  const calculateDropdownPosition = (buttonElement: HTMLButtonElement | null): 'bottom' | 'top' => {
-    if (!buttonElement) return 'bottom';
+  // Calculate dropdown position and coordinates when opening
+  const calculateDropdownPosition = (buttonElement: HTMLButtonElement | null, dropdownHeight: number = 300): { position: 'bottom' | 'top'; coords: { top: number; left: number } } => {
+    if (!buttonElement) return { position: 'bottom', coords: { top: 0, left: 0 } };
     
     const rect = buttonElement.getBoundingClientRect();
     const viewportHeight = window.innerHeight;
     const spaceBelow = viewportHeight - rect.bottom;
     const spaceAbove = rect.top;
     
-    // Estimate dropdown height (roughly 200px for flag dropdown, 150px for approval)
-    const estimatedDropdownHeight = 200;
-    
     // If not enough space below but more space above, open upward
-    if (spaceBelow < estimatedDropdownHeight && spaceAbove > spaceBelow) {
-      return 'top';
-    }
+    const position: 'bottom' | 'top' = (spaceBelow < dropdownHeight && spaceAbove > spaceBelow) ? 'top' : 'bottom';
     
-    return 'bottom';
+    // Calculate fixed coordinates
+    const coords = {
+      top: position === 'bottom' ? rect.bottom + 4 : rect.top - dropdownHeight - 4,
+      left: rect.left,
+    };
+    
+    return { position, coords };
   };
 
   const toggleRow = (expenseId: string) => {
@@ -386,8 +388,11 @@ export default function ExpenseTable({
   const toggleFlagDropdown = (expenseId: string) => {
     const newDropdownId = openFlagDropdown === expenseId ? null : expenseId;
     if (newDropdownId) {
-      const position = calculateDropdownPosition(flagButtonRefs.current[expenseId]);
+      const { position, coords } = calculateDropdownPosition(flagButtonRefs.current[expenseId], 300);
       setDropdownPosition(position);
+      setDropdownCoords(coords);
+    } else {
+      setDropdownCoords(null);
     }
     setOpenFlagDropdown(newDropdownId);
   };
@@ -438,8 +443,11 @@ export default function ExpenseTable({
   const toggleApprovalDropdown = (expenseId: string) => {
     const newDropdownId = openApprovalDropdown === expenseId ? null : expenseId;
     if (newDropdownId) {
-      const position = calculateDropdownPosition(approvalButtonRefs.current[expenseId]);
+      const { position, coords } = calculateDropdownPosition(approvalButtonRefs.current[expenseId], 120);
       setDropdownPosition(position);
+      setDropdownCoords(coords);
+    } else {
+      setDropdownCoords(null);
     }
     setOpenApprovalDropdown(newDropdownId);
   };
@@ -590,16 +598,22 @@ export default function ExpenseTable({
                         </button>
 
                         {/* Dropdown Menu */}
-                        {openFlagDropdown === expense.id && !updatingFlags.has(expense.id) && (
+                        {openFlagDropdown === expense.id && !updatingFlags.has(expense.id) && dropdownCoords && (
                           <>
                             {/* Backdrop to close dropdown */}
                             <div 
-                              className="fixed inset-0 z-10" 
+                              className="fixed inset-0 z-40" 
                               onClick={() => setOpenFlagDropdown(null)}
                             />
                             
-                            {/* Dropdown with smart positioning */}
-                            <div className={`absolute left-0 ${dropdownPosition === 'top' ? 'bottom-full mb-1' : 'top-full mt-1'} w-48 bg-white border border-gray-200 rounded-md shadow-lg z-20 py-1`}>
+                            {/* Dropdown with fixed positioning */}
+                            <div 
+                              className="fixed w-48 bg-white border border-gray-200 rounded-md shadow-lg z-50 py-1 max-h-80 overflow-y-auto"
+                              style={{ 
+                                top: dropdownCoords.top,
+                                left: dropdownCoords.left,
+                              }}
+                            >
                               <button
                                 onClick={() => handleFlagChange(expense.id, null)}
                                 className="w-full px-3 py-2 text-left text-xs hover:bg-gray-100 flex items-center gap-2"
@@ -645,16 +659,22 @@ export default function ExpenseTable({
                       </button>
 
                       {/* Dropdown Menu */}
-                      {openApprovalDropdown === expense.id && !updatingApprovals.has(expense.id) && (
+                      {openApprovalDropdown === expense.id && !updatingApprovals.has(expense.id) && dropdownCoords && (
                         <>
                           {/* Backdrop to close dropdown */}
                           <div 
-                            className="fixed inset-0 z-10" 
+                            className="fixed inset-0 z-40" 
                             onClick={() => setOpenApprovalDropdown(null)}
                           />
                           
-                          {/* Dropdown with smart positioning */}
-                          <div className={`absolute left-0 ${dropdownPosition === 'top' ? 'bottom-full mb-1' : 'top-full mt-1'} w-32 bg-white border border-gray-200 rounded-md shadow-lg z-20 py-1`}>
+                          {/* Dropdown with fixed positioning */}
+                          <div 
+                            className="fixed w-32 bg-white border border-gray-200 rounded-md shadow-lg z-50 py-1"
+                            style={{ 
+                              top: dropdownCoords.top,
+                              left: dropdownCoords.left,
+                            }}
+                          >
                             <button
                               onClick={() => handleApprovalChange(expense.id, null)}
                               className="w-full px-3 py-2 text-left text-xs hover:bg-gray-100 flex items-center gap-2"
