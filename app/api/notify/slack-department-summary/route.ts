@@ -25,6 +25,12 @@ const DEPARTMENT_SLACK_CHANNELS: Record<string, Record<string, string>> = {
     'Maintenance : Maintenance Recurring': 'C0738AHV23H',
     'Irrigation': 'C0738AHV23H',
   },
+  'Phoenix': {
+    'Enhancements': 'C06JTB3QS0Z',
+    'Arbor': 'C06JT9Q4A3B',
+    'Spray': 'C0896PY7EAF',
+    'PHC': 'C0896PY7EAF',
+  },
   'Las Vegas': {
     'Maintenance': 'C06JBNL7UKX',
     'Maintenance Recurring': 'C06JBNL7UKX',
@@ -43,6 +49,8 @@ const DEPARTMENT_SLACK_CHANNELS: Record<string, Record<string, string>> = {
     'Overhead: Equipment & Fleet Operations': 'C0896PY7EAF',
     'Enhancements': 'C06JTB3QS0Z',
     'Arbor': 'C06JT9Q4A3B',
+    'Spray': 'C0896PY7EAF',
+    'PHC': 'C0896PY7EAF',
   },
 };
 

@@ -70,6 +70,7 @@ export default function ExpenseDashboard({
   // Helper function to get branch icon path
   const getBranchIcon = (branchName: string): string => {
     const iconMap: Record<string, string> = {
+      'Phoenix': '/logos/az.png',
       'Phoenix - North': '/logos/phx-north.png',
       'Phoenix - SouthEast': '/logos/phx-se.png',
       'Phoenix - SouthWest': '/logos/phx-sw.png',
@@ -805,6 +806,16 @@ export default function ExpenseDashboard({
             onClick={() => handleBranchClick('Las Vegas')}
             isActive={filters.branch === 'Las Vegas'}
             icon={getBranchIcon('Las Vegas')}
+          />
+          <KPICard
+            title="Phoenix"
+            value={formatCurrency(kpis.byBranch['Phoenix']?.amount || 0)}
+            subtitle={`${kpis.byBranch['Phoenix']?.count || 0} transactions`}
+            bgColor="bg-orange-100"
+            size="small"
+            onClick={() => handleBranchClick('Phoenix')}
+            isActive={filters.branch === 'Phoenix'}
+            icon={getBranchIcon('Phoenix')}
           />
           <KPICard
             title="Corporate"
