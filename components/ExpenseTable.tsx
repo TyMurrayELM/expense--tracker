@@ -178,6 +178,7 @@ export default function ExpenseTable({
   // Helper function to get branch icon path
   const getBranchIcon = (branchName: string): string => {
     const iconMap: Record<string, string> = {
+      'Phoenix': '/logos/az.png',
       'Phoenix - North': '/logos/phx-north.png',
       'Phoenix - SouthEast': '/logos/phx-se.png',
       'Phoenix - SouthWest': '/logos/phx-sw.png',
@@ -767,18 +768,24 @@ export default function ExpenseTable({
 
                   {/* Branch Column */}
                   <td className="px-3 py-3">
-                    {expense.branch && expense.branch !== 'QnVkZ2V0OjcyNDQ0MQ==-' && !expense.branch.includes('=') && getBranchIcon(expense.branch) && (
-                      <div className="flex items-center justify-center">
-                        <Image
-                          src={getBranchIcon(expense.branch)}
-                          alt={expense.branch}
-                          width={24}
-                          height={24}
-                          className="object-contain"
-                          title={expense.branch}
-                        />
-                      </div>
-                    )}
+                    {expense.branch && expense.branch !== 'QnVkZ2V0OjcyNDQ0MQ==-' && !expense.branch.includes('=') ? (
+                      getBranchIcon(expense.branch) ? (
+                        <div className="flex items-center justify-center">
+                          <Image
+                            src={getBranchIcon(expense.branch)}
+                            alt={expense.branch}
+                            width={24}
+                            height={24}
+                            className="object-contain"
+                            title={expense.branch}
+                          />
+                        </div>
+                      ) : (
+                        <span className="text-sm text-gray-500 truncate" title={expense.branch}>
+                          {expense.branch}
+                        </span>
+                      )
+                    ) : null}
                   </td>
 
                   {/* Department Column */}
