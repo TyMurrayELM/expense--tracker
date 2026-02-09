@@ -38,8 +38,8 @@ export async function GET(request: Request) {
     // Initialize NetSuite client
     const nsClient = createNetSuiteClient();
 
-    // Fetch vendor bills from NetSuite starting from Q4 2025 (Dec 1, 2025)
-    const fromDate = '2025-12-01';
+    // Fetch vendor bills from NetSuite starting from Jan 1, 2026
+    const fromDate = '2026-01-01';
     console.log('Fetching vendor bills from NetSuite...');
     
     const result = await nsClient.searchVendorBills(fromDate);
