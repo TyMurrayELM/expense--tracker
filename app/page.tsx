@@ -6,18 +6,31 @@ import PageWrapper from '@/components/PageWrapper';
 import { Expense } from '@/types/expense';
 
 async function getExpenses() {
-  const { data, error } = await supabase
-    .from('expenses')
-    .select('*')
-    .gte('transaction_date', '2025-10-01')
-    .order('transaction_date', { ascending: false });
+  const allExpenses: Expense[] = [];
+  const PAGE_SIZE = 1000;
+  let offset = 0;
 
-  if (error) {
-    console.error('Error fetching expenses:', error);
-    return [];
+  while (true) {
+    const { data, error } = await supabaseAdmin
+      .from('expenses')
+      .select('*')
+      .gte('transaction_date', '2025-10-01')
+      .order('transaction_date', { ascending: false })
+      .range(offset, offset + PAGE_SIZE - 1);
+
+    if (error) {
+      console.error('Error fetching expenses:', error);
+      break;
+    }
+
+    allExpenses.push(...(data as Expense[]));
+
+    if (data.length < PAGE_SIZE) break;
+    offset += PAGE_SIZE;
   }
 
-  return data as Expense[];
+  console.log(`Fetched ${allExpenses.length} total expenses`);
+  return allExpenses;
 }
 
 async function getFilterOptions() {
