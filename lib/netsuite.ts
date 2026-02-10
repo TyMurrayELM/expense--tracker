@@ -116,22 +116,47 @@ export class NetSuiteClient {
         trandate,
         entity
       FROM transaction
-      WHERE 
+      WHERE
         type = 'VendBill'
+        AND trandate >= '${fromDate}'
       ORDER BY trandate DESC
     `;
 
     console.log('Executing SuiteQL query:', query);
 
     try {
-      const response = await this.makeRequest(
-        '/services/rest/query/v1/suiteql?limit=100&offset=0',
-        'POST',
-        { q: query }
-      );
+      const allItems: any[] = [];
+      const PAGE_SIZE = 1000;
+      const MAX_PAGES = 10;
 
-      console.log('SuiteQL Response:', JSON.stringify(response, null, 2));
-      return response;
+      for (let page = 0; page < MAX_PAGES; page++) {
+        const offset = page * PAGE_SIZE;
+        console.log(`Fetching page ${page + 1} at offset ${offset}...`);
+
+        const response = await this.makeRequest(
+          `/services/rest/query/v1/suiteql?limit=${PAGE_SIZE}&offset=${offset}`,
+          'POST',
+          { q: query }
+        );
+
+        const items = response.items || [];
+        allItems.push(...items);
+
+        console.log(`Page ${page + 1}: received ${items.length} items (total so far: ${allItems.length})`);
+
+        if (items.length < PAGE_SIZE) {
+          console.log('Last page reached (received fewer items than page size)');
+          break;
+        }
+
+        // Small delay between pages to avoid rate limiting
+        if (page < MAX_PAGES - 1) {
+          await new Promise(resolve => setTimeout(resolve, 200));
+        }
+      }
+
+      console.log(`Pagination complete: ${allItems.length} total vendor bills fetched`);
+      return { items: allItems, totalResults: allItems.length };
     } catch (error) {
       console.error('SuiteQL Error:', error);
       throw error;

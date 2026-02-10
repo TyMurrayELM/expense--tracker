@@ -157,14 +157,33 @@ export async function POST() {
 
         console.log(`Processing: ${vendorName} - $${amount} - ${branch || 'No Branch'} - ${memo || 'No Memo'}`);
 
-        // Check if record exists BEFORE upsert
+        // Check if record exists BEFORE upsert (include branch/department for change detection)
         const { data: existingRecord } = await supabaseAdmin
           .from('expenses')
-          .select('netsuite_id')
+          .select('netsuite_id, branch, department')
           .eq('netsuite_id', netsuiteId)
           .single();
 
         const isNewRecord = !existingRecord;
+
+        // Log branch/department changes for debugging
+        if (existingRecord) {
+          const oldBranch = existingRecord.branch;
+          const oldDept = existingRecord.department;
+
+          if (oldBranch !== branch) {
+            console.log(`Updating branch: ${oldBranch ?? 'null'} → ${branch ?? 'null'} for netsuite_id: ${netsuiteId}`);
+            console.log('Full expenseData for changed record:', JSON.stringify(expenseData, null, 2));
+          }
+
+          if (oldDept !== department) {
+            console.log(`Updating department: ${oldDept ?? 'null'} → ${department ?? 'null'} for netsuite_id: ${netsuiteId}`);
+            if (oldBranch === branch) {
+              // Only log expenseData if we haven't already logged it for a branch change
+              console.log('Full expenseData for changed record:', JSON.stringify(expenseData, null, 2));
+            }
+          }
+        }
 
         // Upsert to Supabase
         const { error: upsertError } = await supabaseAdmin
