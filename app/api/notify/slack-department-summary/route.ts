@@ -43,6 +43,7 @@ const DEPARTMENT_SLACK_CHANNELS: Record<string, Record<string, string>> = {
     'Office Operations': 'C06JBNL7UKX',
     'Safety': 'C06JBNL7UKX',
     'PHC': 'C06JBNL7UKX',
+    'Spray': 'C06JBNL7UKX',
   },
   'Corporate': {
     'Safety': 'C0896PY7EAF',
@@ -227,7 +228,7 @@ export async function POST(request: Request) {
         type: 'header',
         text: {
           type: 'plain_text',
-          text: `📊 Expense Summary: ${branch}`,
+          text: `${branch} - ${cleanDepartmentName(department)}`,
           emoji: true,
         },
       },
@@ -235,33 +236,13 @@ export async function POST(request: Request) {
         type: 'section',
         text: {
           type: 'mrkdwn',
-          text: `${deptEmoji} *Department:* ${cleanDepartmentName(department)}\n${monthEmoji} *Period:* ${monthDisplay}`,
+          text: `${deptEmoji} ${cleanDepartmentName(department)}  |  ${monthEmoji} ${monthDisplay}`,
         },
-      },
-      {
-        type: 'divider',
-      },
-      {
-        type: 'section',
-        fields: [
-          {
-            type: 'mrkdwn',
-            text: `*Total Expenses*\n*${formatCurrency(totalAmount)}*`,
-          },
-          {
-            type: 'mrkdwn',
-            text: `*Transactions*\n*${totalCount}*`,
-          },
-        ],
       },
     ];
 
-    // Add unapproved section if there are unapproved transactions
     if (unapprovedCount > 0) {
       blocks.push(
-        {
-          type: 'divider',
-        },
         {
           type: 'section',
           fields: [
@@ -279,13 +260,11 @@ export async function POST(request: Request) {
     } else {
       blocks.push(
         {
-          type: 'context',
-          elements: [
-            {
-              type: 'mrkdwn',
-              text: '✅ All transactions have been approved!',
-            },
-          ],
+          type: 'section',
+          text: {
+            type: 'mrkdwn',
+            text: '✅ All transactions approved!',
+          },
         }
       );
     }
@@ -319,7 +298,7 @@ export async function POST(request: Request) {
     // Build Slack message
     const message = {
       channel: channelId,
-      text: `📊 Expense Summary for ${branch} - ${cleanDepartmentName(department)} (${monthDisplay})`,
+      text: `${branch} - ${cleanDepartmentName(department)} (${monthDisplay}): ${unapprovedCount > 0 ? `${unapprovedCount} unapproved (${formatCurrency(unapprovedAmount)})` : 'All approved!'}`,
       blocks: blocks,
     };
 
