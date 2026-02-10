@@ -530,6 +530,70 @@ export default function ExpenseDashboard({
     }));
   };
 
+  // Check if any non-default filters are active (excludes months)
+  const activeFilterEntries = useMemo(() => {
+    const defaults = getDefaultFilters();
+    const labelMap: Record<string, string> = {
+      branch: 'Branch',
+      department: 'Department',
+      vendor: 'Vendor',
+      purchaser: 'Purchaser',
+      category: 'Category',
+      showFlagged: 'Flagged',
+      flagCategory: 'Flag Category',
+      transactionType: 'Transaction Type',
+      status: 'Status',
+      approvalStatus: 'Approval Status',
+      syncStatus: 'Sync Status',
+      dateFrom: 'Date From',
+      dateTo: 'Date To',
+    };
+    const displayValueMap: Record<string, Record<string, string>> = {
+      showFlagged: { flagged: 'Flagged Only', unflagged: 'Unflagged Only' },
+      transactionType: { 'Vendor Bill': 'Vendor Bill', 'Credit Card': 'Credit Card' },
+      approvalStatus: { pending: 'Pending Review', approved: 'Approved', rejected: 'Rejected' },
+      syncStatus: { synced: 'Synced to NetSuite', 'not-synced': 'Not Synced' },
+    };
+    const branchColorMap: Record<string, { bg: string; border: string; text: string; x: string; xHover: string }> = {
+      'Phoenix - North': { bg: 'bg-green-100', border: 'border-green-300', text: 'text-green-800', x: 'text-green-400', xHover: 'hover:text-green-700' },
+      'Phoenix - SouthEast': { bg: 'bg-red-100', border: 'border-red-300', text: 'text-red-800', x: 'text-red-400', xHover: 'hover:text-red-700' },
+      'Phoenix - SouthWest': { bg: 'bg-blue-100', border: 'border-blue-300', text: 'text-blue-800', x: 'text-blue-400', xHover: 'hover:text-blue-700' },
+      'Las Vegas': { bg: 'bg-yellow-100', border: 'border-yellow-300', text: 'text-yellow-800', x: 'text-yellow-500', xHover: 'hover:text-yellow-700' },
+      'Phoenix': { bg: 'bg-orange-100', border: 'border-orange-300', text: 'text-orange-800', x: 'text-orange-400', xHover: 'hover:text-orange-700' },
+      'Corporate': { bg: 'bg-gray-100', border: 'border-gray-300', text: 'text-gray-800', x: 'text-gray-400', xHover: 'hover:text-gray-700' },
+    };
+    const filterColorMap: Record<string, { bg: string; border: string; text: string; x: string; xHover: string }> = {
+      vendor: { bg: 'bg-indigo-50', border: 'border-indigo-200', text: 'text-indigo-800', x: 'text-indigo-400', xHover: 'hover:text-indigo-700' },
+      purchaser: { bg: 'bg-purple-50', border: 'border-purple-200', text: 'text-purple-800', x: 'text-purple-400', xHover: 'hover:text-purple-700' },
+      category: { bg: 'bg-teal-50', border: 'border-teal-200', text: 'text-teal-800', x: 'text-teal-400', xHover: 'hover:text-teal-700' },
+      showFlagged: { bg: 'bg-yellow-50', border: 'border-yellow-200', text: 'text-yellow-800', x: 'text-yellow-500', xHover: 'hover:text-yellow-700' },
+      flagCategory: { bg: 'bg-yellow-50', border: 'border-yellow-200', text: 'text-yellow-800', x: 'text-yellow-500', xHover: 'hover:text-yellow-700' },
+    };
+    const defaultChipColor = { bg: 'bg-gray-100', border: 'border-gray-300', text: 'text-gray-800', x: 'text-gray-400', xHover: 'hover:text-gray-700' };
+
+    const entries: { key: string; label: string; value: string; colors: { bg: string; border: string; text: string; x: string; xHover: string } }[] = [];
+    for (const key of Object.keys(labelMap)) {
+      const current = filters[key as keyof FiltersState];
+      const defaultVal = defaults[key as keyof FiltersState];
+      if (current !== defaultVal) {
+        const displayValue = displayValueMap[key]?.[current as string] ?? (current as string);
+        let colors = filterColorMap[key] ?? defaultChipColor;
+        if (key === 'branch') {
+          colors = branchColorMap[current as string] ?? defaultChipColor;
+        }
+        entries.push({ key, label: labelMap[key], value: displayValue, colors });
+      }
+    }
+    return entries;
+  }, [filters]);
+
+  const hasActiveFilters = activeFilterEntries.length > 0;
+
+  const clearSingleFilter = (key: string) => {
+    const defaults = getDefaultFilters();
+    setFilters(prev => ({ ...prev, [key]: defaults[key as keyof FiltersState] }));
+  };
+
   const handleFlagUpdate = (expenseId: string, newFlagCategory: string | null) => {
     // Update the local expense state with the new flag
     setExpenses(prev => prev.map(expense => 
@@ -1153,6 +1217,36 @@ export default function ExpenseDashboard({
                 />
               ))}
           </div>
+        </div>
+      )}
+
+      {/* Active Filters Bar */}
+      {hasActiveFilters && (
+        <div className="mb-6 bg-white border border-gray-200 rounded-lg px-4 py-3 flex flex-wrap items-center gap-2">
+          <span className="text-sm font-medium text-gray-900 mr-1">Active Filters:</span>
+          {activeFilterEntries.map(({ key, label, value, colors }) => (
+            <span
+              key={key}
+              className={`inline-flex items-center gap-1 ${colors.bg} border ${colors.border} ${colors.text} text-sm rounded-full px-3 py-1`}
+            >
+              <span className="font-medium">{label}:</span> {value}
+              <button
+                onClick={() => clearSingleFilter(key)}
+                className={`ml-1 ${colors.x} ${colors.xHover} transition-colors`}
+                aria-label={`Clear ${label} filter`}
+              >
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </span>
+          ))}
+          <button
+            onClick={handleTotalClick}
+            className="ml-auto text-sm font-medium text-red-600 hover:text-red-800 transition-colors"
+          >
+            Clear All Filters
+          </button>
         </div>
       )}
 
