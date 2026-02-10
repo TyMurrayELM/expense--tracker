@@ -53,6 +53,9 @@ export async function POST() {
     let flagsPreserved = 0;
     const errors: any[] = [];
 
+    // Cache vendor names to avoid redundant API calls
+    const vendorCache = new Map<string, string>();
+
     // Process each vendor bill
     for (const bill of bills) {
       try {
@@ -76,19 +79,26 @@ export async function POST() {
           console.log(`Could not fetch bill/expense details for ${bill.id}`);
         }
 
-        // Fetch vendor name
+        // Fetch vendor name (use cache to avoid redundant API calls)
+        const vendorId = bill.entity.toString();
         let vendorName = `Vendor ID: ${bill.entity}`;
-        
-        try {
-          const vendorDetails = await nsClient.getVendorDetails(bill.entity.toString());
-          if (vendorDetails) {
-            vendorName = vendorDetails.companyName || 
-                        vendorDetails.entityId || 
-                        vendorDetails.altName ||
-                        `Vendor ID: ${bill.entity}`;
+
+        if (vendorCache.has(vendorId)) {
+          vendorName = vendorCache.get(vendorId)!;
+        } else {
+          try {
+            const vendorDetails = await nsClient.getVendorDetails(vendorId);
+            if (vendorDetails) {
+              vendorName = vendorDetails.companyName ||
+                          vendorDetails.entityId ||
+                          vendorDetails.altName ||
+                          `Vendor ID: ${bill.entity}`;
+            }
+            vendorCache.set(vendorId, vendorName);
+            console.log(`Cached vendor ${vendorId}: ${vendorName}`);
+          } catch (vendorError) {
+            console.log(`Could not fetch vendor name for ${bill.entity}`);
           }
-        } catch (vendorError) {
-          console.log(`Could not fetch vendor name for ${bill.entity}`);
         }
 
         // Extract fields from bill details

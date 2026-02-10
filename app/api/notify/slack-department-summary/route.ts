@@ -28,8 +28,9 @@ const DEPARTMENT_SLACK_CHANNELS: Record<string, Record<string, string>> = {
   'Phoenix': {
     'Enhancements': 'C06JTB3QS0Z',
     'Arbor': 'C06JT9Q4A3B',
-    'Spray': 'C0896PY7EAF',
+    'Spray': 'C06U9K3EKT7',
     'PHC': 'C0896PY7EAF',
+    'Fleet & Equipment': 'C0896PY7EAF',
   },
   'Las Vegas': {
     'Maintenance': 'C06JBNL7UKX',
@@ -49,7 +50,7 @@ const DEPARTMENT_SLACK_CHANNELS: Record<string, Record<string, string>> = {
     'Overhead: Equipment & Fleet Operations': 'C0896PY7EAF',
     'Enhancements': 'C06JTB3QS0Z',
     'Arbor': 'C06JT9Q4A3B',
-    'Spray': 'C0896PY7EAF',
+    'Spray': 'C06U9K3EKT7',
     'PHC': 'C0896PY7EAF',
   },
 };

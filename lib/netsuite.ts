@@ -118,7 +118,7 @@ export class NetSuiteClient {
       FROM transaction
       WHERE
         type = 'VendBill'
-        AND trandate >= '${fromDate}'
+        AND trandate >= TO_DATE('${fromDate}', 'YYYY-MM-DD')
       ORDER BY trandate DESC
     `;
 
