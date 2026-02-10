@@ -18,8 +18,8 @@ interface SlackNotificationRequest {
   memo?: string | null;
   billUrl?: string | null;
   improveDescription?: boolean;
-  additionalSlackId?: string | null; // New: optional additional recipient
-  additionalMessage?: string | null; // New: optional additional message
+  additionalSlackIds?: string[] | null; // Optional additional recipients
+  additionalMessage?: string | null; // Optional additional message
 }
 
 export async function POST(request: Request) {
@@ -60,7 +60,7 @@ export async function POST(request: Request) {
         memo: body.memo,
         billUrl: body.billUrl,
         improveDescription: body.improveDescription,
-        additionalSlackId: body.additionalSlackId,
+        additionalSlackIds: body.additionalSlackIds,
         additionalMessage: body.additionalMessage,
       });
     } catch (parseError: any) {
@@ -86,7 +86,7 @@ export async function POST(request: Request) {
       memo,
       billUrl,
       improveDescription = false,
-      additionalSlackId,
+      additionalSlackIds,
       additionalMessage,
     } = body;
 
@@ -263,15 +263,16 @@ export async function POST(request: Request) {
       }, { status: 500 });
     }
 
-    // Determine channel: if additionalSlackId provided, create group DM; otherwise, send to individual
+    // Determine channel: if additionalSlackIds provided, create group DM; otherwise, send to individual
     let channelId = targetUser.slack_id;
     let recipientNames = purchaserName;
 
-    if (additionalSlackId) {
-      console.log('Creating group DM with additional recipient:', additionalSlackId);
-      
+    if (additionalSlackIds && additionalSlackIds.length > 0) {
+      console.log('Creating group DM with additional recipients:', additionalSlackIds);
+
       // Open a multi-party DM conversation
       try {
+        const allUserIds = [targetUser.slack_id, ...additionalSlackIds].join(',');
         const conversationResponse = await fetch('https://slack.com/api/conversations.open', {
           method: 'POST',
           headers: {
@@ -279,12 +280,12 @@ export async function POST(request: Request) {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            users: `${targetUser.slack_id},${additionalSlackId}`, // Comma-separated user IDs
+            users: allUserIds,
           }),
         });
 
         const conversationData = await conversationResponse.json();
-        
+
         if (!conversationData.ok) {
           console.error('Failed to open group conversation:', conversationData.error);
           return NextResponse.json({
@@ -296,19 +297,19 @@ export async function POST(request: Request) {
         channelId = conversationData.channel.id;
         console.log('Group DM channel created:', channelId);
 
-        // Get the additional user's name for confirmation message
+        // Get the additional users' names for confirmation message
         try {
-          const additionalUserResult = await supabaseAdmin
+          const additionalUsersResult = await supabaseAdmin
             .from('users')
             .select('full_name')
-            .eq('slack_id', additionalSlackId)
-            .single();
+            .in('slack_id', additionalSlackIds);
 
-          if (additionalUserResult.data) {
-            recipientNames = `${purchaserName} and ${additionalUserResult.data.full_name}`;
+          if (additionalUsersResult.data && additionalUsersResult.data.length > 0) {
+            const names = additionalUsersResult.data.map(u => u.full_name);
+            recipientNames = `${purchaserName}, ${names.join(', ')}`;
           }
         } catch (error) {
-          console.log('Could not fetch additional user name, continuing anyway');
+          console.log('Could not fetch additional user names, continuing anyway');
         }
       } catch (conversationError: any) {
         console.error('Error creating group conversation:', conversationError);

@@ -51,9 +51,9 @@ export default function SlackNotifyButton({
   });
   const [improveDescription, setImproveDescription] = useState(false);
   
-  // New state for additional recipient
-  const [includeAdditionalUser, setIncludeAdditionalUser] = useState(false);
-  const [additionalUserId, setAdditionalUserId] = useState('');
+  // New state for additional recipients
+  const [includeAdditionalUsers, setIncludeAdditionalUsers] = useState(false);
+  const [additionalUserIds, setAdditionalUserIds] = useState<string[]>([]);
   const [availableUsers, setAvailableUsers] = useState<User[]>([]);
   const [loadingUsers, setLoadingUsers] = useState(false);
   
@@ -63,10 +63,10 @@ export default function SlackNotifyButton({
 
   // Fetch users with Slack IDs when modal opens and checkbox is checked
   useEffect(() => {
-    if (showModal && includeAdditionalUser && availableUsers.length === 0) {
+    if (showModal && includeAdditionalUsers && availableUsers.length === 0) {
       fetchUsersWithSlack();
     }
-  }, [showModal, includeAdditionalUser]);
+  }, [showModal, includeAdditionalUsers]);
 
   const fetchUsersWithSlack = async () => {
     setLoadingUsers(true);
@@ -115,19 +115,20 @@ export default function SlackNotifyButton({
       return;
     }
 
-    if (includeAdditionalUser && !additionalUserId) {
-      alert('Please select an additional recipient or uncheck the option.');
+    if (includeAdditionalUsers && additionalUserIds.length === 0) {
+      alert('Please select at least one additional recipient or uncheck the option.');
       return;
     }
 
     setSending(true);
 
     try {
-      // Find the additional user's Slack ID if selected
-      let additionalSlackId = null;
-      if (includeAdditionalUser && additionalUserId) {
-        const selectedUser = availableUsers.find(user => user.id === additionalUserId);
-        additionalSlackId = selectedUser?.slack_id || null;
+      // Find the additional users' Slack IDs if selected
+      let additionalSlackIds: string[] = [];
+      if (includeAdditionalUsers && additionalUserIds.length > 0) {
+        additionalSlackIds = additionalUserIds
+          .map(id => availableUsers.find(user => user.id === id)?.slack_id)
+          .filter((id): id is string => !!id);
       }
 
       const response = await fetch('/api/notify/slack', {
@@ -150,8 +151,8 @@ export default function SlackNotifyButton({
           memo,
           billUrl: getTransactionUrl(),
           improveDescription,
-          additionalSlackId, // New: pass additional recipient
-          additionalMessage: includeAdditionalMessage ? additionalMessage : null, // New: pass additional message
+          additionalSlackIds: additionalSlackIds.length > 0 ? additionalSlackIds : null,
+          additionalMessage: includeAdditionalMessage ? additionalMessage : null,
         }),
       });
 
@@ -162,8 +163,8 @@ export default function SlackNotifyButton({
         setShowModal(false);
         // Reset states
         setImproveDescription(false);
-        setIncludeAdditionalUser(false);
-        setAdditionalUserId('');
+        setIncludeAdditionalUsers(false);
+        setAdditionalUserIds([]);
         setIncludeAdditionalMessage(false);
         setAdditionalMessage('');
       } else {
@@ -213,9 +214,9 @@ export default function SlackNotifyButton({
             <div className="mb-4 p-3 bg-gray-50 rounded">
               <p className="text-sm text-gray-700">
                 <strong>To:</strong> {purchaserName}
-                {includeAdditionalUser && additionalUserId && (
+                {includeAdditionalUsers && additionalUserIds.length > 0 && (
                   <span className="text-purple-600">
-                    {' '}+ {availableUsers.find(u => u.id === additionalUserId)?.full_name}
+                    {' '}+ {additionalUserIds.map(id => availableUsers.find(u => u.id === id)?.full_name).filter(Boolean).join(', ')}
                   </span>
                 )}
               </p>
@@ -299,49 +300,61 @@ export default function SlackNotifyButton({
                 )}
               </div>
 
-              {/* Additional Recipient Section */}
+              {/* Additional Recipients Section */}
               <div className="pt-2 border-t border-gray-200">
                 <label className="flex items-center gap-2 cursor-pointer">
                   <input
                     type="checkbox"
-                    checked={includeAdditionalUser}
+                    checked={includeAdditionalUsers}
                     onChange={(e) => {
-                      setIncludeAdditionalUser(e.target.checked);
+                      setIncludeAdditionalUsers(e.target.checked);
                       if (!e.target.checked) {
-                        setAdditionalUserId('');
+                        setAdditionalUserIds([]);
                       }
                     }}
                     className="w-4 h-4 text-purple-600 border-gray-300 rounded focus:ring-purple-500"
                   />
                   <span className="text-sm text-gray-700">
-                    Include additional recipient (group message)
+                    Include additional recipients (group message)
                   </span>
                 </label>
 
-                {includeAdditionalUser && (
+                {includeAdditionalUsers && (
                   <div className="mt-3 ml-6">
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Select User
+                      Select Users
                     </label>
                     {loadingUsers ? (
                       <p className="text-sm text-gray-500">Loading users...</p>
                     ) : (
-                      <select
-                        value={additionalUserId}
-                        onChange={(e) => setAdditionalUserId(e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-purple-500 focus:border-purple-500"
-                      >
-                        <option value="">Select a user...</option>
+                      <div className="max-h-40 overflow-y-auto border border-gray-300 rounded-md p-2 space-y-1">
                         {availableUsers.map((user) => (
-                          <option key={user.id} value={user.id}>
-                            {user.full_name} ({user.email})
-                          </option>
+                          <label key={user.id} className="flex items-center gap-2 cursor-pointer hover:bg-gray-50 px-2 py-1 rounded">
+                            <input
+                              type="checkbox"
+                              checked={additionalUserIds.includes(user.id)}
+                              onChange={(e) => {
+                                if (e.target.checked) {
+                                  setAdditionalUserIds([...additionalUserIds, user.id]);
+                                } else {
+                                  setAdditionalUserIds(additionalUserIds.filter(id => id !== user.id));
+                                }
+                              }}
+                              className="w-4 h-4 text-purple-600 border-gray-300 rounded focus:ring-purple-500"
+                            />
+                            <span className="text-sm text-gray-700">{user.full_name} ({user.email})</span>
+                          </label>
                         ))}
-                      </select>
+                      </div>
                     )}
                     {availableUsers.length === 0 && !loadingUsers && (
                       <p className="mt-1 text-xs text-gray-500">
                         No other users with Slack IDs found
+                      </p>
+                    )}
+                    {additionalUserIds.length > 0 && (
+                      <p className="mt-1 text-xs text-gray-500">
+                        {additionalUserIds.length} user{additionalUserIds.length !== 1 ? 's' : ''} selected
                       </p>
                     )}
                   </div>
