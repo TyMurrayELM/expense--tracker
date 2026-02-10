@@ -131,6 +131,7 @@ export async function POST(request: Request) {
 
     let matched = 0;
     let updated = 0;
+    let created = 0;
     let notFound = 0;
     const errors: string[] = [];
 
@@ -141,9 +142,33 @@ export async function POST(request: Request) {
       const dbUser = emailMap.get(slackUser.email);
 
       if (!dbUser) {
-        // User exists in Slack but not in our database
-        notFound++;
-        console.log(`User not found in database: ${slackUser.email}`);
+        // User exists in Slack but not in our database - auto-create them
+        console.log(`Creating new user from Slack: ${slackUser.email} (${slackUser.displayName})`);
+        try {
+          const { error: insertError } = await supabaseAdmin
+            .from('users')
+            .insert({
+              email: slackUser.email,
+              full_name: slackUser.displayName,
+              slack_id: slackUser.slackId,
+              slack_display_name: slackUser.displayName,
+              slack_synced_at: new Date().toISOString(),
+              is_admin: false,
+            });
+
+          if (insertError) {
+            errors.push(`Failed to create ${slackUser.email}: ${insertError.message}`);
+            console.error(`Error creating user ${slackUser.email}:`, insertError);
+            notFound++;
+          } else {
+            created++;
+            console.log(`Created new user: ${slackUser.email}`);
+          }
+        } catch (insertError: any) {
+          errors.push(`Exception creating ${slackUser.email}: ${insertError.message}`);
+          console.error(`Exception creating user ${slackUser.email}:`, insertError);
+          notFound++;
+        }
         continue;
       }
 
@@ -184,6 +209,7 @@ export async function POST(request: Request) {
       total: slackUsers.length,
       matched,
       updated,
+      created,
       notFound,
     };
 

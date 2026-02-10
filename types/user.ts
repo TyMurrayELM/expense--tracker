@@ -51,6 +51,7 @@ export interface SlackSyncStats {
   total: number;
   matched: number;
   updated: number;
+  created: number;
   notFound: number;
 }
 

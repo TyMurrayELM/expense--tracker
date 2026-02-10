@@ -122,9 +122,14 @@ export default function SlackSyncButton({ onSyncComplete }: SlackSyncButtonProps
                 <span className="text-gray-600">Updated:</span>
                 <span className="font-semibold text-blue-600">{syncResults.stats.updated}</span>
               </div>
-              
+
               <div className="flex justify-between items-center py-2 border-b">
-                <span className="text-gray-600">Not Found in DB:</span>
+                <span className="text-gray-600">New Users Created:</span>
+                <span className="font-semibold text-purple-600">{syncResults.stats.created}</span>
+              </div>
+
+              <div className="flex justify-between items-center py-2 border-b">
+                <span className="text-gray-600">Failed:</span>
                 <span className="font-semibold text-orange-600">{syncResults.stats.notFound}</span>
               </div>
             </div>
