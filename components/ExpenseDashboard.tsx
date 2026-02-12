@@ -440,15 +440,29 @@ export default function ExpenseDashboard({
     return department;
   };
 
-  // Get unique categories from all expenses
+  // Get unique categories from expenses filtered by everything except category
   const uniqueCategories = useMemo(() => {
+    const baseFiltered = expenses.filter(expense => {
+      if (filters.months.length > 0 && !filters.months.includes('all')) {
+        if (!filters.months.includes(expense.transaction_date.substring(0, 7))) return false;
+      }
+      if (filters.branch !== 'all' && expense.branch !== filters.branch) return false;
+      if (filters.vendor !== 'all' && expense.vendor_name !== filters.vendor) return false;
+      if (filters.department !== 'all') {
+        const normalizedExpDept = expense.department ? normalizeDepartmentName(expense.department) : '';
+        if (normalizedExpDept !== filters.department) return false;
+      }
+      if (filters.purchaser !== 'all' && expense.cardholder !== filters.purchaser) return false;
+      if (filters.transactionType !== 'all' && expense.transaction_type !== filters.transactionType) return false;
+      return true;
+    });
     const categories = new Set(
-      expenses
+      baseFiltered
         .map(e => e.category)
         .filter((category): category is string => category !== null && category !== undefined && category !== '')
     );
     return Array.from(categories).sort();
-  }, [expenses]);
+  }, [expenses, filters.months, filters.branch, filters.vendor, filters.department, filters.purchaser, filters.transactionType]);
 
   // Get unique statuses from all expenses
   const uniqueStatuses = useMemo(() => {
