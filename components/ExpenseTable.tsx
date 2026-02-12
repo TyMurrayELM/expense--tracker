@@ -15,7 +15,7 @@ interface ExpenseTableProps {
   isMasquerading?: boolean;
 }
 
-type SortField = 'date' | 'vendor' | 'purchaser' | 'branch' | 'department' | 'amount' | 'status';
+type SortField = 'date' | 'vendor' | 'purchaser' | 'category' | 'branch' | 'department' | 'amount' | 'status';
 type SortDirection = 'asc' | 'desc';
 
 export default function ExpenseTable({ 
@@ -70,6 +70,10 @@ export default function ExpenseTable({
         case 'purchaser':
           aValue = a.cardholder?.toLowerCase() || '';
           bValue = b.cardholder?.toLowerCase() || '';
+          break;
+        case 'category':
+          aValue = a.category?.toLowerCase() || '';
+          bValue = b.category?.toLowerCase() || '';
           break;
         case 'branch':
           aValue = a.branch?.toLowerCase() || '';
@@ -517,8 +521,14 @@ export default function ExpenseTable({
                   <SortIcon field="purchaser" />
                 </div>
               </th>
-              <th className="px-3 py-3 text-left text-xs font-medium text-white uppercase tracking-wider bg-blue-900">
-                Category
+              <th
+                className="px-3 py-3 text-left text-xs font-medium text-white uppercase tracking-wider bg-blue-900 cursor-pointer hover:bg-blue-800"
+                onClick={() => handleSort('category')}
+              >
+                <div className="flex items-center gap-1">
+                  <span>Category</span>
+                  <SortIcon field="category" />
+                </div>
               </th>
               <th 
                 className="px-3 py-3 text-left text-xs font-medium text-white uppercase tracking-wider bg-blue-900 cursor-pointer hover:bg-blue-800"

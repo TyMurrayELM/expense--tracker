@@ -5,6 +5,7 @@ import { FLAG_CATEGORIES } from '@/types/expense';
 interface FilterBarProps {
   vendors: string[];
   purchasers: string[];
+  categories: string[];
   statuses: string[];
   onFilterChange: (key: string, value: string) => void;
   currentFilters: {
@@ -12,6 +13,7 @@ interface FilterBarProps {
     vendor: string;
     department: string;
     purchaser: string;
+    category: string;
     showFlagged: string;
     flagCategory: string;
     transactionType: string;
@@ -21,7 +23,7 @@ interface FilterBarProps {
   };
 }
 
-export default function FilterBar({ vendors, purchasers, statuses, onFilterChange, currentFilters }: FilterBarProps) {
+export default function FilterBar({ vendors, purchasers, categories, statuses, onFilterChange, currentFilters }: FilterBarProps) {
   return (
     <div className="bg-white border border-gray-200 rounded-lg p-4">
       <div className="flex flex-wrap gap-4">
@@ -49,6 +51,20 @@ export default function FilterBar({ vendors, purchasers, statuses, onFilterChang
             <option value="all">All Purchasers</option>
             {purchasers.map(purchaser => (
               <option key={purchaser} value={purchaser}>{purchaser}</option>
+            ))}
+          </select>
+        </div>
+
+        <div className="flex-1 min-w-[200px]">
+          <label className="block text-sm font-medium text-gray-700 mb-1">Category</label>
+          <select
+            className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            value={currentFilters.category}
+            onChange={(e) => onFilterChange('category', e.target.value)}
+          >
+            <option value="all">All Categories</option>
+            {categories.map(category => (
+              <option key={category} value={category}>{category}</option>
             ))}
           </select>
         </div>

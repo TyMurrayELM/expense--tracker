@@ -440,6 +440,16 @@ export default function ExpenseDashboard({
     return department;
   };
 
+  // Get unique categories from all expenses
+  const uniqueCategories = useMemo(() => {
+    const categories = new Set(
+      expenses
+        .map(e => e.category)
+        .filter((category): category is string => category !== null && category !== undefined && category !== '')
+    );
+    return Array.from(categories).sort();
+  }, [expenses]);
+
   // Get unique statuses from all expenses
   const uniqueStatuses = useMemo(() => {
     const statuses = new Set(
@@ -1267,9 +1277,10 @@ export default function ExpenseDashboard({
           Filters
         </button>
         {!sectionsCollapsed.filters && (
-        <FilterBar 
+        <FilterBar
           vendors={vendors}
           purchasers={purchasers}
+          categories={uniqueCategories}
           statuses={uniqueStatuses}
           onFilterChange={handleFilterChange}
           currentFilters={filters}

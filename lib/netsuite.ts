@@ -244,6 +244,12 @@ export class NetSuiteClient {
 }
 
 export function createNetSuiteClient(): NetSuiteClient {
+  const required = ['NETSUITE_ACCOUNT_ID', 'NETSUITE_CONSUMER_KEY', 'NETSUITE_CONSUMER_SECRET', 'NETSUITE_TOKEN_ID', 'NETSUITE_TOKEN_SECRET'] as const;
+  const missing = required.filter(k => !process.env[k]);
+  if (missing.length > 0) {
+    throw new Error(`Missing required env vars: ${missing.join(', ')}`);
+  }
+
   const config: NetSuiteConfig = {
     accountId: process.env.NETSUITE_ACCOUNT_ID!,
     consumerKey: process.env.NETSUITE_CONSUMER_KEY!,

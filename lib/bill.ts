@@ -482,9 +482,13 @@ export class BillClient {
 }
 
 export function createBillClient(): BillClient {
+  if (!process.env.BILL_API_TOKEN || !process.env.BILL_BASE_URL) {
+    throw new Error('Missing required env vars: BILL_API_TOKEN and BILL_BASE_URL must be set.');
+  }
+
   const config: BillConfig = {
-    apiToken: process.env.BILL_API_TOKEN!,
-    baseUrl: process.env.BILL_BASE_URL!,
+    apiToken: process.env.BILL_API_TOKEN,
+    baseUrl: process.env.BILL_BASE_URL,
   };
 
   return new BillClient(config);
