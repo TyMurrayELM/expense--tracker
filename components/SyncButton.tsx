@@ -162,13 +162,13 @@ export default function SyncButton({ currentUser }: SyncButtonProps) {
             <button
               onClick={handleVendorBillSync}
               disabled={isAnySyncing}
-              className="px-4 py-2 bg-teal-700 text-white text-sm font-medium rounded-md hover:bg-teal-800 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center gap-2"
+              className="px-2 py-1 bg-teal-700 text-white text-xs font-medium rounded hover:bg-teal-800 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center gap-1"
             >
               <Image
                 src="/logos/netsuite.png"
                 alt="NetSuite"
-                width={20}
-                height={20}
+                width={16}
+                height={16}
                 className="flex-shrink-0"
               />
               {syncingVendorBills ? 'Syncing...' : 'Sync Vendor Bills'}
@@ -177,18 +177,18 @@ export default function SyncButton({ currentUser }: SyncButtonProps) {
               Last: {formatLastSyncTime()}
             </span>
           </div>
-          
+
           <div className="flex flex-col items-center">
             <button
               onClick={handleCreditCardSync}
               disabled={isAnySyncing}
-              className="px-4 py-2 bg-orange-600 text-white text-sm font-medium rounded-md hover:bg-orange-700 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center gap-2"
+              className="px-2 py-1 bg-orange-600 text-white text-xs font-medium rounded hover:bg-orange-700 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center gap-1"
             >
               <Image
                 src="/logos/bill.png"
                 alt="Bill.com"
-                width={20}
-                height={20}
+                width={16}
+                height={16}
                 className="flex-shrink-0"
               />
               {syncingCreditCards ? 'Syncing...' : 'Sync Credit Cards'}
@@ -202,12 +202,12 @@ export default function SyncButton({ currentUser }: SyncButtonProps) {
             <button
               onClick={handleHistoricalImport}
               disabled={isAnySyncing}
-              className="px-4 py-2 bg-purple-600 text-white text-sm font-medium rounded-md hover:bg-purple-700 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center gap-2"
+              className="px-2 py-1 bg-purple-600 text-white text-xs font-medium rounded hover:bg-purple-700 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center gap-1"
               title="One-time import of all transactions since Oct 1, 2025"
             >
-              <svg 
-                className="w-5 h-5" 
-                fill="currentColor" 
+              <svg
+                className="w-4 h-4"
+                fill="currentColor"
                 viewBox="0 0 20 20"
               >
                 <path fillRule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clipRule="evenodd" />
@@ -227,42 +227,42 @@ export default function SyncButton({ currentUser }: SyncButtonProps) {
           <button
             onClick={handleVendorBillSync}
             disabled={isAnySyncing}
-            className="w-full px-4 py-3 bg-teal-700 text-white text-sm font-medium rounded-lg hover:bg-teal-800 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+            className="w-full px-2 py-1.5 bg-teal-700 text-white text-xs font-medium rounded hover:bg-teal-800 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center justify-center gap-1"
           >
             <Image
               src="/logos/netsuite.png"
               alt="NetSuite"
-              width={20}
-              height={20}
+              width={16}
+              height={16}
               className="flex-shrink-0"
             />
             <span>{syncingVendorBills ? 'Syncing...' : 'Sync Vendor Bills'}</span>
           </button>
-          
+
           <button
             onClick={handleCreditCardSync}
             disabled={isAnySyncing}
-            className="w-full px-4 py-3 bg-orange-600 text-white text-sm font-medium rounded-lg hover:bg-orange-700 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+            className="w-full px-2 py-1.5 bg-orange-600 text-white text-xs font-medium rounded hover:bg-orange-700 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center justify-center gap-1"
           >
             <Image
               src="/logos/bill.png"
               alt="Bill.com"
-              width={20}
-              height={20}
+              width={16}
+              height={16}
               className="flex-shrink-0"
             />
             <span>{syncingCreditCards ? 'Syncing...' : 'Sync Credit Cards'}</span>
           </button>
-          
+
           <button
             onClick={handleHistoricalImport}
             disabled={isAnySyncing}
-            className="w-full px-4 py-3 bg-purple-600 text-white text-sm font-medium rounded-lg hover:bg-purple-700 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+            className="w-full px-2 py-1.5 bg-purple-600 text-white text-xs font-medium rounded hover:bg-purple-700 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center justify-center gap-1"
             title="One-time import of all transactions since Oct 1, 2025"
           >
-            <svg 
-              className="w-5 h-5" 
-              fill="currentColor" 
+            <svg
+              className="w-4 h-4"
+              fill="currentColor"
               viewBox="0 0 20 20"
             >
               <path fillRule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clipRule="evenodd" />
