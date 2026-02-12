@@ -1,8 +1,22 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/auth';
 
 export async function GET() {
   try {
+    const session = await getServerSession(authOptions);
+    if (!session || !session.user) {
+      return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const { data: authUser } = await supabaseAdmin
+      .from('users').select('is_admin')
+      .eq('email', session.user.email!.toLowerCase()).single();
+    if (!authUser || !authUser.is_admin) {
+      return NextResponse.json({ success: false, error: 'Admin access required' }, { status: 403 });
+    }
+
     // Fetch all users
     const { data: users, error: usersError } = await supabaseAdmin
       .from('users')
@@ -61,6 +75,18 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
+    const session = await getServerSession(authOptions);
+    if (!session || !session.user) {
+      return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const { data: authUser } = await supabaseAdmin
+      .from('users').select('is_admin')
+      .eq('email', session.user.email!.toLowerCase()).single();
+    if (!authUser || !authUser.is_admin) {
+      return NextResponse.json({ success: false, error: 'Admin access required' }, { status: 403 });
+    }
+
     const body = await request.json();
     const { email, full_name, is_admin, branches, departments } = body;
 

@@ -1,11 +1,25 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/auth';
 
 export async function PATCH(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const session = await getServerSession(authOptions);
+    if (!session || !session.user) {
+      return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const { data: authUser } = await supabaseAdmin
+      .from('users').select('is_admin')
+      .eq('email', session.user.email!.toLowerCase()).single();
+    if (!authUser || !authUser.is_admin) {
+      return NextResponse.json({ success: false, error: 'Admin access required' }, { status: 403 });
+    }
+
     const { id: userId } = await params;
     const body = await request.json();
     const { full_name, is_admin, is_active, branches, departments } = body;
@@ -130,6 +144,18 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const session = await getServerSession(authOptions);
+    if (!session || !session.user) {
+      return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const { data: authUser } = await supabaseAdmin
+      .from('users').select('is_admin')
+      .eq('email', session.user.email!.toLowerCase()).single();
+    if (!authUser || !authUser.is_admin) {
+      return NextResponse.json({ success: false, error: 'Admin access required' }, { status: 403 });
+    }
+
     const { id: userId } = await params;
 
     // Delete user (cascade will handle permissions)

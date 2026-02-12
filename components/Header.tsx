@@ -3,7 +3,7 @@
 import { signOut } from 'next-auth/react';
 import SyncButton from '@/components/SyncButton';
 import { UserWithPermissions } from '@/types/user';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 interface HeaderProps {
   activeTab: 'dashboard' | 'trends' | 'admin';
@@ -24,6 +24,25 @@ export default function Header({
 }: HeaderProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const effectiveUser = masqueradingAsUser || currentUser;
+
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      const dropdown = document.getElementById('user-dropdown');
+      const dropdownMobile = document.getElementById('user-dropdown-mobile');
+      const button = dropdown?.previousElementSibling;
+      const buttonMobile = dropdownMobile?.previousElementSibling;
+
+      if (dropdown && !dropdown.contains(e.target as Node) && !button?.contains(e.target as Node)) {
+        dropdown.classList.add('hidden');
+      }
+      if (dropdownMobile && !dropdownMobile.contains(e.target as Node) && !buttonMobile?.contains(e.target as Node)) {
+        dropdownMobile.classList.add('hidden');
+      }
+    }
+
+    document.addEventListener('click', handleClickOutside);
+    return () => document.removeEventListener('click', handleClickOutside);
+  }, []);
 
   return (
     <header className="bg-white border-b border-gray-200 shadow-sm">
@@ -386,26 +405,6 @@ export default function Header({
         </div>
       </div>
 
-      {/* Click outside to close dropdown */}
-      <script dangerouslySetInnerHTML={{
-        __html: `
-          if (typeof window !== 'undefined') {
-            document.addEventListener('click', function(e) {
-              const dropdown = document.getElementById('user-dropdown');
-              const dropdownMobile = document.getElementById('user-dropdown-mobile');
-              const button = dropdown?.previousElementSibling;
-              const buttonMobile = dropdownMobile?.previousElementSibling;
-              
-              if (dropdown && !dropdown.contains(e.target) && !button?.contains(e.target)) {
-                dropdown.classList.add('hidden');
-              }
-              if (dropdownMobile && !dropdownMobile.contains(e.target) && !buttonMobile?.contains(e.target)) {
-                dropdownMobile.classList.add('hidden');
-              }
-            });
-          }
-        `
-      }} />
     </header>
   );
 }

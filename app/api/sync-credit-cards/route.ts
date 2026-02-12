@@ -1,9 +1,23 @@
 import { NextResponse } from 'next/server';
 import { createBillClient } from '@/lib/bill';
 import { supabaseAdmin } from '@/lib/supabase';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/auth';
 
 export async function POST() {
   try {
+    const session = await getServerSession(authOptions);
+    if (!session || !session.user) {
+      return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const { data: authUser } = await supabaseAdmin
+      .from('users').select('is_admin')
+      .eq('email', session.user.email!.toLowerCase()).single();
+    if (!authUser || !authUser.is_admin) {
+      return NextResponse.json({ success: false, error: 'Admin access required' }, { status: 403 });
+    }
+
     console.log('=== Starting Credit Card Sync ===');
     
     // Create sync log

@@ -108,6 +108,10 @@ export class NetSuiteClient {
   }
 
   async searchVendorBills(fromDate: string) {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(fromDate)) {
+      throw new Error(`Invalid date format: ${fromDate}. Expected YYYY-MM-DD.`);
+    }
+
     // Use SuiteQL with only the most basic fields that are guaranteed to exist
     const query = `
       SELECT 

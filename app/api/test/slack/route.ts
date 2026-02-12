@@ -43,11 +43,9 @@ export async function GET() {
     }
 
     const tokenLength = process.env.SLACK_API_TOKEN.length;
-    const tokenPrefix = process.env.SLACK_API_TOKEN.substring(0, 10);
 
     console.log('Testing Slack connection...');
     console.log('Token length:', tokenLength);
-    console.log('Token prefix:', tokenPrefix);
 
     // Create client and test connection
     const slackClient = createSlackClient();
@@ -60,7 +58,6 @@ export async function GET() {
         details: {
           tokenExists: true,
           tokenLength,
-          tokenPrefix,
           connectionError: connectionTest.message,
         },
       });
@@ -76,7 +73,6 @@ export async function GET() {
       details: {
         tokenExists: true,
         tokenLength,
-        tokenPrefix,
         connectionMessage: connectionTest.message,
         totalUsers: users.length,
         sampleUsers: users.slice(0, 3).map(u => ({
