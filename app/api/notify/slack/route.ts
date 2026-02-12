@@ -90,50 +90,63 @@ export async function POST(request: Request) {
       additionalMessage,
     } = body;
 
-    // Find user by name (cardholder)
-    console.log('Searching for user:', purchaserName);
-    
-    let users;
-    try {
-      const result = await supabaseAdmin
-        .from('users')
-        .select('id, full_name, email, slack_id, slack_display_name')
-        .ilike('full_name', purchaserName);
+    // Find user by name (cardholder) - skip for vendor bills with no purchaser
+    let targetUser: { id: string; full_name: string; email: string; slack_id: string; slack_display_name: string | null } | null = null;
 
-      if (result.error) {
-        throw new Error(`Database error: ${result.error.message}`);
+    if (purchaserName) {
+      console.log('Searching for user:', purchaserName);
+
+      let users;
+      try {
+        const result = await supabaseAdmin
+          .from('users')
+          .select('id, full_name, email, slack_id, slack_display_name')
+          .ilike('full_name', purchaserName);
+
+        if (result.error) {
+          throw new Error(`Database error: ${result.error.message}`);
+        }
+
+        users = result.data;
+        console.log('Users found:', users?.length || 0);
+      } catch (dbError: any) {
+        console.error('Database error:', dbError);
+        return NextResponse.json({
+          success: false,
+          error: `Failed to find user: ${dbError.message}`,
+        }, { status: 500 });
       }
 
-      users = result.data;
-      console.log('Users found:', users?.length || 0);
-    } catch (dbError: any) {
-      console.error('Database error:', dbError);
-      return NextResponse.json({
-        success: false,
-        error: `Failed to find user: ${dbError.message}`,
-      }, { status: 500 });
-    }
+      if (!users || users.length === 0) {
+        console.log('No user found with name:', purchaserName);
+        return NextResponse.json({
+          success: false,
+          error: `No user found with name: ${purchaserName}`,
+          suggestion: 'User may need to be created first. Try the "Auto-Create Users" button in Admin.',
+        }, { status: 404 });
+      }
 
-    if (!users || users.length === 0) {
-      console.log('No user found with name:', purchaserName);
-      return NextResponse.json({
-        success: false,
-        error: `No user found with name: ${purchaserName}`,
-        suggestion: 'User may need to be created first. Try the "Auto-Create Users" button in Admin.',
-      }, { status: 404 });
-    }
+      targetUser = users[0];
+      console.log('Target user:', targetUser.email, 'Slack ID:', targetUser.slack_id);
 
-    const targetUser = users[0];
-    console.log('Target user:', targetUser.email, 'Slack ID:', targetUser.slack_id);
-
-    // Check if user has Slack ID
-    if (!targetUser.slack_id) {
-      console.log('User has no Slack ID');
-      return NextResponse.json({
-        success: false,
-        error: `User ${purchaserName} doesn't have a Slack ID`,
-        suggestion: 'Run "Sync Slack Users" in Admin to link their Slack account.',
-      }, { status: 400 });
+      // Check if user has Slack ID
+      if (!targetUser.slack_id) {
+        console.log('User has no Slack ID');
+        return NextResponse.json({
+          success: false,
+          error: `User ${purchaserName} doesn't have a Slack ID`,
+          suggestion: 'Run "Sync Slack Users" in Admin to link their Slack account.',
+        }, { status: 400 });
+      }
+    } else {
+      // No purchaser (vendor bill) - must have additional recipients
+      if (!additionalSlackIds || additionalSlackIds.length === 0) {
+        return NextResponse.json({
+          success: false,
+          error: 'No purchaser on this expense. Please select at least one recipient.',
+        }, { status: 400 });
+      }
+      console.log('No purchaser - will send to additional recipients only');
     }
 
     // Build the changes list
@@ -175,12 +188,21 @@ export async function POST(request: Request) {
     }
 
     // Build blocks for the Slack message
+    const isVendorBill = !targetUser;
+    const headerText = isVendorBill
+      ? '⚠️ Vendor Bill Correction Required'
+      : '⚠️ Credit Card Purchase Correction Required';
+    const greetingName = targetUser ? (targetUser.slack_display_name || targetUser.full_name) : '';
+    const greetingText = isVendorBill
+      ? 'Hey! 👋 A vendor bill needs attention.'
+      : `Hey ${greetingName}! 👋 One of your credit card transactions needs attention.`;
+
     const blocks: any[] = [
       {
         type: 'header',
         text: {
           type: 'plain_text',
-          text: '⚠️ Credit Card Purchase Correction Required',
+          text: headerText,
           emoji: true,
         },
       },
@@ -188,7 +210,7 @@ export async function POST(request: Request) {
         type: 'section',
         text: {
           type: 'mrkdwn',
-          text: `Hey ${targetUser.slack_display_name || targetUser.full_name}! 👋 One of your credit card transactions needs attention.`,
+          text: greetingText,
         },
       },
       {
@@ -263,16 +285,19 @@ export async function POST(request: Request) {
       }, { status: 500 });
     }
 
-    // Determine channel: if additionalSlackIds provided, create group DM; otherwise, send to individual
-    let channelId = targetUser.slack_id;
-    let recipientNames = purchaserName;
+    // Determine channel based on whether we have a target user and/or additional recipients
+    let channelId: string | null = targetUser?.slack_id || null;
+    let recipientNames = purchaserName || '';
 
     if (additionalSlackIds && additionalSlackIds.length > 0) {
-      console.log('Creating group DM with additional recipients:', additionalSlackIds);
+      // Build the list of all Slack user IDs for the conversation
+      const allSlackIds = targetUser
+        ? [targetUser.slack_id, ...additionalSlackIds]
+        : [...additionalSlackIds];
 
-      // Open a multi-party DM conversation
+      console.log('Opening conversation with recipients:', allSlackIds);
+
       try {
-        const allUserIds = [targetUser.slack_id, ...additionalSlackIds].join(',');
         const conversationResponse = await fetch('https://slack.com/api/conversations.open', {
           method: 'POST',
           headers: {
@@ -280,22 +305,22 @@ export async function POST(request: Request) {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            users: allUserIds,
+            users: allSlackIds.join(','),
           }),
         });
 
         const conversationData = await conversationResponse.json();
 
         if (!conversationData.ok) {
-          console.error('Failed to open group conversation:', conversationData.error);
+          console.error('Failed to open conversation:', conversationData.error);
           return NextResponse.json({
             success: false,
-            error: `Failed to create group conversation: ${conversationData.error}`,
+            error: `Failed to create conversation: ${conversationData.error}`,
           }, { status: 500 });
         }
 
         channelId = conversationData.channel.id;
-        console.log('Group DM channel created:', channelId);
+        console.log('Conversation channel opened:', channelId);
 
         // Get the additional users' names for confirmation message
         try {
@@ -306,24 +331,31 @@ export async function POST(request: Request) {
 
           if (additionalUsersResult.data && additionalUsersResult.data.length > 0) {
             const names = additionalUsersResult.data.map(u => u.full_name);
-            recipientNames = `${purchaserName}, ${names.join(', ')}`;
+            recipientNames = [purchaserName, ...names].filter(Boolean).join(', ');
           }
         } catch (error) {
           console.log('Could not fetch additional user names, continuing anyway');
         }
       } catch (conversationError: any) {
-        console.error('Error creating group conversation:', conversationError);
+        console.error('Error opening conversation:', conversationError);
         return NextResponse.json({
           success: false,
-          error: `Failed to create group conversation: ${conversationError.message}`,
+          error: `Failed to create conversation: ${conversationError.message}`,
         }, { status: 500 });
       }
+    }
+
+    if (!channelId) {
+      return NextResponse.json({
+        success: false,
+        error: 'No recipients determined. Please select at least one recipient.',
+      }, { status: 400 });
     }
 
     // Build Slack message
     const message = {
       channel: channelId,
-      text: `Hey ${targetUser.slack_display_name || targetUser.full_name}! 👋 One of your credit card transactions needs attention.`,
+      text: greetingText,
       blocks: blocks,
     };
 

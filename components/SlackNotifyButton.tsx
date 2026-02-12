@@ -51,8 +51,9 @@ export default function SlackNotifyButton({
   });
   const [improveDescription, setImproveDescription] = useState(false);
   
-  // New state for additional recipients
-  const [includeAdditionalUsers, setIncludeAdditionalUsers] = useState(false);
+  // New state for additional recipients - auto-enable when no purchaser (vendor bills)
+  const isVendorBill = !purchaserName;
+  const [includeAdditionalUsers, setIncludeAdditionalUsers] = useState(isVendorBill);
   const [additionalUserIds, setAdditionalUserIds] = useState<string[]>([]);
   const [availableUsers, setAvailableUsers] = useState<User[]>([]);
   const [loadingUsers, setLoadingUsers] = useState(false);
@@ -112,6 +113,11 @@ export default function SlackNotifyButton({
   const handleSendNotification = async () => {
     if (!hasChanges()) {
       alert('Please specify at least one correction or check "Description needs improvement" before sending.');
+      return;
+    }
+
+    if (isVendorBill && additionalUserIds.length === 0) {
+      alert('This is a vendor bill with no cardholder. Please select at least one recipient.');
       return;
     }
 
@@ -212,11 +218,15 @@ export default function SlackNotifyButton({
             </div>
 
             <div className="mb-4 p-3 bg-gray-50 rounded">
+              {isVendorBill && (
+                <p className="text-xs text-amber-600 mb-1">Vendor bill — no cardholder. Select recipients below.</p>
+              )}
               <p className="text-sm text-gray-700">
-                <strong>To:</strong> {purchaserName}
+                <strong>To:</strong>{' '}
+                {purchaserName || <span className="text-gray-400 italic">No cardholder</span>}
                 {includeAdditionalUsers && additionalUserIds.length > 0 && (
                   <span className="text-purple-600">
-                    {' '}+ {additionalUserIds.map(id => availableUsers.find(u => u.id === id)?.full_name).filter(Boolean).join(', ')}
+                    {purchaserName ? ' + ' : ''}{additionalUserIds.map(id => availableUsers.find(u => u.id === id)?.full_name).filter(Boolean).join(', ')}
                   </span>
                 )}
               </p>
@@ -306,6 +316,7 @@ export default function SlackNotifyButton({
                   <input
                     type="checkbox"
                     checked={includeAdditionalUsers}
+                    disabled={isVendorBill}
                     onChange={(e) => {
                       setIncludeAdditionalUsers(e.target.checked);
                       if (!e.target.checked) {
@@ -315,7 +326,7 @@ export default function SlackNotifyButton({
                     className="w-4 h-4 text-purple-600 border-gray-300 rounded focus:ring-purple-500"
                   />
                   <span className="text-sm text-gray-700">
-                    Include additional recipients (group message)
+                    {isVendorBill ? 'Select recipients (required)' : 'Include additional recipients (group message)'}
                   </span>
                 </label>
 
