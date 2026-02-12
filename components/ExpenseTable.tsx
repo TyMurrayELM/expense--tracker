@@ -193,7 +193,7 @@ export default function ExpenseTable({
     if (!flagCategory) {
       // Grey flag icon for unflagged items
       return (
-        <svg className="w-5 h-5 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
+        <svg className="w-5 h-5 text-gray-700" fill="currentColor" viewBox="0 0 20 20">
           <path fillRule="evenodd" d="M3 6a3 3 0 013-3h10a1 1 0 01.8 1.6L14.25 8l2.55 3.4A1 1 0 0116 13H6a1 1 0 00-1 1v3a1 1 0 11-2 0V6z" clipRule="evenodd" />
         </svg>
       );
@@ -220,7 +220,7 @@ export default function ExpenseTable({
     // Construction/hard hat icon for "Has WO #"
     if (flagCategory === 'Has WO #') {
       return (
-        <svg className="w-5 h-5 text-gray-600" fill="currentColor" viewBox="0 0 20 20">
+        <svg className="w-5 h-5 text-gray-700" fill="currentColor" viewBox="0 0 20 20">
           <path fillRule="evenodd" d="M6 6V5a3 3 0 013-3h2a3 3 0 013 3v1h2a2 2 0 012 2v3.57A22.952 22.952 0 0110 13a22.95 22.95 0 01-8-1.43V8a2 2 0 012-2h2zm2-1a1 1 0 011-1h2a1 1 0 011 1v1H8V5zm1 5a1 1 0 011-1h.01a1 1 0 110 2H10a1 1 0 01-1-1z" clipRule="evenodd" />
           <path d="M2 13.692V16a2 2 0 002 2h12a2 2 0 002-2v-2.308A24.974 24.974 0 0110 15c-2.796 0-5.487-.46-8-1.308z" />
         </svg>
@@ -248,7 +248,7 @@ export default function ExpenseTable({
 
     // Default grey flag for any other category
     return (
-      <svg className="w-5 h-5 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
+      <svg className="w-5 h-5 text-gray-700" fill="currentColor" viewBox="0 0 20 20">
         <path fillRule="evenodd" d="M3 6a3 3 0 013-3h10a1 1 0 01.8 1.6L14.25 8l2.55 3.4A1 1 0 0116 13H6a1 1 0 00-1 1v3a1 1 0 11-2 0V6z" clipRule="evenodd" />
       </svg>
     );
@@ -259,7 +259,7 @@ export default function ExpenseTable({
     if (!approvalStatus) {
       // Grey circle for no status
       return (
-        <svg className="w-5 h-5 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
+        <svg className="w-5 h-5 text-gray-700" fill="currentColor" viewBox="0 0 20 20">
           <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16z" clipRule="evenodd" />
         </svg>
       );
@@ -285,7 +285,7 @@ export default function ExpenseTable({
 
     // Default grey circle
     return (
-      <svg className="w-5 h-5 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
+      <svg className="w-5 h-5 text-gray-700" fill="currentColor" viewBox="0 0 20 20">
         <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16z" clipRule="evenodd" />
       </svg>
     );
@@ -572,7 +572,7 @@ export default function ExpenseTable({
           <tbody className="bg-white divide-y divide-gray-200">
             {expenses.length === 0 ? (
               <tr>
-                <td colSpan={showFlagColumn ? (showNotifyColumn ? 13 : 12) : (showNotifyColumn ? 12 : 11)} className="px-6 py-12 text-center text-gray-500">
+                <td colSpan={showFlagColumn ? (showNotifyColumn ? 13 : 12) : (showNotifyColumn ? 12 : 11)} className="px-6 py-12 text-center text-gray-700">
                   No expenses found. Try adjusting your filters or sync data from NetSuite.
                 </td>
               </tr>
@@ -619,12 +619,12 @@ export default function ExpenseTable({
                                 onClick={() => handleFlagChange(expense.id, null)}
                                 className="w-full px-3 py-2 text-left text-xs hover:bg-gray-100 flex items-center gap-2"
                               >
-                                <svg className="w-4 h-4 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
+                                <svg className="w-4 h-4 text-gray-700" fill="currentColor" viewBox="0 0 20 20">
                                   <path fillRule="evenodd" d="M3 6a3 3 0 013-3h10a1 1 0 01.8 1.6L14.25 8l2.55 3.4A1 1 0 0116 13H6a1 1 0 00-1 1v3a1 1 0 11-2 0V6z" clipRule="evenodd" />
                                 </svg>
                                 <span>No Flag</span>
                               </button>
-                              
+
                               {FLAG_CATEGORIES.map(category => (
                                 <button
                                   key={category}
@@ -680,12 +680,12 @@ export default function ExpenseTable({
                               onClick={() => handleApprovalChange(expense.id, null)}
                               className="w-full px-3 py-2 text-left text-xs hover:bg-gray-100 flex items-center gap-2"
                             >
-                              <svg className="w-4 h-4 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
+                              <svg className="w-4 h-4 text-gray-700" fill="currentColor" viewBox="0 0 20 20">
                                 <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16z" clipRule="evenodd" />
                               </svg>
                               <span>No Status</span>
                             </button>
-                            
+
                             <button
                               onClick={() => handleApprovalChange(expense.id, 'approved')}
                               className="w-full px-3 py-2 text-left text-xs hover:bg-gray-100 flex items-center gap-2"
@@ -743,7 +743,7 @@ export default function ExpenseTable({
                   </td>
 
                   {/* Purchaser Column */}
-                  <td className="px-3 py-3 text-sm text-gray-600">
+                  <td className="px-3 py-3 text-sm text-gray-700">
                     <div className="flex items-center gap-1">
                       <span className="truncate" title={expense.cardholder || ''}>
                         {expense.cardholder || '-'}
@@ -762,7 +762,7 @@ export default function ExpenseTable({
                   </td>
 
                   {/* Category Column */}
-                  <td className="px-3 py-3 text-sm text-gray-500 truncate" title={expense.category || ''}>
+                  <td className="px-3 py-3 text-sm text-gray-700 truncate" title={expense.category || ''}>
                     {expense.category || '-'}
                   </td>
 
@@ -781,7 +781,7 @@ export default function ExpenseTable({
                           />
                         </div>
                       ) : (
-                        <span className="text-sm text-gray-500 truncate" title={expense.branch}>
+                        <span className="text-sm text-gray-700 truncate" title={expense.branch}>
                           {expense.branch}
                         </span>
                       )
@@ -789,7 +789,7 @@ export default function ExpenseTable({
                   </td>
 
                   {/* Department Column */}
-                  <td className="px-3 py-3 text-sm text-gray-500 truncate" title={expense.department || ''}>
+                  <td className="px-3 py-3 text-sm text-gray-700 truncate" title={expense.department || ''}>
                     {expense.department || '-'}
                   </td>
 
@@ -817,7 +817,7 @@ export default function ExpenseTable({
                   </td>
 
                   {/* Memo Column */}
-                  <td className="px-3 py-3 text-sm text-gray-600 truncate" title={expense.memo || ''}>
+                  <td className="px-3 py-3 text-sm text-gray-700 truncate" title={expense.memo || ''}>
                     {expense.memo || '-'}
                   </td>
 
@@ -864,7 +864,7 @@ export default function ExpenseTable({
       {/* Mobile Card View */}
       <div className="lg:hidden divide-y divide-gray-200">
         {expenses.length === 0 ? (
-          <div className="px-6 py-12 text-center text-gray-500">
+          <div className="px-6 py-12 text-center text-gray-700">
             No expenses found. Try adjusting your filters or sync data from NetSuite.
           </div>
         ) : (
@@ -906,7 +906,7 @@ export default function ExpenseTable({
                           {expense.vendor_name}
                         </div>
                       </div>
-                      <div className="text-sm text-gray-500">
+                      <div className="text-sm text-gray-700">
                         {formatDate(expense.transaction_date)}
                       </div>
                     </div>
@@ -915,7 +915,7 @@ export default function ExpenseTable({
                         {formatCurrency(expense.amount, expense.currency)}
                       </div>
                       {expense.cardholder && (
-                        <div className="text-sm text-gray-500 flex items-center justify-end gap-1">
+                        <div className="text-sm text-gray-700 flex items-center justify-end gap-1">
                           <span>{expense.cardholder}</span>
                           {expense.flag_category && expense.flag_category !== 'Good to Sync' && (
                             <span 
@@ -948,7 +948,7 @@ export default function ExpenseTable({
                       </span>
                     </div>
                     
-                    <button className="text-gray-400 hover:text-gray-600">
+                    <button className="text-gray-700 hover:text-gray-600">
                       <svg 
                         className={`w-5 h-5 transition-transform ${isExpanded ? 'rotate-180' : ''}`}
                         fill="none" 
@@ -976,12 +976,12 @@ export default function ExpenseTable({
                     {showFlagColumn && (
                       <div className="relative">
                         <div className="flex items-center justify-between mb-1">
-                          <span className="text-xs font-medium text-gray-500">Flag:</span>
+                          <span className="text-xs font-medium text-gray-700">Flag:</span>
                         </div>
                         {updatingFlags.has(expense.id) ? (
                           <div className="flex items-center gap-2 py-2">
                             <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
-                            <span className="text-xs text-gray-500">Updating...</span>
+                            <span className="text-xs text-gray-700">Updating...</span>
                           </div>
                         ) : (
                           <button
@@ -1013,12 +1013,12 @@ export default function ExpenseTable({
                                 onClick={() => handleFlagChange(expense.id, null)}
                                 className="w-full px-3 py-2 text-left text-xs hover:bg-gray-100 flex items-center gap-2"
                               >
-                                <svg className="w-4 h-4 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
+                                <svg className="w-4 h-4 text-gray-700" fill="currentColor" viewBox="0 0 20 20">
                                   <path fillRule="evenodd" d="M3 6a3 3 0 013-3h10a1 1 0 01.8 1.6L14.25 8l2.55 3.4A1 1 0 0116 13H6a1 1 0 00-1 1v3a1 1 0 11-2 0V6z" clipRule="evenodd" />
                                 </svg>
                                 <span>No Flag</span>
                               </button>
-                              
+
                               {FLAG_CATEGORIES.map((category) => (
                                 <button
                                   key={category}
@@ -1038,12 +1038,12 @@ export default function ExpenseTable({
                     {/* Approval Dropdown */}
                     <div className="relative">
                       <div className="flex items-center justify-between mb-1">
-                        <span className="text-xs font-medium text-gray-500">Approval:</span>
+                        <span className="text-xs font-medium text-gray-700">Approval:</span>
                       </div>
                       {updatingApprovals.has(expense.id) ? (
                         <div className="flex items-center gap-2 py-2">
                           <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
-                          <span className="text-xs text-gray-500">Updating...</span>
+                          <span className="text-xs text-gray-700">Updating...</span>
                         </div>
                       ) : (
                         <div className="relative">
@@ -1076,12 +1076,12 @@ export default function ExpenseTable({
                                   onClick={() => handleApprovalChange(expense.id, null)}
                                   className="w-full px-3 py-2 text-left text-xs hover:bg-gray-100 flex items-center gap-2"
                                 >
-                                  <svg className="w-4 h-4 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
+                                  <svg className="w-4 h-4 text-gray-700" fill="currentColor" viewBox="0 0 20 20">
                                     <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16z" clipRule="evenodd" />
                                   </svg>
                                   <span>No Status</span>
                                 </button>
-                                
+
                                 <button
                                   onClick={() => handleApprovalChange(expense.id, 'approved')}
                                   className="w-full px-3 py-2 text-left text-xs hover:bg-gray-100 flex items-center gap-2"
@@ -1111,7 +1111,7 @@ export default function ExpenseTable({
                     {/* Category */}
                     {expense.category && (
                       <div className="flex items-center justify-between">
-                        <span className="text-xs font-medium text-gray-500">Category:</span>
+                        <span className="text-xs font-medium text-gray-700">Category:</span>
                         <span className="text-xs text-gray-900">{expense.category}</span>
                       </div>
                     )}
@@ -1119,7 +1119,7 @@ export default function ExpenseTable({
                     {/* Branch */}
                     {expense.branch && expense.branch !== 'QnVkZ2V0OjcyNDQ0MQ==-' && !expense.branch.includes('=') && (
                       <div className="flex items-center justify-between">
-                        <span className="text-xs font-medium text-gray-500">Branch:</span>
+                        <span className="text-xs font-medium text-gray-700">Branch:</span>
                         {getBranchIcon(expense.branch) ? (
                           <div className="flex items-center gap-2">
                             <Image
@@ -1140,7 +1140,7 @@ export default function ExpenseTable({
                     {/* Department */}
                     {expense.department && (
                       <div className="flex items-center justify-between">
-                        <span className="text-xs font-medium text-gray-500">Department:</span>
+                        <span className="text-xs font-medium text-gray-700">Department:</span>
                         <span className="text-xs text-gray-900">{expense.department}</span>
                       </div>
                     )}
@@ -1148,7 +1148,7 @@ export default function ExpenseTable({
                     {/* Memo */}
                     {expense.memo && (
                       <div className="flex flex-col gap-1">
-                        <span className="text-xs font-medium text-gray-500">Memo:</span>
+                        <span className="text-xs font-medium text-gray-700">Memo:</span>
                         <span className="text-xs text-gray-900">{expense.memo}</span>
                       </div>
                     )}

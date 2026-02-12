@@ -99,7 +99,7 @@ export default function SlackSyncButton({ onSyncComplete }: SlackSyncButtonProps
               </h3>
               <button
                 onClick={closeResults}
-                className="text-gray-400 hover:text-gray-600"
+                className="text-gray-700 hover:text-gray-600"
               >
                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -109,27 +109,27 @@ export default function SlackSyncButton({ onSyncComplete }: SlackSyncButtonProps
 
             <div className="space-y-3">
               <div className="flex justify-between items-center py-2 border-b">
-                <span className="text-gray-600">Total Slack Users:</span>
+                <span className="text-gray-700">Total Slack Users:</span>
                 <span className="font-semibold text-gray-900">{syncResults.stats.total}</span>
               </div>
               
               <div className="flex justify-between items-center py-2 border-b">
-                <span className="text-gray-600">Matched by Email:</span>
+                <span className="text-gray-700">Matched by Email:</span>
                 <span className="font-semibold text-green-600">{syncResults.stats.matched}</span>
               </div>
               
               <div className="flex justify-between items-center py-2 border-b">
-                <span className="text-gray-600">Updated:</span>
+                <span className="text-gray-700">Updated:</span>
                 <span className="font-semibold text-blue-600">{syncResults.stats.updated}</span>
               </div>
 
               <div className="flex justify-between items-center py-2 border-b">
-                <span className="text-gray-600">New Users Created:</span>
+                <span className="text-gray-700">New Users Created:</span>
                 <span className="font-semibold text-purple-600">{syncResults.stats.created}</span>
               </div>
 
               <div className="flex justify-between items-center py-2 border-b">
-                <span className="text-gray-600">Failed:</span>
+                <span className="text-gray-700">Failed:</span>
                 <span className="font-semibold text-orange-600">{syncResults.stats.notFound}</span>
               </div>
             </div>

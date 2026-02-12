@@ -140,8 +140,8 @@ export default function PageWrapper({ initialExpenses, vendors, purchasers, curr
             <h2 className="text-2xl font-bold text-gray-900 mb-4">
               {masqueradingAsUser ? `Viewing as: ${effectiveUser.full_name}` : 'Welcome to Expense Tracker!'}
             </h2>
-            <p className="text-gray-600 mb-6">
-              {masqueradingAsUser 
+            <p className="text-gray-700 mb-6">
+              {masqueradingAsUser
                 ? `${effectiveUser.full_name} does not have access to any data yet.`
                 : 'Your account has been created, but you don\'t have access to any data yet.'
               }
@@ -152,7 +152,7 @@ export default function PageWrapper({ initialExpenses, vendors, purchasers, curr
               </p>
             </div>
             {!masqueradingAsUser && (
-              <p className="text-sm text-gray-500">
+              <p className="text-sm text-gray-700">
                 Please contact your administrator to request access.
               </p>
             )}
@@ -168,7 +168,7 @@ export default function PageWrapper({ initialExpenses, vendors, purchasers, curr
             <div className="bg-white border border-gray-200 rounded-lg p-12 text-center">
               <div className="text-6xl mb-4">🔒</div>
               <h2 className="text-2xl font-bold text-gray-900 mb-2">Access Denied</h2>
-              <p className="text-gray-600">You need administrator privileges to access this page.</p>
+              <p className="text-gray-700">You need administrator privileges to access this page.</p>
             </div>
           )
         ) : (

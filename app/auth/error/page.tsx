@@ -77,7 +77,7 @@ function AuthErrorContent() {
             </Link>
 
             {error === 'UserNotFound' && (
-              <div className="text-center text-sm text-gray-600">
+              <div className="text-center text-sm text-gray-700">
                 <p className="mb-2">Need to request access?</p>
                 <p className="font-medium">Contact: admin@encorelc.com</p>
               </div>
@@ -86,7 +86,7 @@ function AuthErrorContent() {
 
           {/* Help Text */}
           <div className="mt-6 pt-6 border-t border-gray-200">
-            <p className="text-xs text-gray-500 text-center">
+            <p className="text-xs text-gray-700 text-center">
               If you continue to experience issues, please contact IT support
             </p>
           </div>
@@ -100,7 +100,7 @@ export default function AuthError() {
   return (
     <Suspense fallback={
       <div className="min-h-screen bg-gradient-to-br from-red-50 to-red-100 flex items-center justify-center">
-        <div className="text-gray-600">Loading...</div>
+        <div className="text-gray-700">Loading...</div>
       </div>
     }>
       <AuthErrorContent />

@@ -27,7 +27,7 @@ function SignInContent() {
             <h1 className="text-3xl font-bold text-gray-900 mb-2">
               Expense Tracker
             </h1>
-            <p className="text-gray-600">
+            <p className="text-gray-700">
               Encore Landscape Management
             </p>
           </div>
@@ -70,7 +70,7 @@ function SignInContent() {
             Sign in with Google
           </button>
 
-          <p className="text-xs text-gray-500 text-center mt-4">
+          <p className="text-xs text-gray-700 text-center mt-4">
             Only @encorelm.com accounts are allowed
           </p>
         </div>
@@ -83,7 +83,7 @@ export default function SignIn() {
   return (
     <Suspense fallback={
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-blue-100 flex items-center justify-center">
-        <div className="text-gray-600">Loading...</div>
+        <div className="text-gray-700">Loading...</div>
       </div>
     }>
       <SignInContent />

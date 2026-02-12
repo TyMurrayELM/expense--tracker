@@ -113,7 +113,7 @@ export default function AutoCreateUsersButton({ onComplete }: AutoCreateUsersBut
               </h3>
               <button
                 onClick={closeResults}
-                className="text-gray-400 hover:text-gray-600"
+                className="text-gray-700 hover:text-gray-600"
               >
                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -123,22 +123,22 @@ export default function AutoCreateUsersButton({ onComplete }: AutoCreateUsersBut
 
             <div className="space-y-3 mb-4">
               <div className="flex justify-between items-center py-2 border-b">
-                <span className="text-gray-600">Total Purchasers Found:</span>
+                <span className="text-gray-700">Total Purchasers Found:</span>
                 <span className="font-semibold text-gray-900">{results.stats.totalPurchasers}</span>
               </div>
               
               <div className="flex justify-between items-center py-2 border-b">
-                <span className="text-gray-600">New Users Created:</span>
+                <span className="text-gray-700">New Users Created:</span>
                 <span className="font-semibold text-green-600">{results.stats.created}</span>
               </div>
               
               <div className="flex justify-between items-center py-2 border-b">
-                <span className="text-gray-600">Skipped (Already Exist):</span>
+                <span className="text-gray-700">Skipped (Already Exist):</span>
                 <span className="font-semibold text-blue-600">{results.stats.skipped}</span>
               </div>
               
               <div className="flex justify-between items-center py-2 border-b">
-                <span className="text-gray-600">Errors:</span>
+                <span className="text-gray-700">Errors:</span>
                 <span className="font-semibold text-red-600">{results.stats.errorCount}</span>
               </div>
             </div>
@@ -158,7 +158,7 @@ export default function AutoCreateUsersButton({ onComplete }: AutoCreateUsersBut
                       {results.createdUsers.map((user) => (
                         <tr key={user.id} className="border-b last:border-0">
                           <td className="py-1">{user.name}</td>
-                          <td className="py-1 text-gray-600">{user.email}</td>
+                          <td className="py-1 text-gray-700">{user.email}</td>
                         </tr>
                       ))}
                     </tbody>

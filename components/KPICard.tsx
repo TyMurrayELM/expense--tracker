@@ -123,14 +123,14 @@ export default function KPICard({
             className={`${isSmall ? 'h-6 w-6' : 'h-8 w-8'} object-contain`}
           />
         )}
-        <div className={`${isSmall ? 'text-xs' : 'text-sm'} font-medium ${isActive ? 'text-green-700 font-bold' : 'text-gray-600'} relative z-10 flex-1 ${showSlackButton ? 'pr-6' : ''}`}>
+        <div className={`${isSmall ? 'text-xs' : 'text-sm'} font-medium ${isActive ? 'text-green-700 font-bold' : 'text-gray-700'} relative z-10 flex-1 ${showSlackButton ? 'pr-6' : ''}`}>
           {title}
         </div>
       </div>
       
       <div className={`${isSmall ? 'text-lg' : 'text-3xl'} font-bold text-gray-900 mb-1 relative z-10`}>{value}</div>
       {subtitle && (
-        <div className={`${isSmall ? 'text-xs' : 'text-sm'} text-gray-500 relative z-10`}>{subtitle}</div>
+        <div className={`${isSmall ? 'text-xs' : 'text-sm'} text-gray-700 relative z-10`}>{subtitle}</div>
       )}
 
       {/* Unapproved indicator text */}

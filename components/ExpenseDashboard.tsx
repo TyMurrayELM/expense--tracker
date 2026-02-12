@@ -708,7 +708,7 @@ export default function ExpenseDashboard({
                     : `${filters.months.length} months selected`
                   }
                 </span>
-                <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-5 h-5 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                 </svg>
               </button>
@@ -917,17 +917,17 @@ export default function ExpenseDashboard({
             {secondaryView === 'category' && 'By Purchase Category'}
             {/* Show active filters as context */}
             {filters.department !== 'all' && secondaryView === 'purchaser' && (
-              <span className="text-sm font-normal text-gray-500 ml-2">
+              <span className="text-sm font-normal text-gray-700 ml-2">
                 in {cleanDepartmentName(filters.department)}
               </span>
             )}
             {filters.purchaser !== 'all' && secondaryView === 'vendor' && (
-              <span className="text-sm font-normal text-gray-500 ml-2">
+              <span className="text-sm font-normal text-gray-700 ml-2">
                 for {filters.purchaser}
               </span>
             )}
             {filters.vendor !== 'all' && secondaryView === 'department' && (
-              <span className="text-sm font-normal text-gray-500 ml-2">
+              <span className="text-sm font-normal text-gray-700 ml-2">
                 for {filters.vendor}
               </span>
             )}
@@ -999,7 +999,7 @@ export default function ExpenseDashboard({
                   />
                 ))}
               {Object.keys(kpis.byDepartment).length === 0 && (
-                <div className="col-span-full text-center text-gray-500 py-8">
+                <div className="col-span-full text-center text-gray-700 py-8">
                   No department data available
                 </div>
               )}
@@ -1022,7 +1022,7 @@ export default function ExpenseDashboard({
                   />
                 ))}
               {Object.keys(kpis.byPurchaser).length === 0 && (
-                <div className="col-span-full text-center text-gray-500 py-8">
+                <div className="col-span-full text-center text-gray-700 py-8">
                   No purchaser data available
                 </div>
               )}
@@ -1046,7 +1046,7 @@ export default function ExpenseDashboard({
                   />
                 ))}
               {Object.keys(kpis.byVendor).length === 0 && (
-                <div className="col-span-full text-center text-gray-500 py-8">
+                <div className="col-span-full text-center text-gray-700 py-8">
                   No vendor data available
                 </div>
               )}
@@ -1069,7 +1069,7 @@ export default function ExpenseDashboard({
                   />
                 ))}
               {Object.keys(kpis.byCategory).length === 0 && (
-                <div className="col-span-full text-center text-gray-500 py-8">
+                <div className="col-span-full text-center text-gray-700 py-8">
                   No category data available
                 </div>
               )}
@@ -1084,7 +1084,7 @@ export default function ExpenseDashboard({
         <div className="mb-8">
           <h2 className="text-lg font-semibold text-gray-700 mb-3">
             Purchasers
-            <span className="text-sm font-normal text-gray-500 ml-2">
+            <span className="text-sm font-normal text-gray-700 ml-2">
               in {cleanDepartmentName(filters.department)}
             </span>
           </h2>
@@ -1112,7 +1112,7 @@ export default function ExpenseDashboard({
         <div className="mb-8">
           <h2 className="text-lg font-semibold text-gray-700 mb-3">
             Vendors
-            <span className="text-sm font-normal text-gray-500 ml-2">
+            <span className="text-sm font-normal text-gray-700 ml-2">
               for {filters.purchaser} in {cleanDepartmentName(filters.department)}
             </span>
           </h2>
@@ -1141,7 +1141,7 @@ export default function ExpenseDashboard({
         <div className="mb-8">
           <h2 className="text-lg font-semibold text-gray-700 mb-3">
             Vendors
-            <span className="text-sm font-normal text-gray-500 ml-2">
+            <span className="text-sm font-normal text-gray-700 ml-2">
               for {filters.purchaser}
             </span>
           </h2>
@@ -1170,7 +1170,7 @@ export default function ExpenseDashboard({
         <div className="mb-8">
           <h2 className="text-lg font-semibold text-gray-700 mb-3">
             Departments
-            <span className="text-sm font-normal text-gray-500 ml-2">
+            <span className="text-sm font-normal text-gray-700 ml-2">
               for {filters.vendor}
             </span>
           </h2>
@@ -1197,7 +1197,7 @@ export default function ExpenseDashboard({
         <div className="mb-8">
           <h2 className="text-lg font-semibold text-gray-700 mb-3">
             Purchasers
-            <span className="text-sm font-normal text-gray-500 ml-2">
+            <span className="text-sm font-normal text-gray-700 ml-2">
               in {cleanDepartmentName(filters.department)} for {filters.vendor}
             </span>
           </h2>
@@ -1580,14 +1580,14 @@ export default function ExpenseDashboard({
           {/* Summary Stats */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
             <div className="bg-white border border-gray-200 rounded-lg p-4">
-              <h3 className="text-xs font-medium text-gray-600 mb-1">Total Expenses</h3>
+              <h3 className="text-xs font-medium text-gray-700 mb-1">Total Expenses</h3>
               <p className="text-2xl font-bold text-gray-900">
                 {formatCurrency(trendsFilteredExpenses.reduce((sum, exp) => sum + Number(exp.amount), 0))}
               </p>
-              <p className="text-xs text-gray-500 mt-1">{trendsFilteredExpenses.length} transactions</p>
+              <p className="text-xs text-gray-700 mt-1">{trendsFilteredExpenses.length} transactions</p>
             </div>
             <div className="bg-white border border-gray-200 rounded-lg p-4">
-              <h3 className="text-xs font-medium text-gray-600 mb-1">Avg per Month</h3>
+              <h3 className="text-xs font-medium text-gray-700 mb-1">Avg per Month</h3>
               <p className="text-2xl font-bold text-gray-900">
                 {formatCurrency(
                   trendsFilteredExpenses.length > 0
@@ -1598,7 +1598,7 @@ export default function ExpenseDashboard({
               </p>
             </div>
             <div className="bg-white border border-gray-200 rounded-lg p-4">
-              <h3 className="text-xs font-medium text-gray-600 mb-1">Time Range</h3>
+              <h3 className="text-xs font-medium text-gray-700 mb-1">Time Range</h3>
               <p className="text-base font-semibold text-gray-900">
                 {trendsFilteredExpenses.length > 0
                   ? `${new Date(Math.min(...trendsFilteredExpenses.map(e => new Date(e.transaction_date).getTime()))).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })} - ${new Date(Math.max(...trendsFilteredExpenses.map(e => new Date(e.transaction_date).getTime()))).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}`
@@ -1622,7 +1622,7 @@ export default function ExpenseDashboard({
               <table className="w-full">
                 <thead className="bg-gray-50 border-b border-gray-200">
                   <tr>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">
                       {
                         secondaryView === 'department' ? 'Department' :
                         secondaryView === 'purchaser' ? 'Purchaser' :
@@ -1640,16 +1640,16 @@ export default function ExpenseDashboard({
                         const date = new Date(month + '-01');
                         const label = date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
                         return (
-                          <th key={month} className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          <th key={month} className="px-4 py-3 text-right text-xs font-medium text-gray-700 uppercase tracking-wider">
                             {label}
                           </th>
                         );
                       });
                     })()}
-                    <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-4 py-3 text-right text-xs font-medium text-gray-700 uppercase tracking-wider">
                       Total
                     </th>
-                    <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-4 py-3 text-right text-xs font-medium text-gray-700 uppercase tracking-wider">
                       Count
                     </th>
                   </tr>
@@ -1701,7 +1701,7 @@ export default function ExpenseDashboard({
                     if (sortedDimensions.length === 0) {
                       return (
                         <tr>
-                          <td colSpan={months.length + 3} className="px-4 py-8 text-center text-gray-500">
+                          <td colSpan={months.length + 3} className="px-4 py-8 text-center text-gray-700">
                             No data available for the selected date range
                           </td>
                         </tr>
@@ -1721,7 +1721,7 @@ export default function ExpenseDashboard({
                         <td className="px-4 py-3 text-sm text-right font-semibold text-gray-900">
                           {formatCurrency(data.total)}
                         </td>
-                        <td className="px-4 py-3 text-sm text-right text-gray-600">
+                        <td className="px-4 py-3 text-sm text-right text-gray-700">
                           {data.count}
                         </td>
                       </tr>

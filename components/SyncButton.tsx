@@ -173,7 +173,7 @@ export default function SyncButton({ currentUser }: SyncButtonProps) {
               />
               {syncingVendorBills ? 'Syncing...' : 'Sync Vendor Bills'}
             </button>
-            <span className="text-xs text-gray-500 mt-1">
+            <span className="text-xs text-gray-700 mt-1">
               Last: {formatLastSyncTime()}
             </span>
           </div>
@@ -193,7 +193,7 @@ export default function SyncButton({ currentUser }: SyncButtonProps) {
               />
               {syncingCreditCards ? 'Syncing...' : 'Sync Credit Cards'}
             </button>
-            <span className="text-xs text-gray-500 mt-1">
+            <span className="text-xs text-gray-700 mt-1">
               Last: {formatLastSyncTime()}
             </span>
           </div>
@@ -214,7 +214,7 @@ export default function SyncButton({ currentUser }: SyncButtonProps) {
               </svg>
               {syncingHistorical ? 'Importing...' : 'Historical Import'}
             </button>
-            <span className="text-xs text-gray-500 mt-1">
+            <span className="text-xs text-gray-700 mt-1">
               Last: {formatLastSyncTime()}
             </span>
           </div>
@@ -271,7 +271,7 @@ export default function SyncButton({ currentUser }: SyncButtonProps) {
           </button>
         </div>
         
-        <div className="text-xs text-gray-500 text-center">
+        <div className="text-xs text-gray-700 text-center">
           Last sync: {formatLastSyncTime()}
         </div>
       </div>

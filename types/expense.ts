@@ -149,13 +149,13 @@ export function getSyncStatusInfo(syncStatus: string | null): {
     case 'NOT_SYNCED':
       return {
         label: 'Not Synced',
-        color: 'text-gray-400',
+        color: 'text-gray-700',
         icon: 'not-synced'
       };
     default:
       return {
         label: 'Unknown',
-        color: 'text-gray-400',
+        color: 'text-gray-700',
         icon: 'not-synced'
       };
   }

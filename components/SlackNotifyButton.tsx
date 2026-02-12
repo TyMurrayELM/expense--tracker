@@ -203,7 +203,7 @@ export default function SlackNotifyButton({
               </h3>
               <button
                 onClick={() => setShowModal(false)}
-                className="text-gray-400 hover:text-gray-600"
+                className="text-gray-700 hover:text-gray-600"
               >
                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -294,7 +294,7 @@ export default function SlackNotifyButton({
                   </span>
                 </label>
                 {memo && (
-                  <p className="mt-1 ml-6 text-xs text-gray-500">
+                  <p className="mt-1 ml-6 text-xs text-gray-700">
                     Current: "{memo}"
                   </p>
                 )}
@@ -325,7 +325,7 @@ export default function SlackNotifyButton({
                       Select Users
                     </label>
                     {loadingUsers ? (
-                      <p className="text-sm text-gray-500">Loading users...</p>
+                      <p className="text-sm text-gray-700">Loading users...</p>
                     ) : (
                       <div className="max-h-40 overflow-y-auto border border-gray-300 rounded-md p-2 space-y-1">
                         {availableUsers.map((user) => (
@@ -348,12 +348,12 @@ export default function SlackNotifyButton({
                       </div>
                     )}
                     {availableUsers.length === 0 && !loadingUsers && (
-                      <p className="mt-1 text-xs text-gray-500">
+                      <p className="mt-1 text-xs text-gray-700">
                         No other users with Slack IDs found
                       </p>
                     )}
                     {additionalUserIds.length > 0 && (
-                      <p className="mt-1 text-xs text-gray-500">
+                      <p className="mt-1 text-xs text-gray-700">
                         {additionalUserIds.length} user{additionalUserIds.length !== 1 ? 's' : ''} selected
                       </p>
                     )}
@@ -392,7 +392,7 @@ export default function SlackNotifyButton({
                       rows={3}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-purple-500 focus:border-purple-500 resize-none"
                     />
-                    <p className="mt-1 text-xs text-gray-500">
+                    <p className="mt-1 text-xs text-gray-700">
                       This message will appear at the end of the notification
                     </p>
                   </div>

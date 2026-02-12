@@ -189,7 +189,7 @@ export default function AdminDashboard({ availableBranches, availableDepartments
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
-        <div className="text-gray-600">Loading users...</div>
+        <div className="text-gray-700">Loading users...</div>
       </div>
     );
   }
@@ -208,7 +208,7 @@ export default function AdminDashboard({ availableBranches, availableDepartments
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-2xl font-bold text-gray-900">User Management</h2>
-          <p className="text-sm text-gray-600 mt-1">
+          <p className="text-sm text-gray-700 mt-1">
             Manage user access to branches and departments
           </p>
         </div>
@@ -233,28 +233,28 @@ export default function AdminDashboard({ availableBranches, availableDepartments
           <table className="w-full">
             <thead className="bg-gray-50 border-b border-gray-200">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">
                   User
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">
                   Email
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">
                   Slack
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">
                   Role
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">
                   Status
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">
                   Branches
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">
                   Departments
                 </th>
-                <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-center text-xs font-medium text-gray-700 uppercase tracking-wider">
                   Actions
                 </th>
               </tr>
@@ -268,7 +268,7 @@ export default function AdminDashboard({ availableBranches, availableDepartments
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm text-gray-600">{user.email}</div>
+                    <div className="text-sm text-gray-700">{user.email}</div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     {user.slack_id ? (
@@ -281,7 +281,7 @@ export default function AdminDashboard({ availableBranches, availableDepartments
                         </span>
                       </div>
                     ) : (
-                      <span className="text-xs text-gray-400">Not linked</span>
+                      <span className="text-xs text-gray-700">Not linked</span>
                     )}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
@@ -299,7 +299,7 @@ export default function AdminDashboard({ availableBranches, availableDepartments
                     </span>
                   </td>
                   <td className="px-6 py-4">
-                    <div className="text-sm text-gray-600">
+                    <div className="text-sm text-gray-700">
                       {user.is_admin ? (
                         <span className="italic">All branches</span>
                       ) : user.branches.length > 0 ? (
@@ -321,12 +321,12 @@ export default function AdminDashboard({ availableBranches, availableDepartments
                           ))}
                         </div>
                       ) : (
-                        <span className="text-gray-400">No access</span>
+                        <span className="text-gray-700">No access</span>
                       )}
                     </div>
                   </td>
                   <td className="px-6 py-4">
-                    <div className="text-sm text-gray-600">
+                    <div className="text-sm text-gray-700">
                       {user.is_admin ? (
                         <span className="italic">All departments</span>
                       ) : user.departments.length > 0 ? (
@@ -338,7 +338,7 @@ export default function AdminDashboard({ availableBranches, availableDepartments
                           ))}
                         </div>
                       ) : (
-                        <span className="text-gray-400">No restrictions</span>
+                        <span className="text-gray-700">No restrictions</span>
                       )}
                     </div>
                   </td>
@@ -451,7 +451,7 @@ export default function AdminDashboard({ availableBranches, availableDepartments
                         </label>
                       ))}
                     </div>
-                    <p className="text-xs text-gray-500 mt-1">
+                    <p className="text-xs text-gray-700 mt-1">
                       Leave empty for no access
                     </p>
                   </div>
@@ -482,7 +482,7 @@ export default function AdminDashboard({ availableBranches, availableDepartments
                         </label>
                       ))}
                     </div>
-                    <p className="text-xs text-gray-500 mt-1">
+                    <p className="text-xs text-gray-700 mt-1">
                       Leave empty for no department restrictions
                     </p>
                   </div>
