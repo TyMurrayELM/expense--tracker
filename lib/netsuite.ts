@@ -167,6 +167,99 @@ export class NetSuiteClient {
     }
   }
 
+  async searchVendorBillsFull(fromDate: string) {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(fromDate)) {
+      throw new Error(`Invalid date format: ${fromDate}. Expected YYYY-MM-DD.`);
+    }
+
+    // Single query fetches bill details + first expense line + vendor name
+    const query = `
+      SELECT
+        t.id,
+        t.tranid,
+        t.trandate,
+        t.entity,
+        ABS(t.foreigntotal) as foreigntotal,
+        t.memo as header_memo,
+        BUILTIN.DF(t.status) as status_display,
+        BUILTIN.DF(t.currency) as currency_display,
+        BUILTIN.DF(t.entity) as vendor_name,
+        BUILTIN.DF(tl.department) as department_name,
+        BUILTIN.DF(tl.location) as location_name,
+        BUILTIN.DF(tl.account) as account_name,
+        tl.memo as line_memo,
+        tl.linesequencenumber
+      FROM transaction t
+      LEFT JOIN transactionLine tl ON t.id = tl.transaction AND tl.mainline = 'F'
+      WHERE t.type = 'VendBill'
+        AND t.trandate >= TO_DATE('${fromDate}', 'YYYY-MM-DD')
+      ORDER BY t.id, tl.linesequencenumber
+    `;
+
+    console.log('Executing bulk SuiteQL query for vendor bills with details...');
+
+    try {
+      const allRows: any[] = [];
+      const PAGE_SIZE = 1000;
+      const MAX_PAGES = 10;
+
+      for (let page = 0; page < MAX_PAGES; page++) {
+        const offset = page * PAGE_SIZE;
+        console.log(`Fetching page ${page + 1} at offset ${offset}...`);
+
+        const response = await this.makeRequest(
+          `/services/rest/query/v1/suiteql?limit=${PAGE_SIZE}&offset=${offset}`,
+          'POST',
+          { q: query }
+        );
+
+        const items = response.items || [];
+        allRows.push(...items);
+
+        console.log(`Page ${page + 1}: received ${items.length} rows (total so far: ${allRows.length})`);
+
+        if (items.length < PAGE_SIZE) {
+          console.log('Last page reached');
+          break;
+        }
+
+        if (page < MAX_PAGES - 1) {
+          await new Promise(resolve => setTimeout(resolve, 200));
+        }
+      }
+
+      // Group by bill ID, keep first expense line per bill
+      const billMap = new Map<string, any>();
+      for (const row of allRows) {
+        const billId = row.id.toString();
+        if (!billMap.has(billId)) {
+          billMap.set(billId, {
+            id: row.id,
+            tranid: row.tranid,
+            trandate: row.trandate,
+            entity: row.entity,
+            amount: parseFloat(row.foreigntotal) || 0,
+            header_memo: row.header_memo,
+            status: row.status_display,
+            currency: row.currency_display || 'USD',
+            vendor_name: row.vendor_name || `Vendor ID: ${row.entity}`,
+            department: row.department_name || null,
+            branch: row.location_name || null,
+            category: row.account_name || null,
+            line_memo: row.line_memo || null,
+          });
+        }
+      }
+
+      const bills = Array.from(billMap.values());
+      console.log(`Bulk query complete: ${allRows.length} rows → ${bills.length} unique bills`);
+      return bills;
+    } catch (error) {
+      console.error('Bulk SuiteQL Error:', error);
+      throw error;
+    }
+  }
+
   async getVendorDetails(vendorId: string) {
     // Fetch vendor details from the vendor endpoint
     console.log(`Fetching vendor details for ID: ${vendorId}`);
