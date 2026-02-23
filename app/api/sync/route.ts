@@ -6,6 +6,11 @@ import { authOptions } from '@/lib/auth';
 
 export const maxDuration = 60;
 
+// GL account/category prefixes to exclude from sync
+const EXCLUDED_CATEGORY_PREFIXES = [
+  '6150.2.2',
+];
+
 export async function POST() {
   try {
     const session = await getServerSession(authOptions);
@@ -45,8 +50,11 @@ export async function POST() {
     const fromDate = '2026-02-01';
     console.log('Fetching vendor bills with details from NetSuite...');
 
-    const bills = await nsClient.searchVendorBillsFull(fromDate);
-    console.log(`Found ${bills.length} expense line rows`);
+    const allBills = await nsClient.searchVendorBillsFull(fromDate);
+    const bills = allBills.filter((bill: any) =>
+      !bill.category || !EXCLUDED_CATEGORY_PREFIXES.some(prefix => bill.category.startsWith(prefix))
+    );
+    console.log(`Found ${allBills.length} expense line rows, ${allBills.length - bills.length} excluded by category, ${bills.length} to sync`);
 
     // --- Old-record cleanup: migrate old single-record-per-bill format for Feb+ ---
     console.log('Checking for old-format Feb+ records to migrate...');
