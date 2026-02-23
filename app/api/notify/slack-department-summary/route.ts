@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
+import { supabaseAdmin } from '@/lib/supabase';
 
 // Branch + Department -> Slack Channel mapping
 const DEPARTMENT_SLACK_CHANNELS: Record<string, Record<string, string>> = {
@@ -356,6 +357,58 @@ export async function POST(request: Request) {
 
     console.log('=== Slack department summary sent successfully ===');
     console.log('Message ID:', slackData.ts);
+
+    // Post a thread reply listing all unapproved transactions
+    if (unapprovedCount > 0) {
+      try {
+        // Calculate month date range from YYYY-MM
+        const monthStart = `${month}-01`;
+        const [y, m] = month.split('-').map(Number);
+        const nextMonth = m === 12 ? `${y + 1}-01-01` : `${y}-${String(m + 1).padStart(2, '0')}-01`;
+
+        const { data: unapprovedExpenses } = await supabaseAdmin
+          .from('expenses')
+          .select('vendor_name, amount, transaction_date, cardholder, memo, flag_category')
+          .eq('branch', branch)
+          .ilike('department', `%${department.replace(/ : /g, '%')}%`)
+          .gte('transaction_date', monthStart)
+          .lt('transaction_date', nextMonth)
+          .or('approval_status.neq.approved,approval_status.is.null')
+          .order('transaction_date', { ascending: false });
+
+        if (unapprovedExpenses && unapprovedExpenses.length > 0) {
+          const lines = unapprovedExpenses.map(e => {
+            const date = e.transaction_date?.substring(0, 10) || 'N/A';
+            const amt = formatCurrency(parseFloat(e.amount) || 0);
+            const vendor = e.vendor_name || 'Unknown';
+            const purchaser = e.cardholder || 'Vendor Bill';
+            const detail = e.memo && e.memo !== e.vendor_name ? `  |  _${e.memo}_` : '';
+            const flag = e.flag_category ? ` · _${e.flag_category}_` : '';
+            return `• ${date}  |  ${vendor}  |  ${amt}  |  ${purchaser}${detail}${flag}`;
+          });
+
+          const threadText = `📋 *Unapproved transactions* (${unapprovedExpenses.length}):\n\n${lines.join('\n')}`;
+
+          await fetch('https://slack.com/api/chat.postMessage', {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${slackToken}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              channel: channelId,
+              thread_ts: slackData.ts,
+              text: threadText,
+            }),
+          });
+
+          console.log(`Posted thread reply with ${unapprovedExpenses.length} unapproved transactions`);
+        }
+      } catch (threadError) {
+        // Don't fail the whole request if the thread reply fails
+        console.error('Failed to post thread reply:', threadError);
+      }
+    }
 
     return NextResponse.json({
       success: true,

@@ -42,22 +42,58 @@ export async function POST() {
     const nsClient = createNetSuiteClient();
 
     // Fetch all bill data + expense lines + vendor names in one bulk SuiteQL query
-    const fromDate = '2026-01-01';
+    const fromDate = '2026-02-01';
     console.log('Fetching vendor bills with details from NetSuite...');
 
     const bills = await nsClient.searchVendorBillsFull(fromDate);
-    console.log(`Found ${bills.length} vendor bills`);
+    console.log(`Found ${bills.length} expense line rows`);
 
-    // Fetch all existing records for flag preservation and change detection
+    // --- Old-record cleanup: migrate old single-record-per-bill format for Feb+ ---
+    console.log('Checking for old-format Feb+ records to migrate...');
+    const { data: oldFormatRecords } = await supabaseAdmin
+      .from('expenses')
+      .select('netsuite_id, flag_category, approval_status, approval_modified_by, approval_modified_at')
+      .eq('transaction_type', 'Vendor Bill')
+      .gte('transaction_date', '2026-02-01')
+      .not('netsuite_id', 'like', '%-%');
+
+    // Save flags from old-format records keyed by bill ID
+    const oldFlagsMap = new Map<string, any>();
+    if (oldFormatRecords && oldFormatRecords.length > 0) {
+      for (const rec of oldFormatRecords) {
+        oldFlagsMap.set(rec.netsuite_id, {
+          flag_category: rec.flag_category,
+          approval_status: rec.approval_status,
+          approval_modified_by: rec.approval_modified_by,
+          approval_modified_at: rec.approval_modified_at,
+        });
+      }
+      console.log(`Found ${oldFormatRecords.length} old-format records, deleting...`);
+      const oldIds = oldFormatRecords.map(r => r.netsuite_id);
+      for (let i = 0; i < oldIds.length; i += 500) {
+        const batch = oldIds.slice(i, i + 500);
+        await supabaseAdmin.from('expenses').delete().in('netsuite_id', batch);
+      }
+      console.log(`Deleted ${oldIds.length} old-format records (flags saved for migration)`);
+    } else {
+      console.log('No old-format records to migrate');
+    }
+
+    // Build netsuite_id for each row: {billId}-{lineNumber} or {billId} if no line
+    const newNetsuiteIds = bills.map((bill: any) =>
+      bill.linesequencenumber != null
+        ? `${bill.id}-${bill.linesequencenumber}`
+        : bill.id.toString()
+    );
+
+    // Fetch existing records for flag preservation and change detection
     console.log('Fetching existing records...');
-    const netsuiteIds = bills.map((bill: any) => bill.id.toString());
-
     const existingRecords: any[] = [];
-    for (let i = 0; i < netsuiteIds.length; i += 500) {
-      const batch = netsuiteIds.slice(i, i + 500);
+    for (let i = 0; i < newNetsuiteIds.length; i += 500) {
+      const batch = newNetsuiteIds.slice(i, i + 500);
       const { data } = await supabaseAdmin
         .from('expenses')
-        .select('netsuite_id, flag_category, branch, department')
+        .select('netsuite_id, flag_category, approval_status, approval_modified_by, approval_modified_at, branch, department')
         .in('netsuite_id', batch);
       existingRecords.push(...(data || []));
     }
@@ -76,15 +112,34 @@ export async function POST() {
     const expenseDataList: any[] = [];
 
     for (const bill of bills) {
-      const netsuiteId = bill.id.toString();
+      const netsuiteId = bill.linesequencenumber != null
+        ? `${bill.id}-${bill.linesequencenumber}`
+        : bill.id.toString();
       const existing = existingMap.get(netsuiteId);
-      const memo = bill.line_memo || bill.header_memo || bill.tranid || null;
+      const memo = bill.line_memo || bill.line_description || bill.header_memo || bill.tranid || null;
+      const amount = bill.line_amount != null ? bill.line_amount : bill.bill_total;
 
-      // Flag preservation
+      // Flag preservation: check existing line record first, then old-format bill record
       let flagCategory = null;
-      if (existing?.flag_category) {
+      let approvalStatus = null;
+      let approvalModifiedBy = null;
+      let approvalModifiedAt = null;
+
+      if (existing?.flag_category || existing?.approval_status) {
         flagCategory = existing.flag_category;
+        approvalStatus = existing.approval_status;
+        approvalModifiedBy = existing.approval_modified_by;
+        approvalModifiedAt = existing.approval_modified_at;
         flagsPreserved++;
+      } else {
+        const oldFlags = oldFlagsMap.get(bill.id.toString());
+        if (oldFlags && (oldFlags.flag_category || oldFlags.approval_status)) {
+          flagCategory = oldFlags.flag_category;
+          approvalStatus = oldFlags.approval_status;
+          approvalModifiedBy = oldFlags.approval_modified_by;
+          approvalModifiedAt = oldFlags.approval_modified_at;
+          flagsPreserved++;
+        }
       }
 
       // Change detection logging
@@ -104,7 +159,7 @@ export async function POST() {
         netsuite_id: netsuiteId,
         transaction_date: bill.trandate,
         vendor_name: bill.vendor_name,
-        amount: bill.amount,
+        amount: amount,
         currency: bill.currency,
         status: bill.status,
         department: bill.department,
@@ -114,6 +169,9 @@ export async function POST() {
         transaction_type: 'Vendor Bill',
         cardholder: null,
         flag_category: flagCategory,
+        approval_status: approvalStatus,
+        approval_modified_by: approvalModifiedBy,
+        approval_modified_at: approvalModifiedAt,
         last_synced_at: new Date().toISOString(),
       });
     }

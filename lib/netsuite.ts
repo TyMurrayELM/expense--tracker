@@ -172,14 +172,15 @@ export class NetSuiteClient {
       throw new Error(`Invalid date format: ${fromDate}. Expected YYYY-MM-DD.`);
     }
 
-    // Single query fetches bill details + first expense line + vendor name
+    // Single query fetches bill details + every expense line + vendor name
     const query = `
       SELECT
         t.id,
         t.tranid,
         t.trandate,
         t.entity,
-        ABS(t.foreigntotal) as foreigntotal,
+        ABS(t.foreigntotal) as bill_total,
+        ABS(tl.foreignamount) as line_amount,
         t.memo as header_memo,
         BUILTIN.DF(t.status) as status_display,
         BUILTIN.DF(t.currency) as currency_display,
@@ -188,6 +189,7 @@ export class NetSuiteClient {
         BUILTIN.DF(tl.location) as location_name,
         BUILTIN.DF(tl.account) as account_name,
         tl.memo as line_memo,
+        tl.description as line_description,
         tl.linesequencenumber
       FROM transaction t
       LEFT JOIN transactionLine tl ON t.id = tl.transaction AND tl.mainline = 'F'
@@ -228,32 +230,28 @@ export class NetSuiteClient {
         }
       }
 
-      // Group by bill ID, keep first expense line per bill
-      const billMap = new Map<string, any>();
-      for (const row of allRows) {
-        const billId = row.id.toString();
-        if (!billMap.has(billId)) {
-          billMap.set(billId, {
-            id: row.id,
-            tranid: row.tranid,
-            trandate: row.trandate,
-            entity: row.entity,
-            amount: parseFloat(row.foreigntotal) || 0,
-            header_memo: row.header_memo,
-            status: row.status_display,
-            currency: row.currency_display || 'USD',
-            vendor_name: row.vendor_name || `Vendor ID: ${row.entity}`,
-            department: row.department_name || null,
-            branch: row.location_name || null,
-            category: row.account_name || null,
-            line_memo: row.line_memo || null,
-          });
-        }
-      }
+      // Return one record per row (one per expense line)
+      const records = allRows.map(row => ({
+        id: row.id,
+        tranid: row.tranid,
+        trandate: row.trandate,
+        entity: row.entity,
+        line_amount: row.line_amount != null ? parseFloat(row.line_amount) : null,
+        bill_total: parseFloat(row.bill_total) || 0,
+        header_memo: row.header_memo,
+        status: row.status_display,
+        currency: row.currency_display || 'USD',
+        vendor_name: row.vendor_name || `Vendor ID: ${row.entity}`,
+        department: row.department_name || null,
+        branch: row.location_name || null,
+        category: row.account_name || null,
+        line_memo: row.line_memo || null,
+        line_description: row.line_description || null,
+        linesequencenumber: row.linesequencenumber != null ? row.linesequencenumber.toString() : null,
+      }));
 
-      const bills = Array.from(billMap.values());
-      console.log(`Bulk query complete: ${allRows.length} rows → ${bills.length} unique bills`);
-      return bills;
+      console.log(`Bulk query complete: ${records.length} rows (expense lines)`);
+      return records;
     } catch (error) {
       console.error('Bulk SuiteQL Error:', error);
       throw error;
