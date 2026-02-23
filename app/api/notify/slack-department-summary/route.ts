@@ -301,6 +301,8 @@ export async function POST(request: Request) {
       channel: channelId,
       text: `${branch} - ${cleanDepartmentName(department)} (${monthDisplay}): ${unapprovedCount > 0 ? `${unapprovedCount} unapproved (${formatCurrency(unapprovedAmount)})` : 'All approved!'}`,
       blocks: blocks,
+      unfurl_links: false,
+      unfurl_media: false,
     };
 
     console.log('Sending message to Slack channel:', channelId);
@@ -399,6 +401,8 @@ export async function POST(request: Request) {
               channel: channelId,
               thread_ts: slackData.ts,
               text: threadText,
+              unfurl_links: false,
+              unfurl_media: false,
             }),
           });
 

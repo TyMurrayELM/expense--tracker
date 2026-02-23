@@ -357,6 +357,8 @@ export async function POST(request: Request) {
       channel: channelId,
       text: greetingText,
       blocks: blocks,
+      unfurl_links: false,
+      unfurl_media: false,
     };
 
     console.log('Sending message to Slack...');
