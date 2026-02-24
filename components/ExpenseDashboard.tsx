@@ -663,7 +663,7 @@ export default function ExpenseDashboard({
           totalCount: data.count,
           unapprovedAmount: data.unapprovedAmount,
           unapprovedCount: data.unapprovedCount,
-          dashboardUrl: typeof window !== 'undefined' ? window.location.href : undefined,
+          dashboardUrl: 'https://expense-tracker-kappa-orcin.vercel.app/',
         }),
       });
 
