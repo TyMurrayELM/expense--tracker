@@ -124,7 +124,7 @@ export async function POST() {
         ? `${bill.id}-${bill.linesequencenumber}`
         : bill.id.toString();
       const existing = existingMap.get(netsuiteId);
-      const memo = bill.line_memo || bill.line_description || bill.header_memo || bill.tranid || null;
+      const memo = bill.line_memo || bill.header_memo || bill.tranid || null;
       const amount = bill.line_amount != null ? bill.line_amount : bill.bill_total;
 
       // Flag preservation: check existing line record first, then old-format bill record

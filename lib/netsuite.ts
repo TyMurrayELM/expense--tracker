@@ -189,7 +189,6 @@ export class NetSuiteClient {
         BUILTIN.DF(tl.location) as location_name,
         BUILTIN.DF(tl.account) as account_name,
         tl.memo as line_memo,
-        tl.description as line_description,
         tl.linesequencenumber
       FROM transaction t
       LEFT JOIN transactionLine tl ON t.id = tl.transaction AND tl.mainline = 'F'
@@ -246,7 +245,6 @@ export class NetSuiteClient {
         branch: row.location_name || null,
         category: row.account_name || null,
         line_memo: row.line_memo || null,
-        line_description: row.line_description || null,
         linesequencenumber: row.linesequencenumber != null ? row.linesequencenumber.toString() : null,
       }));
 
