@@ -8,6 +8,7 @@ declare module 'next-auth' {
       name: string;
       isAdmin: boolean;
       isActive: boolean;
+      canSendSlack: boolean;
     } & DefaultSession['user'];
   }
 
@@ -17,6 +18,7 @@ declare module 'next-auth' {
     name: string;
     isAdmin: boolean;
     isActive: boolean;
+    canSendSlack: boolean;
   }
 }
 
@@ -26,5 +28,6 @@ declare module 'next-auth/jwt' {
     email: string;
     isAdmin: boolean;
     isActive: boolean;
+    canSendSlack: boolean;
   }
 }

@@ -179,6 +179,7 @@ export default function PageWrapper({ initialExpenses, vendors, purchasers, curr
             activeTab={activeTab}
             onTabChange={setActiveTab}
             isAdmin={currentUser.is_admin}
+            canSendSlack={currentUser.is_admin || currentUser.can_send_slack}
             isMasquerading={masqueradingAsUser !== null}
           />
         )}

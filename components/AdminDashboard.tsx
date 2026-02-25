@@ -25,6 +25,7 @@ export default function AdminDashboard({ availableBranches, availableDepartments
     full_name: '',
     is_admin: false,
     is_active: true,
+    can_send_slack: false,
     branches: [] as string[],
     departments: [] as string[],
   });
@@ -137,6 +138,7 @@ export default function AdminDashboard({ availableBranches, availableDepartments
       full_name: '',
       is_admin: false,
       is_active: true,
+      can_send_slack: false,
       branches: [],
       departments: [],
     });
@@ -149,6 +151,7 @@ export default function AdminDashboard({ availableBranches, availableDepartments
       full_name: user.full_name,
       is_admin: user.is_admin,
       is_active: user.is_active,
+      can_send_slack: user.can_send_slack,
       branches: user.branches,
       departments: user.departments,
     });
@@ -285,11 +288,18 @@ export default function AdminDashboard({ availableBranches, availableDepartments
                     )}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                      user.is_admin ? 'bg-purple-100 text-purple-800' : 'bg-gray-100 text-gray-800'
-                    }`}>
-                      {user.is_admin ? 'Admin' : 'User'}
-                    </span>
+                    <div className="flex flex-wrap gap-1">
+                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                        user.is_admin ? 'bg-purple-100 text-purple-800' : 'bg-gray-100 text-gray-800'
+                      }`}>
+                        {user.is_admin ? 'Admin' : 'User'}
+                      </span>
+                      {!user.is_admin && user.can_send_slack && (
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                          Slack
+                        </span>
+                      )}
+                    </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
@@ -421,6 +431,18 @@ export default function AdminDashboard({ availableBranches, availableDepartments
                   />
                   <span className="text-sm font-medium text-gray-700">Active</span>
                 </label>
+
+                {!formData.is_admin && (
+                  <label className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      checked={formData.can_send_slack}
+                      onChange={(e) => setFormData({ ...formData, can_send_slack: e.target.checked })}
+                      className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                    />
+                    <span className="text-sm font-medium text-gray-700">Can Send Slack</span>
+                  </label>
+                )}
               </div>
 
               {!formData.is_admin && (

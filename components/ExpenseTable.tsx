@@ -12,18 +12,20 @@ interface ExpenseTableProps {
   onFlagUpdate?: (expenseId: string, newFlagCategory: string | null) => void;
   onApprovalUpdate?: (expenseId: string, newApprovalStatus: 'approved' | 'rejected' | null) => void;
   isAdmin?: boolean;
+  canSendSlack?: boolean;
   isMasquerading?: boolean;
 }
 
 type SortField = 'date' | 'vendor' | 'purchaser' | 'category' | 'branch' | 'department' | 'amount' | 'status';
 type SortDirection = 'asc' | 'desc';
 
-export default function ExpenseTable({ 
-  expenses, 
+export default function ExpenseTable({
+  expenses,
   onFlagUpdate,
-  onApprovalUpdate, 
+  onApprovalUpdate,
   isAdmin = false,
-  isMasquerading = false 
+  canSendSlack = false,
+  isMasquerading = false
 }: ExpenseTableProps) {
   const [updatingFlags, setUpdatingFlags] = useState<Set<string>>(new Set());
   const [updatingApprovals, setUpdatingApprovals] = useState<Set<string>>(new Set());
@@ -39,7 +41,7 @@ export default function ExpenseTable({
   const approvalButtonRefs = useRef<{ [key: string]: HTMLButtonElement | null }>({});
 
   // Show Notify column only if user is admin AND not masquerading
-  const showNotifyColumn = isAdmin && !isMasquerading;
+  const showNotifyColumn = canSendSlack && !isMasquerading;
   
   // Show Flag column only if user is admin AND not masquerading
   const showFlagColumn = isAdmin && !isMasquerading;

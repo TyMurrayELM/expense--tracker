@@ -57,6 +57,7 @@ export const authOptions: NextAuthOptions = {
               full_name: fullName,
               is_admin: false,
               is_active: true,
+              can_send_slack: false,
             })
             .select()
             .single();
@@ -90,7 +91,7 @@ export const authOptions: NextAuthOptions = {
         try {
           const { data: dbUser } = await supabaseAdmin
             .from('users')
-            .select('id, email, full_name, is_admin, is_active')
+            .select('id, email, full_name, is_admin, is_active, can_send_slack')
             .eq('email', token.email.toLowerCase())
             .single();
 
@@ -100,6 +101,7 @@ export const authOptions: NextAuthOptions = {
             session.user.name = dbUser.full_name;
             session.user.isAdmin = dbUser.is_admin;
             session.user.isActive = dbUser.is_active;
+            session.user.canSendSlack = dbUser.can_send_slack;
           }
         } catch (error) {
           console.error('Error fetching user session data:', error);

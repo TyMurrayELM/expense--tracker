@@ -5,6 +5,7 @@ export interface User {
   full_name: string;
   is_admin: boolean;
   is_active: boolean;
+  can_send_slack: boolean;
   slack_id?: string | null;
   slack_display_name?: string | null;
   slack_synced_at?: string | null;
@@ -35,6 +36,7 @@ export interface CreateUserRequest {
   email: string;
   full_name: string;
   is_admin: boolean;
+  can_send_slack: boolean;
   branches: string[];
   departments: string[];
 }
@@ -43,6 +45,7 @@ export interface UpdateUserRequest {
   full_name?: string;
   is_admin?: boolean;
   is_active?: boolean;
+  can_send_slack?: boolean;
   branches?: string[];
   departments?: string[];
 }

@@ -88,7 +88,7 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json();
-    const { email, full_name, is_admin, branches, departments } = body;
+    const { email, full_name, is_admin, can_send_slack, branches, departments } = body;
 
     if (!email || !full_name) {
       return NextResponse.json(
@@ -105,6 +105,7 @@ export async function POST(request: Request) {
         full_name,
         is_admin: is_admin || false,
         is_active: true,
+        can_send_slack: can_send_slack || false,
       })
       .select()
       .single();

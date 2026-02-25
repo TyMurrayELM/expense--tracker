@@ -22,13 +22,14 @@ export async function PATCH(
 
     const { id: userId } = await params;
     const body = await request.json();
-    const { full_name, is_admin, is_active, branches, departments } = body;
+    const { full_name, is_admin, is_active, can_send_slack, branches, departments } = body;
 
     // Update user basic info
     const updateData: any = {};
     if (full_name !== undefined) updateData.full_name = full_name;
     if (is_admin !== undefined) updateData.is_admin = is_admin;
     if (is_active !== undefined) updateData.is_active = is_active;
+    if (can_send_slack !== undefined) updateData.can_send_slack = can_send_slack;
 
     let user = null;
     if (Object.keys(updateData).length > 0) {

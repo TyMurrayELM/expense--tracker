@@ -13,6 +13,7 @@ interface ExpenseDashboardProps {
   activeTab: 'dashboard' | 'trends' | 'admin';
   onTabChange: (tab: 'dashboard' | 'trends' | 'admin') => void;
   isAdmin: boolean;
+  canSendSlack?: boolean;
   isMasquerading?: boolean;
 }
 
@@ -50,13 +51,14 @@ interface SectionsCollapsedState {
   filters: boolean;
 }
 
-export default function ExpenseDashboard({ 
-  initialExpenses, 
-  vendors, 
+export default function ExpenseDashboard({
+  initialExpenses,
+  vendors,
   purchasers,
   activeTab,
   onTabChange,
   isAdmin = false,
+  canSendSlack = false,
   isMasquerading = false
 }: ExpenseDashboardProps) {
   // Get current month in YYYY-MM format
@@ -1015,7 +1017,7 @@ export default function ExpenseDashboard({
                     size="small"
                     onClick={() => handleDepartmentClick(department)}
                     isActive={filters.department === department}
-                    showSlackButton={isAdmin && filters.branch !== 'all'}
+                    showSlackButton={canSendSlack && filters.branch !== 'all'}
                     onSlackClick={() => handleSlackDepartmentSummary(department, data)}
                     slackSending={slackSendingDepartment === department}
                     unapprovedCount={data.unapprovedCount}
@@ -1303,11 +1305,12 @@ export default function ExpenseDashboard({
       </div>
 
       {/* Expense Table */}
-      <ExpenseTable 
+      <ExpenseTable
         expenses={filteredExpenses}
         onFlagUpdate={handleFlagUpdate}
         onApprovalUpdate={handleApprovalUpdate}
         isAdmin={isAdmin}
+        canSendSlack={canSendSlack}
         isMasquerading={isMasquerading}
       />
       </>
