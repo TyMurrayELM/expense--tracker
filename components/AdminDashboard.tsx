@@ -111,6 +111,27 @@ export default function AdminDashboard({ availableBranches, availableDepartments
     }
   };
 
+  const handleToggleSlack = async (user: UserWithPermissions) => {
+    const newValue = !user.can_send_slack;
+    // Optimistic update
+    setUsers(users.map(u => u.id === user.id ? { ...u, can_send_slack: newValue } : u));
+    try {
+      const response = await fetch(`/api/users/${user.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ can_send_slack: newValue }),
+      });
+      const data = await response.json();
+      if (!data.success) {
+        // Revert on failure
+        setUsers(users.map(u => u.id === user.id ? { ...u, can_send_slack: !newValue } : u));
+        alert(`Failed to update: ${data.error}`);
+      }
+    } catch {
+      setUsers(users.map(u => u.id === user.id ? { ...u, can_send_slack: !newValue } : u));
+    }
+  };
+
   const handleDeleteUser = async (userId: string) => {
     if (!confirm('Are you sure you want to delete this user?')) return;
 
@@ -248,6 +269,9 @@ export default function AdminDashboard({ availableBranches, availableDepartments
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">
                   Role
                 </th>
+                <th className="px-6 py-3 text-center text-xs font-medium text-gray-700 uppercase tracking-wider">
+                  Slack Notify
+                </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">
                   Status
                 </th>
@@ -288,18 +312,29 @@ export default function AdminDashboard({ availableBranches, availableDepartments
                     )}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="flex flex-wrap gap-1">
-                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                        user.is_admin ? 'bg-purple-100 text-purple-800' : 'bg-gray-100 text-gray-800'
-                      }`}>
-                        {user.is_admin ? 'Admin' : 'User'}
-                      </span>
-                      {!user.is_admin && user.can_send_slack && (
-                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                          Slack
-                        </span>
-                      )}
-                    </div>
+                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                      user.is_admin ? 'bg-purple-100 text-purple-800' : 'bg-gray-100 text-gray-800'
+                    }`}>
+                      {user.is_admin ? 'Admin' : 'User'}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-center">
+                    {user.is_admin ? (
+                      <span className="text-xs text-gray-400 italic">Always</span>
+                    ) : (
+                      <button
+                        onClick={() => handleToggleSlack(user)}
+                        className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${
+                          user.can_send_slack ? 'bg-blue-600' : 'bg-gray-300'
+                        }`}
+                      >
+                        <span
+                          className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform ${
+                            user.can_send_slack ? 'translate-x-[18px]' : 'translate-x-[2px]'
+                          }`}
+                        />
+                      </button>
+                    )}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
