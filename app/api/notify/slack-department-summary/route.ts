@@ -3,6 +3,9 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { supabaseAdmin } from '@/lib/supabase';
 
+// Vendors to exclude from Slack notifications (kept in DB but hidden from dashboard)
+const EXCLUDED_VENDORS = ['Blue Cross - Portal'];
+
 // Branch + Department -> Slack Channel mapping
 const DEPARTMENT_SLACK_CHANNELS: Record<string, Record<string, string>> = {
   'Phoenix - SouthWest': {
@@ -368,7 +371,7 @@ export async function POST(request: Request) {
         const [y, m] = month.split('-').map(Number);
         const nextMonth = m === 12 ? `${y + 1}-01-01` : `${y}-${String(m + 1).padStart(2, '0')}-01`;
 
-        const { data: unapprovedExpenses } = await supabaseAdmin
+        let query = supabaseAdmin
           .from('expenses')
           .select('vendor_name, amount, transaction_date, cardholder, memo, flag_category')
           .eq('branch', branch)
@@ -377,6 +380,13 @@ export async function POST(request: Request) {
           .lt('transaction_date', nextMonth)
           .or('approval_status.neq.approved,approval_status.is.null')
           .order('transaction_date', { ascending: false });
+
+        // Exclude hidden vendors
+        for (const vendor of EXCLUDED_VENDORS) {
+          query = query.neq('vendor_name', vendor);
+        }
+
+        const { data: unapprovedExpenses } = await query;
 
         if (unapprovedExpenses && unapprovedExpenses.length > 0) {
           const lines = unapprovedExpenses.map(e => {
