@@ -5,6 +5,9 @@ import { supabase, supabaseAdmin } from '@/lib/supabase';
 import PageWrapper from '@/components/PageWrapper';
 import { Expense } from '@/types/expense';
 
+// Vendors to exclude from the dashboard (data stays in DB)
+const EXCLUDED_VENDORS = ['Blue Cross - Portal'];
+
 async function getExpenses() {
   const allExpenses: Expense[] = [];
   const PAGE_SIZE = 1000;
@@ -29,8 +32,9 @@ async function getExpenses() {
     offset += PAGE_SIZE;
   }
 
-  console.log(`Fetched ${allExpenses.length} total expenses`);
-  return allExpenses;
+  const filtered = allExpenses.filter(e => !EXCLUDED_VENDORS.includes(e.vendor_name));
+  console.log(`Fetched ${allExpenses.length} total expenses, ${filtered.length} after vendor exclusions`);
+  return filtered;
 }
 
 async function getFilterOptions() {
@@ -47,7 +51,9 @@ async function getFilterOptions() {
     .not('cardholder', 'is', null)
     .gte('transaction_date', '2025-10-01');
 
-  const vendors = [...new Set(vendorData?.map(d => d.vendor_name) || [])].sort();
+  const vendors = [...new Set(vendorData?.map(d => d.vendor_name) || [])]
+    .filter(v => !EXCLUDED_VENDORS.includes(v))
+    .sort();
   const purchasers = [...new Set(purchaserData?.map(d => d.cardholder) || [])].sort();
 
   return { vendors, purchasers };
