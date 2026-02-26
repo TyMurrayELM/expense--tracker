@@ -23,15 +23,15 @@ interface FiltersState {
   branch: string;
   vendor: string;
   department: string;
-  purchaser: string;
-  category: string;
+  purchaser: string[];
+  category: string[];
   dateFrom: string;
   dateTo: string;
   showFlagged: string;
-  flagCategory: string; // NEW: Filter for specific flag category
+  flagCategory: string[];
   transactionType: string;
   status: string;
-  approvalStatus: string; // Filter for approval status
+  approvalStatus: string[];
   syncStatus: string; // Filter for Bill.com sync status
 }
 
@@ -88,15 +88,15 @@ export default function ExpenseDashboard({
     branch: 'all',
     vendor: 'all',
     department: 'all',
-    purchaser: 'all',
-    category: 'all',
+    purchaser: [],
+    category: [],
     dateFrom: '',
     dateTo: '',
     showFlagged: 'all',
-    flagCategory: 'all',
+    flagCategory: [],
     transactionType: 'all',
     status: 'all',
-    approvalStatus: 'all',
+    approvalStatus: [],
     syncStatus: 'all',
   });
 
@@ -115,9 +115,14 @@ export default function ExpenseDashboard({
         ...defaults,
         ...parsed,
         // Ensure months is always a valid array
-        months: Array.isArray(parsed.months) && parsed.months.length > 0 
-          ? parsed.months 
+        months: Array.isArray(parsed.months) && parsed.months.length > 0
+          ? parsed.months
           : defaults.months,
+        // Migrate multi-select filters from old string format to array format
+        purchaser: Array.isArray(parsed.purchaser) ? parsed.purchaser : [],
+        category: Array.isArray(parsed.category) ? parsed.category : [],
+        flagCategory: Array.isArray(parsed.flagCategory) ? parsed.flagCategory : [],
+        approvalStatus: Array.isArray(parsed.approvalStatus) ? parsed.approvalStatus : [],
       };
     } catch (error) {
       console.error('Error reading filters from localStorage:', error);
@@ -261,13 +266,13 @@ export default function ExpenseDashboard({
         }
       }
 
-      // Purchaser filter (cardholder)
-      if (filters.purchaser !== 'all' && expense.cardholder !== filters.purchaser) {
+      // Purchaser filter (multi-select, matches cardholder)
+      if (filters.purchaser.length > 0 && (!expense.cardholder || !filters.purchaser.includes(expense.cardholder))) {
         return false;
       }
 
-      // Category filter
-      if (filters.category !== 'all' && expense.category !== filters.category) {
+      // Category filter (multi-select)
+      if (filters.category.length > 0 && (!expense.category || !filters.category.includes(expense.category))) {
         return false;
       }
 
@@ -297,8 +302,8 @@ export default function ExpenseDashboard({
         return false;
       }
 
-      // Flag category filter (NEW)
-      if (filters.flagCategory !== 'all' && expense.flag_category !== filters.flagCategory) {
+      // Flag category filter (multi-select)
+      if (filters.flagCategory.length > 0 && (!expense.flag_category || !filters.flagCategory.includes(expense.flag_category))) {
         return false;
       }
 
@@ -312,15 +317,10 @@ export default function ExpenseDashboard({
         return false;
       }
 
-      // Approval Status filter
-      if (filters.approvalStatus !== 'all') {
-        if (filters.approvalStatus === 'approved' && expense.approval_status !== 'approved') {
-          return false;
-        }
-        if (filters.approvalStatus === 'rejected' && expense.approval_status !== 'rejected') {
-          return false;
-        }
-        if (filters.approvalStatus === 'pending' && expense.approval_status !== null) {
+      // Approval Status filter (multi-select)
+      if (filters.approvalStatus.length > 0) {
+        const expenseApproval = expense.approval_status === null ? 'pending' : expense.approval_status;
+        if (!filters.approvalStatus.includes(expenseApproval)) {
           return false;
         }
       }
@@ -454,7 +454,7 @@ export default function ExpenseDashboard({
         const normalizedExpDept = expense.department ? normalizeDepartmentName(expense.department) : '';
         if (normalizedExpDept !== filters.department) return false;
       }
-      if (filters.purchaser !== 'all' && expense.cardholder !== filters.purchaser) return false;
+      if (filters.purchaser.length > 0 && (!expense.cardholder || !filters.purchaser.includes(expense.cardholder))) return false;
       if (filters.transactionType !== 'all' && expense.transaction_type !== filters.transactionType) return false;
       return true;
     });
@@ -476,8 +476,8 @@ export default function ExpenseDashboard({
     return Array.from(statuses).sort();
   }, [expenses]);
 
-  const handleFilterChange = (key: string, value: string) => {
-    setFilters(prev => ({ ...prev, [key]: value }));
+  const handleFilterChange = (key: string, value: string | string[]) => {
+    setFilters(prev => ({ ...prev, [key]: value } as FiltersState));
   };
 
   const handleBranchClick = (branch: string) => {
@@ -492,9 +492,9 @@ export default function ExpenseDashboard({
   const handleDepartmentClick = (department: string) => {
     // If clicking the same department, clear the filter (toggle off)
     if (filters.department === department) {
-      setFilters(prev => ({ ...prev, department: 'all', purchaser: 'all' }));
+      setFilters(prev => ({ ...prev, department: 'all', purchaser: [] }));
     } else {
-      setFilters(prev => ({ ...prev, department: department, purchaser: 'all' }));
+      setFilters(prev => ({ ...prev, department: department, purchaser: [] }));
       // Don't switch views - third layer will appear below
     }
   };
@@ -510,20 +510,20 @@ export default function ExpenseDashboard({
   };
 
   const handlePurchaserClick = (purchaser: string) => {
-    // If clicking the same purchaser, clear the filter (toggle off)
-    if (filters.purchaser === purchaser) {
-      setFilters(prev => ({ ...prev, purchaser: 'all', vendor: 'all' }));
+    // If clicking the same purchaser (and it's the only one), clear the filter (toggle off)
+    if (filters.purchaser.length === 1 && filters.purchaser[0] === purchaser) {
+      setFilters(prev => ({ ...prev, purchaser: [], vendor: 'all' }));
     } else {
-      setFilters(prev => ({ ...prev, purchaser: purchaser, vendor: 'all' }));
+      setFilters(prev => ({ ...prev, purchaser: [purchaser], vendor: 'all' }));
     }
   };
 
   const handleCategoryClick = (category: string) => {
-    // If clicking the same category, clear the filter (toggle off)
-    if (filters.category === category) {
-      setFilters(prev => ({ ...prev, category: 'all' }));
+    // If clicking the same category (and it's the only one), clear the filter (toggle off)
+    if (filters.category.length === 1 && filters.category[0] === category) {
+      setFilters(prev => ({ ...prev, category: [] }));
     } else {
-      setFilters(prev => ({ ...prev, category: category }));
+      setFilters(prev => ({ ...prev, category: [category] }));
       // Don't switch views - just filter
     }
   };
@@ -535,15 +535,15 @@ export default function ExpenseDashboard({
       branch: 'all',
       vendor: 'all',
       department: 'all',
-      purchaser: 'all',
-      category: 'all',
+      purchaser: [],
+      category: [],
       dateFrom: '',
       dateTo: '',
       showFlagged: 'all',
-      flagCategory: 'all',
+      flagCategory: [],
       transactionType: 'all',
       status: 'all',
-      approvalStatus: 'all',
+      approvalStatus: [],
       syncStatus: 'all',
     }));
   };
@@ -600,6 +600,17 @@ export default function ExpenseDashboard({
     const entries: { key: string; label: string; value: string; colors: { bg: string; border: string; text: string; x: string; xHover: string } }[] = [];
     for (const key of Object.keys(labelMap)) {
       const current = filters[key as keyof FiltersState];
+      // Handle array filters (multi-select)
+      if (Array.isArray(current)) {
+        if (current.length > 0) {
+          const displayValues = current.map((v: string) => displayValueMap[key]?.[v] ?? v);
+          const displayValue = displayValues.join(', ');
+          const colors = filterColorMap[key] ?? defaultChipColor;
+          entries.push({ key, label: labelMap[key], value: displayValue, colors });
+        }
+        continue;
+      }
+      // Handle string filters (single-select)
       const defaultVal = defaults[key as keyof FiltersState];
       if (current !== defaultVal) {
         const displayValue = displayValueMap[key]?.[current as string] ?? (current as string);
@@ -846,7 +857,7 @@ export default function ExpenseDashboard({
             bgColor="bg-white"
             size="small"
             onClick={handleTotalClick}
-            isActive={filters.branch === 'all' && filters.department === 'all' && filters.vendor === 'all' && filters.purchaser === 'all' && filters.showFlagged === 'all' && filters.transactionType === 'all' && filters.status === 'all' && filters.category === 'all'}
+            isActive={filters.branch === 'all' && filters.department === 'all' && filters.vendor === 'all' && filters.purchaser.length === 0 && filters.showFlagged === 'all' && filters.transactionType === 'all' && filters.status === 'all' && filters.category.length === 0}
           />
           <KPICard
             title="Flagged Items"
@@ -947,9 +958,9 @@ export default function ExpenseDashboard({
                 in {cleanDepartmentName(filters.department)}
               </span>
             )}
-            {filters.purchaser !== 'all' && secondaryView === 'vendor' && (
+            {filters.purchaser.length > 0 && secondaryView === 'vendor' && (
               <span className="text-sm font-normal text-gray-700 ml-2">
-                for {filters.purchaser}
+                for {filters.purchaser.join(', ')}
               </span>
             )}
             {filters.vendor !== 'all' && secondaryView === 'department' && (
@@ -1043,8 +1054,8 @@ export default function ExpenseDashboard({
                     subtitle={`${data.count} transactions`}
                     size="small"
                     onClick={() => handlePurchaserClick(purchaser)}
-                    isActive={filters.purchaser === purchaser}
-                    bgColor={filters.purchaser === purchaser ? 'bg-purple-50' : 'bg-white'}
+                    isActive={filters.purchaser.length === 1 && filters.purchaser[0] === purchaser}
+                    bgColor={filters.purchaser.length === 1 && filters.purchaser[0] === purchaser ? 'bg-purple-50' : 'bg-white'}
                   />
                 ))}
               {Object.keys(kpis.byPurchaser).length === 0 && (
@@ -1090,8 +1101,8 @@ export default function ExpenseDashboard({
                     subtitle={`${data.count} transactions`}
                     size="small"
                     onClick={() => handleCategoryClick(category)}
-                    isActive={filters.category === category}
-                    bgColor={filters.category === category ? 'bg-teal-50' : 'bg-white'}
+                    isActive={filters.category.length === 1 && filters.category[0] === category}
+                    bgColor={filters.category.length === 1 && filters.category[0] === category ? 'bg-teal-50' : 'bg-white'}
                   />
                 ))}
               {Object.keys(kpis.byCategory).length === 0 && (
@@ -1125,8 +1136,8 @@ export default function ExpenseDashboard({
                   subtitle={`${data.count} transactions`}
                   size="small"
                   onClick={() => handlePurchaserClick(purchaser)}
-                  isActive={filters.purchaser === purchaser}
-                  bgColor={filters.purchaser === purchaser ? 'bg-purple-50' : 'bg-white'}
+                  isActive={filters.purchaser.length === 1 && filters.purchaser[0] === purchaser}
+                  bgColor={filters.purchaser.length === 1 && filters.purchaser[0] === purchaser ? 'bg-purple-50' : 'bg-white'}
                 />
               ))}
           </div>
@@ -1134,12 +1145,12 @@ export default function ExpenseDashboard({
       )}
 
       {/* Fourth Layer - Shows Vendors when both Department and Purchaser are selected */}
-      {secondaryView === 'department' && filters.department !== 'all' && filters.purchaser !== 'all' && (
+      {secondaryView === 'department' && filters.department !== 'all' && filters.purchaser.length > 0 && (
         <div className="mb-8">
           <h2 className="text-lg font-semibold text-gray-700 mb-3">
             Vendors
             <span className="text-sm font-normal text-gray-700 ml-2">
-              for {filters.purchaser} in {cleanDepartmentName(filters.department)}
+              for {filters.purchaser.join(', ')} in {cleanDepartmentName(filters.department)}
             </span>
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 xl:grid-cols-8 gap-4">
@@ -1163,12 +1174,12 @@ export default function ExpenseDashboard({
       )}
 
       {/* Third Layer - Shows Vendors when a Purchaser is selected */}
-      {secondaryView === 'purchaser' && filters.purchaser !== 'all' && (
+      {secondaryView === 'purchaser' && filters.purchaser.length > 0 && (
         <div className="mb-8">
           <h2 className="text-lg font-semibold text-gray-700 mb-3">
             Vendors
             <span className="text-sm font-normal text-gray-700 ml-2">
-              for {filters.purchaser}
+              for {filters.purchaser.join(', ')}
             </span>
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 xl:grid-cols-8 gap-4">
@@ -1238,8 +1249,8 @@ export default function ExpenseDashboard({
                   subtitle={`${data.count} transactions`}
                   size="small"
                   onClick={() => handlePurchaserClick(purchaser)}
-                  isActive={filters.purchaser === purchaser}
-                  bgColor={filters.purchaser === purchaser ? 'bg-purple-50' : 'bg-white'}
+                  isActive={filters.purchaser.length === 1 && filters.purchaser[0] === purchaser}
+                  bgColor={filters.purchaser.length === 1 && filters.purchaser[0] === purchaser ? 'bg-purple-50' : 'bg-white'}
                 />
               ))}
           </div>
