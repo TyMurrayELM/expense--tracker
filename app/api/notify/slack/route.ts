@@ -98,7 +98,8 @@ export async function POST(request: Request) {
 
       let users;
       try {
-        const result = await supabaseAdmin
+        // Try exact match first
+        let result = await supabaseAdmin
           .from('users')
           .select('id, full_name, email, slack_id, slack_display_name')
           .ilike('full_name', purchaserName);
@@ -108,6 +109,22 @@ export async function POST(request: Request) {
         }
 
         users = result.data;
+
+        // Fallback: if no exact match, try starts-with match
+        // (handles "Keylon Ross" matching "Keylon Ross Sr" / "Jr" etc.)
+        if ((!users || users.length === 0) && purchaserName.trim()) {
+          console.log('No exact match, trying starts-with for:', purchaserName);
+          result = await supabaseAdmin
+            .from('users')
+            .select('id, full_name, email, slack_id, slack_display_name')
+            .ilike('full_name', `${purchaserName}%`);
+
+          if (result.error) {
+            throw new Error(`Database error: ${result.error.message}`);
+          }
+          users = result.data;
+        }
+
         console.log('Users found:', users?.length || 0);
       } catch (dbError: any) {
         console.error('Database error:', dbError);
