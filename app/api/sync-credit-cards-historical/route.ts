@@ -19,7 +19,7 @@ export async function POST() {
     }
 
     console.log('=== Starting HISTORICAL Credit Card Import ===');
-    console.log('Import range: February 1, 2026 to present');
+    console.log('Import range: March 1, 2026 to present');
     
     // Create sync log
     const { data: syncLog, error: syncLogError } = await supabaseAdmin
@@ -41,12 +41,12 @@ export async function POST() {
     const billClient = createBillClient();
     console.log('Bill.com client initialized');
 
-    // Calculate days back from Feb 1, 2026 to today
-    const feb1 = new Date('2026-02-01');
+    // Calculate days back from Mar 1, 2026 to today
+    const mar1 = new Date('2026-03-01');
     const today = new Date();
-    const daysBack = Math.ceil((today.getTime() - feb1.getTime()) / (1000 * 60 * 60 * 24));
+    const daysBack = Math.ceil((today.getTime() - mar1.getTime()) / (1000 * 60 * 60 * 24));
 
-    console.log(`Fetching ALL credit card transactions from Feb 1, 2026 (${daysBack} days back)...`);
+    console.log(`Fetching ALL credit card transactions from Mar 1, 2026 (${daysBack} days back)...`);
     console.log('⚠️  This may take several minutes for large transaction volumes...');
     
     // Fetch transactions by sync status to get complete coverage (same approach as daily sync)
@@ -374,7 +374,7 @@ export async function POST() {
         updated: recordsUpdated,
         flagsPreserved: flagsPreserved,
         errors: errors.length,
-        dateRange: `Feb 1, 2026 - ${new Date().toLocaleDateString()}`,
+        dateRange: `Mar 1, 2026 - ${new Date().toLocaleDateString()}`,
         daysImported: daysBack,
         syncStatusBreakdown,
       },
