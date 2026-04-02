@@ -2,63 +2,10 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { supabaseAdmin } from '@/lib/supabase';
+import { DEPARTMENT_SLACK_CHANNELS } from '@/lib/slackChannels';
 
 // Vendors to exclude from Slack notifications (kept in DB but hidden from dashboard)
 const EXCLUDED_VENDORS = ['Blue Cross - Portal'];
-
-// Branch + Department -> Slack Channel mapping
-const DEPARTMENT_SLACK_CHANNELS: Record<string, Record<string, string>> = {
-  'Phoenix - SouthWest': {
-    'Maintenance': 'C06J7ULQXV4',
-    'Maintenance Recurring': 'C06J7ULQXV4',
-    'Maintenance : Maintenance': 'C06J7ULQXV4',
-    'Maintenance : Maintenance Recurring': 'C06J7ULQXV4',
-    'Irrigation': 'C06J7ULQXV4',
-  },
-  'Phoenix - SouthEast': {
-    'Maintenance': 'C06JT7JU81F',
-    'Maintenance Recurring': 'C06JT7JU81F',
-    'Maintenance : Maintenance': 'C06JT7JU81F',
-    'Maintenance : Maintenance Recurring': 'C06JT7JU81F',
-    'Irrigation': 'C06JT7JU81F',
-  },
-  'Phoenix - North': {
-    'Maintenance': 'C0738AHV23H',
-    'Maintenance Recurring': 'C0738AHV23H',
-    'Maintenance : Maintenance': 'C0738AHV23H',
-    'Maintenance : Maintenance Recurring': 'C0738AHV23H',
-    'Irrigation': 'C0738AHV23H',
-  },
-  'Phoenix': {
-    'Enhancements': 'C06JTB3QS0Z',
-    'Arbor': 'C06JT9Q4A3B',
-    'Spray': 'C06U9K3EKT7',
-    'PHC': 'C0896PY7EAF',
-    'Fleet & Equipment': 'C0896PY7EAF',
-  },
-  'Las Vegas': {
-    'Maintenance': 'C06JBNL7UKX',
-    'Maintenance Recurring': 'C06JBNL7UKX',
-    'Maintenance : Maintenance': 'C06JBNL7UKX',
-    'Maintenance : Maintenance Recurring': 'C06JBNL7UKX',
-    'Arbor': 'C06JBNL7UKX',
-    'Enhancements': 'C06JBNL7UKX',
-    'Irrigation': 'C06JBNL7UKX',
-    'Office Operations': 'C06JBNL7UKX',
-    'Safety': 'C06JBNL7UKX',
-    'PHC': 'C06JBNL7UKX',
-    'Spray': 'C06JBNL7UKX',
-  },
-  'Corporate': {
-    'Safety': 'C0896PY7EAF',
-    'Fleet & Equipment': 'C0896PY7EAF',
-    'Overhead: Equipment & Fleet Operations': 'C0896PY7EAF',
-    'Enhancements': 'C06JTB3QS0Z',
-    'Arbor': 'C06JT9Q4A3B',
-    'Spray': 'C06U9K3EKT7',
-    'PHC': 'C0896PY7EAF',
-  },
-};
 
 interface DepartmentSummaryRequest {
   branch: string;

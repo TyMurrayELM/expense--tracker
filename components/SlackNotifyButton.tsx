@@ -28,6 +28,8 @@ interface User {
   slack_id: string;
 }
 
+type SendMode = 'dm' | 'group' | 'channel';
+
 export default function SlackNotifyButton({
   expenseId,
   netsuiteId,
@@ -54,24 +56,36 @@ export default function SlackNotifyButton({
     category: correctCategory || currentCategory || '',
   });
   const [improveDescription, setImproveDescription] = useState(false);
-  
-  // New state for additional recipients - auto-enable when no purchaser (vendor bills)
+
   const isVendorBill = !purchaserName;
-  const [includeAdditionalUsers, setIncludeAdditionalUsers] = useState(isVendorBill);
+  const [sendMode, setSendMode] = useState<SendMode>(isVendorBill ? 'group' : 'dm');
+
+  // Group message recipients
   const [additionalUserIds, setAdditionalUserIds] = useState<string[]>([]);
   const [availableUsers, setAvailableUsers] = useState<User[]>([]);
   const [loadingUsers, setLoadingUsers] = useState(false);
-  
-  // New state for additional message
-  const [includeAdditionalMessage, setIncludeAdditionalMessage] = useState(false);
+
+  // Channel
+  const [selectedChannelId, setSelectedChannelId] = useState<string>('');
+  const [availableChannels, setAvailableChannels] = useState<{ label: string; channelId: string }[]>([]);
+  const [loadingChannels, setLoadingChannels] = useState(false);
+
+  // Additional message
   const [additionalMessage, setAdditionalMessage] = useState('');
 
-  // Fetch users with Slack IDs when modal opens and checkbox is checked
+  // Fetch users when group mode is active
   useEffect(() => {
-    if (showModal && includeAdditionalUsers && availableUsers.length === 0) {
+    if (showModal && sendMode === 'group' && availableUsers.length === 0) {
       fetchUsersWithSlack();
     }
-  }, [showModal, includeAdditionalUsers]);
+  }, [showModal, sendMode]);
+
+  // Fetch channels when channel mode is active
+  useEffect(() => {
+    if (showModal && sendMode === 'channel' && availableChannels.length === 0) {
+      fetchChannels();
+    }
+  }, [showModal, sendMode]);
 
   const fetchUsersWithSlack = async () => {
     setLoadingUsers(true);
@@ -79,7 +93,6 @@ export default function SlackNotifyButton({
       const response = await fetch('/api/users');
       if (response.ok) {
         const data = await response.json();
-        // Filter to only users with Slack IDs and exclude the current purchaser
         const usersWithSlack = data.users.filter(
           (user: User) => user.slack_id && user.full_name !== purchaserName
         );
@@ -92,19 +105,30 @@ export default function SlackNotifyButton({
     }
   };
 
-  // Generate transaction URL based on type
+  const fetchChannels = async () => {
+    setLoadingChannels(true);
+    try {
+      const response = await fetch('/api/slack-channels');
+      if (response.ok) {
+        const data = await response.json();
+        setAvailableChannels(data.channels);
+      }
+    } catch (error) {
+      console.error('Error fetching channels:', error);
+    } finally {
+      setLoadingChannels(false);
+    }
+  };
+
   const getTransactionUrl = () => {
     if (transactionType === 'Credit Card') {
-      // Bill.com URL
       const billId = netsuiteId.replace('BILL-', '');
       return `https://spend.bill.com/companies/Q29tcGFueToxNDI3OQ==/transactions/pending-and-cleared/${billId}`;
     } else {
-      // NetSuite URL
       return `https://system.netsuite.com/app/accounting/transactions/vendbill.nl?id=${netsuiteId}`;
     }
   };
 
-  // Check if there are any actual changes or description improvement requested
   const hasChanges = () => {
     return (
       corrections.branch !== currentBranch ||
@@ -114,28 +138,58 @@ export default function SlackNotifyButton({
     );
   };
 
+  // Build the "To" display text
+  const getRecipientDisplay = () => {
+    if (sendMode === 'channel') {
+      if (selectedChannelId) {
+        return <span className="text-purple-600">{availableChannels.find(c => c.channelId === selectedChannelId)?.label || 'Channel'}</span>;
+      }
+      return <span className="text-gray-400 italic">Select a channel below</span>;
+    }
+    if (sendMode === 'group') {
+      const names = additionalUserIds.map(id => availableUsers.find(u => u.id === id)?.full_name).filter(Boolean);
+      if (purchaserName && names.length > 0) {
+        return <>{purchaserName} <span className="text-purple-600">+ {names.join(', ')}</span></>;
+      }
+      if (names.length > 0) {
+        return <span className="text-purple-600">{names.join(', ')}</span>;
+      }
+      if (purchaserName) {
+        return <>{purchaserName} <span className="text-gray-400 italic">+ select recipients below</span></>;
+      }
+      return <span className="text-gray-400 italic">Select recipients below</span>;
+    }
+    return <>{purchaserName || <span className="text-gray-400 italic">No cardholder</span>}</>;
+  };
+
   const handleSendNotification = async () => {
     if (!hasChanges()) {
       alert('Please specify at least one correction or check "Description needs improvement" before sending.');
       return;
     }
 
-    if (isVendorBill && additionalUserIds.length === 0) {
-      alert('This is a vendor bill with no cardholder. Please select at least one recipient.');
+    if (sendMode === 'channel' && !selectedChannelId) {
+      alert('Please select a channel.');
       return;
     }
 
-    if (includeAdditionalUsers && additionalUserIds.length === 0) {
-      alert('Please select at least one additional recipient or uncheck the option.');
+    if (sendMode === 'group' && additionalUserIds.length === 0) {
+      alert(isVendorBill
+        ? 'This is a vendor bill with no cardholder. Please select at least one recipient.'
+        : 'Please select at least one additional recipient.');
+      return;
+    }
+
+    if (sendMode === 'dm' && isVendorBill) {
+      alert('This is a vendor bill with no cardholder. Please use Group Message or Channel.');
       return;
     }
 
     setSending(true);
 
     try {
-      // Find the additional users' Slack IDs if selected
       let additionalSlackIds: string[] = [];
-      if (includeAdditionalUsers && additionalUserIds.length > 0) {
+      if (sendMode === 'group' && additionalUserIds.length > 0) {
         additionalSlackIds = additionalUserIds
           .map(id => availableUsers.find(user => user.id === id)?.slack_id)
           .filter((id): id is string => !!id);
@@ -161,25 +215,25 @@ export default function SlackNotifyButton({
           memo,
           billUrl: getTransactionUrl(),
           improveDescription,
-          additionalSlackIds: additionalSlackIds.length > 0 ? additionalSlackIds : null,
-          additionalMessage: includeAdditionalMessage ? additionalMessage : null,
+          additionalSlackIds: sendMode === 'group' && additionalSlackIds.length > 0 ? additionalSlackIds : null,
+          additionalMessage: additionalMessage.trim() || null,
+          channelOverride: sendMode === 'channel' ? selectedChannelId : null,
         }),
       });
 
       const data = await response.json();
 
       if (data.success) {
-        alert(`✅ ${data.message}`);
+        alert(`\u2705 ${data.message}`);
         setShowModal(false);
-        // Reset states
         setImproveDescription(false);
-        setIncludeAdditionalUsers(false);
+        setSendMode(isVendorBill ? 'group' : 'dm');
         setAdditionalUserIds([]);
-        setIncludeAdditionalMessage(false);
+        setSelectedChannelId('');
         setAdditionalMessage('');
         onNotificationSent?.();
       } else {
-        alert(`❌ Failed: ${data.error}\n${data.suggestion || ''}`);
+        alert(`\u274C Failed: ${data.error}\n${data.suggestion || ''}`);
       }
     } catch (error: any) {
       console.error('Error sending notification:', error);
@@ -188,6 +242,12 @@ export default function SlackNotifyButton({
       setSending(false);
     }
   };
+
+  const sendModeOptions: { value: SendMode; label: string; disabled?: boolean }[] = [
+    { value: 'dm', label: 'Direct Message', disabled: isVendorBill },
+    { value: 'group', label: 'Group Message' },
+    { value: 'channel', label: 'Channel' },
+  ];
 
   return (
     <>
@@ -219,7 +279,7 @@ export default function SlackNotifyButton({
               </h3>
               <button
                 onClick={() => setShowModal(false)}
-                className="text-gray-700 hover:text-gray-600"
+                className="text-gray-400 hover:text-gray-600"
               >
                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -227,211 +287,198 @@ export default function SlackNotifyButton({
               </button>
             </div>
 
-            <div className="mb-4 p-3 bg-gray-50 rounded">
-              {isVendorBill && (
-                <p className="text-xs text-amber-600 mb-1">Vendor bill — no cardholder. Select recipients below.</p>
-              )}
+            {/* Expense Summary */}
+            <div className="mb-5 p-3 bg-gray-50 rounded-lg border border-gray-200">
               <p className="text-sm text-gray-700">
-                <strong>To:</strong>{' '}
-                {purchaserName || <span className="text-gray-400 italic">No cardholder</span>}
-                {includeAdditionalUsers && additionalUserIds.length > 0 && (
-                  <span className="text-purple-600">
-                    {purchaserName ? ' + ' : ''}{additionalUserIds.map(id => availableUsers.find(u => u.id === id)?.full_name).filter(Boolean).join(', ')}
-                  </span>
-                )}
+                <strong>To:</strong> {getRecipientDisplay()}
               </p>
               <p className="text-sm text-gray-700">
                 <strong>Expense:</strong> {vendor} - ${amount.toFixed(2)} on {date}
               </p>
             </div>
 
-            <div className="space-y-4">
+            {/* Send As selector */}
+            <div className="mb-5">
+              <label className="block text-sm font-medium text-gray-700 mb-2">Send as</label>
+              <div className="inline-flex rounded-lg border border-gray-300 overflow-hidden">
+                {sendModeOptions.map((opt) => (
+                  <button
+                    key={opt.value}
+                    onClick={() => {
+                      if (opt.disabled) return;
+                      setSendMode(opt.value);
+                      if (opt.value !== 'group') setAdditionalUserIds([]);
+                      if (opt.value !== 'channel') setSelectedChannelId('');
+                    }}
+                    disabled={opt.disabled}
+                    className={`px-3 py-1.5 text-sm font-medium transition-colors ${
+                      sendMode === opt.value
+                        ? 'bg-purple-600 text-white'
+                        : opt.disabled
+                        ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                        : 'bg-white text-gray-700 hover:bg-gray-50'
+                    } ${opt.value !== 'dm' ? 'border-l border-gray-300' : ''}`}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+              {isVendorBill && sendMode !== 'dm' && (
+                <p className="mt-1 text-xs text-amber-600">Vendor bill — no cardholder for direct message.</p>
+              )}
+            </div>
+
+            {/* Group Message: recipient picker */}
+            {sendMode === 'group' && (
+              <div className="mb-5">
+                <label className="block text-sm font-medium text-gray-700 mb-1">Recipients</label>
+                {purchaserName && (
+                  <p className="text-xs text-gray-500 mb-2">{purchaserName} is already included. Select additional recipients:</p>
+                )}
+                {loadingUsers ? (
+                  <p className="text-sm text-gray-500">Loading users...</p>
+                ) : (
+                  <div className="max-h-40 overflow-y-auto border border-gray-300 rounded-lg p-2 space-y-0.5">
+                    {availableUsers.map((user) => (
+                      <label key={user.id} className="flex items-center gap-2 cursor-pointer hover:bg-gray-50 px-2 py-1.5 rounded">
+                        <input
+                          type="checkbox"
+                          checked={additionalUserIds.includes(user.id)}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setAdditionalUserIds([...additionalUserIds, user.id]);
+                            } else {
+                              setAdditionalUserIds(additionalUserIds.filter(id => id !== user.id));
+                            }
+                          }}
+                          className="w-4 h-4 text-purple-600 border-gray-300 rounded focus:ring-purple-500"
+                        />
+                        <span className="text-sm text-gray-700">{user.full_name}</span>
+                        <span className="text-xs text-gray-400">{user.email}</span>
+                      </label>
+                    ))}
+                  </div>
+                )}
+                {availableUsers.length === 0 && !loadingUsers && (
+                  <p className="mt-1 text-xs text-gray-500">No other users with Slack IDs found</p>
+                )}
+                {additionalUserIds.length > 0 && (
+                  <p className="mt-1.5 text-xs text-gray-500">
+                    {additionalUserIds.length} user{additionalUserIds.length !== 1 ? 's' : ''} selected
+                  </p>
+                )}
+              </div>
+            )}
+
+            {/* Channel: channel picker */}
+            {sendMode === 'channel' && (
+              <div className="mb-5">
+                <label className="block text-sm font-medium text-gray-700 mb-2">Channel</label>
+                {loadingChannels ? (
+                  <p className="text-sm text-gray-500">Loading channels...</p>
+                ) : (
+                  <select
+                    value={selectedChannelId}
+                    onChange={(e) => setSelectedChannelId(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-purple-500 focus:border-purple-500"
+                  >
+                    <option value="">Choose a channel...</option>
+                    {availableChannels.map((ch) => (
+                      <option key={ch.channelId + ch.label} value={ch.channelId}>
+                        {ch.label}
+                      </option>
+                    ))}
+                  </select>
+                )}
+              </div>
+            )}
+
+            {/* Corrections */}
+            <div className="space-y-3 mb-5">
+              <label className="block text-sm font-medium text-gray-700">Corrections</label>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Correct Branch
-                </label>
                 <div className="flex items-center gap-2">
                   <input
                     type="text"
                     value={corrections.branch}
                     onChange={(e) => setCorrections({ ...corrections, branch: e.target.value })}
-                    className="flex-1 px-3 py-2 border border-gray-300 rounded-md text-sm"
-                    placeholder="Phoenix - North"
+                    className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                    placeholder="Branch"
                   />
                   {currentBranch && currentBranch !== corrections.branch && (
-                    <span className="text-xs text-red-600">Was: {currentBranch}</span>
+                    <span className="text-xs text-red-600 whitespace-nowrap">Was: {currentBranch}</span>
                   )}
                 </div>
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Correct Department
-                </label>
                 <div className="flex items-center gap-2">
                   <input
                     type="text"
                     value={corrections.department}
                     onChange={(e) => setCorrections({ ...corrections, department: e.target.value })}
-                    className="flex-1 px-3 py-2 border border-gray-300 rounded-md text-sm"
-                    placeholder="Operations"
+                    className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                    placeholder="Department"
                   />
                   {currentDepartment && currentDepartment !== corrections.department && (
-                    <span className="text-xs text-red-600">Was: {currentDepartment}</span>
+                    <span className="text-xs text-red-600 whitespace-nowrap">Was: {currentDepartment}</span>
                   )}
                 </div>
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Correct Category
-                </label>
                 <div className="flex items-center gap-2">
                   <input
                     type="text"
                     value={corrections.category}
                     onChange={(e) => setCorrections({ ...corrections, category: e.target.value })}
-                    className="flex-1 px-3 py-2 border border-gray-300 rounded-md text-sm"
-                    placeholder="Equipment"
+                    className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                    placeholder="Category"
                   />
                   {currentCategory && currentCategory !== corrections.category && (
-                    <span className="text-xs text-red-600">Was: {currentCategory}</span>
+                    <span className="text-xs text-red-600 whitespace-nowrap">Was: {currentCategory}</span>
                   )}
                 </div>
               </div>
 
-              {/* Description Improvement Checkbox */}
-              <div className="pt-2 border-t border-gray-200">
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={improveDescription}
-                    onChange={(e) => setImproveDescription(e.target.checked)}
-                    className="w-4 h-4 text-purple-600 border-gray-300 rounded focus:ring-purple-500"
-                  />
-                  <span className="text-sm text-gray-700">
-                    Description needs improvement
-                  </span>
-                </label>
-                {memo && (
-                  <p className="mt-1 ml-6 text-xs text-gray-700">
-                    Current: "{memo}"
-                  </p>
-                )}
-              </div>
-
-              {/* Additional Recipients Section */}
-              <div className="pt-2 border-t border-gray-200">
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={includeAdditionalUsers}
-                    disabled={isVendorBill}
-                    onChange={(e) => {
-                      setIncludeAdditionalUsers(e.target.checked);
-                      if (!e.target.checked) {
-                        setAdditionalUserIds([]);
-                      }
-                    }}
-                    className="w-4 h-4 text-purple-600 border-gray-300 rounded focus:ring-purple-500"
-                  />
-                  <span className="text-sm text-gray-700">
-                    {isVendorBill ? 'Select recipients (required)' : 'Include additional recipients (group message)'}
-                  </span>
-                </label>
-
-                {includeAdditionalUsers && (
-                  <div className="mt-3 ml-6">
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Select Users
-                    </label>
-                    {loadingUsers ? (
-                      <p className="text-sm text-gray-700">Loading users...</p>
-                    ) : (
-                      <div className="max-h-40 overflow-y-auto border border-gray-300 rounded-md p-2 space-y-1">
-                        {availableUsers.map((user) => (
-                          <label key={user.id} className="flex items-center gap-2 cursor-pointer hover:bg-gray-50 px-2 py-1 rounded">
-                            <input
-                              type="checkbox"
-                              checked={additionalUserIds.includes(user.id)}
-                              onChange={(e) => {
-                                if (e.target.checked) {
-                                  setAdditionalUserIds([...additionalUserIds, user.id]);
-                                } else {
-                                  setAdditionalUserIds(additionalUserIds.filter(id => id !== user.id));
-                                }
-                              }}
-                              className="w-4 h-4 text-purple-600 border-gray-300 rounded focus:ring-purple-500"
-                            />
-                            <span className="text-sm text-gray-700">{user.full_name} ({user.email})</span>
-                          </label>
-                        ))}
-                      </div>
-                    )}
-                    {availableUsers.length === 0 && !loadingUsers && (
-                      <p className="mt-1 text-xs text-gray-700">
-                        No other users with Slack IDs found
-                      </p>
-                    )}
-                    {additionalUserIds.length > 0 && (
-                      <p className="mt-1 text-xs text-gray-700">
-                        {additionalUserIds.length} user{additionalUserIds.length !== 1 ? 's' : ''} selected
-                      </p>
-                    )}
-                  </div>
-                )}
-              </div>
-
-              {/* Additional Message Section */}
-              <div className="pt-2 border-t border-gray-200">
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={includeAdditionalMessage}
-                    onChange={(e) => {
-                      setIncludeAdditionalMessage(e.target.checked);
-                      if (!e.target.checked) {
-                        setAdditionalMessage('');
-                      }
-                    }}
-                    className="w-4 h-4 text-purple-600 border-gray-300 rounded focus:ring-purple-500"
-                  />
-                  <span className="text-sm text-gray-700">
-                    Include additional message (optional)
-                  </span>
-                </label>
-
-                {includeAdditionalMessage && (
-                  <div className="mt-3 ml-6">
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Additional Message
-                    </label>
-                    <textarea
-                      value={additionalMessage}
-                      onChange={(e) => setAdditionalMessage(e.target.value)}
-                      placeholder="Add any extra context or instructions..."
-                      rows={3}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-purple-500 focus:border-purple-500 resize-none"
-                    />
-                    <p className="mt-1 text-xs text-gray-700">
-                      This message will appear at the end of the notification
-                    </p>
-                  </div>
-                )}
-              </div>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={improveDescription}
+                  onChange={(e) => setImproveDescription(e.target.checked)}
+                  className="w-4 h-4 text-purple-600 border-gray-300 rounded focus:ring-purple-500"
+                />
+                <span className="text-sm text-gray-700">Description needs improvement</span>
+              </label>
+              {improveDescription && memo && (
+                <p className="ml-6 text-xs text-gray-500">Current: &quot;{memo}&quot;</p>
+              )}
             </div>
 
-            <div className="mt-6 flex justify-end gap-3">
+            {/* Additional Message */}
+            <div className="mb-5">
+              <label className="block text-sm font-medium text-gray-700 mb-2">Additional message <span className="font-normal text-gray-400">(optional)</span></label>
+              <textarea
+                value={additionalMessage}
+                onChange={(e) => setAdditionalMessage(e.target.value)}
+                placeholder="Add any extra context or instructions..."
+                rows={2}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-purple-500 focus:border-purple-500 resize-none"
+              />
+            </div>
+
+            {/* Actions */}
+            <div className="flex justify-end gap-3">
               <button
                 onClick={() => setShowModal(false)}
-                className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
+                className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50"
               >
                 Cancel
               </button>
               <button
                 onClick={handleSendNotification}
                 disabled={sending || !hasChanges()}
-                className="px-4 py-2 bg-purple-600 text-white text-sm font-medium rounded-md hover:bg-purple-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
+                className="px-4 py-2 bg-purple-600 text-white text-sm font-medium rounded-lg hover:bg-purple-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
               >
                 {sending ? 'Sending...' : 'Send to Slack'}
               </button>

@@ -20,6 +20,7 @@ interface SlackNotificationRequest {
   improveDescription?: boolean;
   additionalSlackIds?: string[] | null; // Optional additional recipients
   additionalMessage?: string | null; // Optional additional message
+  channelOverride?: string | null; // Send to a Slack channel instead of DM
 }
 
 export async function POST(request: Request) {
@@ -88,12 +89,13 @@ export async function POST(request: Request) {
       improveDescription = false,
       additionalSlackIds,
       additionalMessage,
+      channelOverride,
     } = body;
 
-    // Find user by name (cardholder) - skip for vendor bills with no purchaser
+    // Find user by name (cardholder) - skip for channel sends and vendor bills with no purchaser
     let targetUser: { id: string; full_name: string; email: string; slack_id: string; slack_display_name: string | null } | null = null;
 
-    if (purchaserName) {
+    if (purchaserName && !channelOverride) {
       console.log('Searching for user:', purchaserName);
 
       let users;
@@ -155,8 +157,8 @@ export async function POST(request: Request) {
           suggestion: 'Run "Sync Slack Users" in Admin to link their Slack account.',
         }, { status: 400 });
       }
-    } else {
-      // No purchaser (vendor bill) - must have additional recipients
+    } else if (!channelOverride) {
+      // No purchaser (vendor bill) and no channel override - must have additional recipients
       if (!additionalSlackIds || additionalSlackIds.length === 0) {
         return NextResponse.json({
           success: false,
@@ -216,96 +218,83 @@ export async function POST(request: Request) {
     }
 
     // Build blocks for the Slack message
-    const isVendorBill = !targetUser;
+    const isVendorBill = !purchaserName;
     const headerText = isVendorBill
       ? '⚠️ Vendor Bill Correction Required'
       : '⚠️ Credit Card Purchase Correction Required';
-    const greetingName = targetUser ? (targetUser.slack_display_name || targetUser.full_name) : '';
-    const greetingText = isVendorBill
-      ? 'Hey! 👋 A vendor bill needs attention.'
-      : `Hey ${greetingName}! 👋 One of your credit card transactions needs attention.`;
-
-    const blocks: any[] = [
-      {
-        type: 'header',
-        text: {
-          type: 'plain_text',
-          text: headerText,
-          emoji: true,
-        },
-      },
-      {
-        type: 'section',
-        text: {
-          type: 'mrkdwn',
-          text: greetingText,
-        },
-      },
-    ];
-
-    // Add follow-up notice if this isn't the first notification
-    if (currentNotificationCount > 0) {
-      const ordinal = currentNotificationCount === 1 ? '2nd' : currentNotificationCount === 2 ? '3rd' : `${currentNotificationCount + 1}th`;
-      blocks.push({
-        type: 'context',
-        elements: [
-          {
-            type: 'mrkdwn',
-            text: `:noun_alert: This is the ${ordinal} reminder for this transaction.`,
-          },
-        ],
-      });
+    const greetingName = targetUser ? (targetUser.slack_display_name || targetUser.full_name) : purchaserName;
+    let greetingText: string;
+    if (channelOverride) {
+      greetingText = isVendorBill
+        ? 'A vendor bill needs corrections.'
+        : `A transaction by *${greetingName}* needs corrections.`;
+    } else if (isVendorBill) {
+      greetingText = 'Hey! 👋 A vendor bill needs attention.';
+    } else {
+      greetingText = `Hey ${greetingName}! 👋 One of your credit card transactions needs attention.`;
     }
 
-    blocks.push(
-      {
-        type: 'divider',
-      },
-      {
-        type: 'section',
-        text: {
-          type: 'mrkdwn',
-          text: transactionInfo,
-        },
-      },
-    );
+    let blocks: any[];
 
-    // Add memo/description if it exists
-    if (memo) {
-      blocks.push({
-        type: 'section',
-        text: {
-          type: 'mrkdwn',
-          text: `*Description:* ${memo}`,
-        },
-      });
-    }
-
-    // Add divider and corrections
-    blocks.push(
-      {
-        type: 'divider',
-      },
-      {
-        type: 'section',
-        text: {
-          type: 'mrkdwn',
-          text: '*Please update the following:*\n\n' + changes.join('\n'),
-        },
-      },
-      {
-        type: 'context',
-        elements: [
-          {
-            type: 'mrkdwn',
-            text: '💡 Please make sure to use the correct Branch, Department, and Category in Bill.com for future expenses to avoid manual corrections.',
-          },
-        ],
+    if (channelOverride) {
+      // Compact format for channel posts
+      const type = isVendorBill ? 'Vendor Bill' : 'Credit Card';
+      const who = isVendorBill ? '' : `  —  *${greetingName}*`;
+      let body = `⚠️ *${type} Correction*${who}  |  ${vendor}  |  $${amount.toFixed(2)}  |  ${date}`;
+      if (billUrl) body += `  |  <${billUrl}|View>`;
+      body += '\n' + changes.join('\n');
+      if (additionalMessage && additionalMessage.trim()) {
+        body += `\n\n_${additionalMessage.trim()}_`;
       }
-    );
 
-    // Add additional message if provided
-    if (additionalMessage && additionalMessage.trim()) {
+      blocks = [
+        {
+          type: 'section',
+          text: { type: 'mrkdwn', text: body },
+        },
+      ];
+
+      if (currentNotificationCount > 0) {
+        const ordinal = currentNotificationCount === 1 ? '2nd' : currentNotificationCount === 2 ? '3rd' : `${currentNotificationCount + 1}th`;
+        blocks.push({
+          type: 'context',
+          elements: [{ type: 'mrkdwn', text: `:noun_alert: ${ordinal} reminder for correction` }],
+        });
+      }
+    } else {
+      // Full format for DMs
+      blocks = [
+        {
+          type: 'header',
+          text: {
+            type: 'plain_text',
+            text: headerText,
+            emoji: true,
+          },
+        },
+        {
+          type: 'section',
+          text: {
+            type: 'mrkdwn',
+            text: greetingText,
+          },
+        },
+      ];
+
+      // Add follow-up notice if this isn't the first notification
+      if (currentNotificationCount > 0) {
+        const ordinal = currentNotificationCount === 1 ? '2nd' : currentNotificationCount === 2 ? '3rd' : `${currentNotificationCount + 1}th`;
+        blocks.push({
+          type: 'context',
+          elements: [
+            {
+              type: 'mrkdwn',
+              text: `:noun_alert: This is the ${ordinal} reminder for correction.`,
+            },
+          ],
+        });
+      }
+
       blocks.push(
         {
           type: 'divider',
@@ -314,10 +303,60 @@ export async function POST(request: Request) {
           type: 'section',
           text: {
             type: 'mrkdwn',
-            text: `*Additional Note:*\n${additionalMessage.trim()}`,
+            text: transactionInfo,
           },
+        },
+      );
+
+      // Add memo/description if it exists
+      if (memo) {
+        blocks.push({
+          type: 'section',
+          text: {
+            type: 'mrkdwn',
+            text: `*Description:* ${memo}`,
+          },
+        });
+      }
+
+      // Add divider and corrections
+      blocks.push(
+        {
+          type: 'divider',
+        },
+        {
+          type: 'section',
+          text: {
+            type: 'mrkdwn',
+            text: '*Please update the following:*\n\n' + changes.join('\n'),
+          },
+        },
+        {
+          type: 'context',
+          elements: [
+            {
+              type: 'mrkdwn',
+              text: '💡 Please make sure to use the correct Branch, Department, and Category in Bill.com for future expenses to avoid manual corrections.',
+            },
+          ],
         }
       );
+
+      // Add additional message if provided
+      if (additionalMessage && additionalMessage.trim()) {
+        blocks.push(
+          {
+            type: 'divider',
+          },
+          {
+            type: 'section',
+            text: {
+              type: 'mrkdwn',
+              text: `*Additional Note:*\n${additionalMessage.trim()}`,
+            },
+          }
+        );
+      }
     }
 
     // Check for Slack token
@@ -330,11 +369,11 @@ export async function POST(request: Request) {
       }, { status: 500 });
     }
 
-    // Determine channel based on whether we have a target user and/or additional recipients
-    let channelId: string | null = targetUser?.slack_id || null;
-    let recipientNames = purchaserName || '';
+    // Determine channel: explicit channel override > additional recipients group DM > target user DM
+    let channelId: string | null = channelOverride || targetUser?.slack_id || null;
+    let recipientNames = channelOverride ? 'channel' : (purchaserName || '');
 
-    if (additionalSlackIds && additionalSlackIds.length > 0) {
+    if (!channelOverride && additionalSlackIds && additionalSlackIds.length > 0) {
       // Build the list of all Slack user IDs for the conversation
       const allSlackIds = targetUser
         ? [targetUser.slack_id, ...additionalSlackIds]
