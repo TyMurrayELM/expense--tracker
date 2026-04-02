@@ -642,9 +642,17 @@ export default function ExpenseDashboard({
 
   const handleApprovalUpdate = (expenseId: string, newApprovalStatus: 'approved' | 'rejected' | null) => {
     // Update the local expense state with the new approval status
-    setExpenses(prev => prev.map(expense => 
-      expense.id === expenseId 
+    setExpenses(prev => prev.map(expense =>
+      expense.id === expenseId
         ? { ...expense, approval_status: newApprovalStatus }
+        : expense
+    ));
+  };
+
+  const handleNotificationSent = (expenseId: string) => {
+    setExpenses(prev => prev.map(expense =>
+      expense.id === expenseId
+        ? { ...expense, slack_notification_count: (expense.slack_notification_count || 0) + 1 }
         : expense
     ));
   };
@@ -1320,6 +1328,7 @@ export default function ExpenseDashboard({
         expenses={filteredExpenses}
         onFlagUpdate={handleFlagUpdate}
         onApprovalUpdate={handleApprovalUpdate}
+        onNotificationSent={handleNotificationSent}
         isAdmin={isAdmin}
         canSendSlack={canSendSlack}
         isMasquerading={isMasquerading}

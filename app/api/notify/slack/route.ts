@@ -166,6 +166,17 @@ export async function POST(request: Request) {
       console.log('No purchaser - will send to additional recipients only');
     }
 
+    // Fetch current notification count for this expense
+    let currentNotificationCount = 0;
+    const { data: expenseData } = await supabaseAdmin
+      .from('expenses')
+      .select('slack_notification_count')
+      .eq('id', expenseId)
+      .single();
+    if (expenseData) {
+      currentNotificationCount = expenseData.slack_notification_count || 0;
+    }
+
     // Build the changes list
     const changes: string[] = [];
     
@@ -230,6 +241,23 @@ export async function POST(request: Request) {
           text: greetingText,
         },
       },
+    ];
+
+    // Add follow-up notice if this isn't the first notification
+    if (currentNotificationCount > 0) {
+      const ordinal = currentNotificationCount === 1 ? '2nd' : currentNotificationCount === 2 ? '3rd' : `${currentNotificationCount + 1}th`;
+      blocks.push({
+        type: 'context',
+        elements: [
+          {
+            type: 'mrkdwn',
+            text: `🔔 This is the ${ordinal} reminder for this transaction.`,
+          },
+        ],
+      });
+    }
+
+    blocks.push(
       {
         type: 'divider',
       },
@@ -240,7 +268,7 @@ export async function POST(request: Request) {
           text: transactionInfo,
         },
       },
-    ];
+    );
 
     // Add memo/description if it exists
     if (memo) {
@@ -432,6 +460,16 @@ export async function POST(request: Request) {
 
     console.log('=== Slack notification sent successfully ===');
     console.log('Message ID:', slackData.ts);
+
+    // Increment slack_notification_count for this expense
+    const { error: updateError } = await supabaseAdmin.rpc('increment_slack_notification_count', {
+      expense_id: expenseId,
+    });
+
+    if (updateError) {
+      console.error('Failed to increment notification count:', updateError);
+      // Don't fail the request — notification was already sent
+    }
 
     return NextResponse.json({
       success: true,

@@ -11,6 +11,7 @@ interface ExpenseTableProps {
   expenses: Expense[];
   onFlagUpdate?: (expenseId: string, newFlagCategory: string | null) => void;
   onApprovalUpdate?: (expenseId: string, newApprovalStatus: 'approved' | 'rejected' | null) => void;
+  onNotificationSent?: (expenseId: string) => void;
   isAdmin?: boolean;
   canSendSlack?: boolean;
   isMasquerading?: boolean;
@@ -23,6 +24,7 @@ export default function ExpenseTable({
   expenses,
   onFlagUpdate,
   onApprovalUpdate,
+  onNotificationSent,
   isAdmin = false,
   canSendSlack = false,
   isMasquerading = false
@@ -863,6 +865,8 @@ export default function ExpenseTable({
                         currentBranch={expense.branch}
                         currentDepartment={expense.department}
                         currentCategory={expense.category}
+                        slackNotificationCount={expense.slack_notification_count}
+                        onNotificationSent={() => onNotificationSent?.(expense.id)}
                       />
                     </td>
                   )}
@@ -1194,6 +1198,8 @@ export default function ExpenseTable({
                             currentBranch={expense.branch}
                             currentDepartment={expense.department}
                             currentCategory={expense.category}
+                            slackNotificationCount={expense.slack_notification_count}
+                            onNotificationSent={() => onNotificationSent?.(expense.id)}
                           />
                         </div>
                       )}
