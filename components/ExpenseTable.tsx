@@ -866,6 +866,7 @@ export default function ExpenseTable({
                         currentDepartment={expense.department}
                         currentCategory={expense.category}
                         slackNotificationCount={expense.slack_notification_count}
+                        slackLastNotifiedAt={expense.slack_last_notified_at}
                         onNotificationSent={() => onNotificationSent?.(expense.id)}
                       />
                     </td>
@@ -1199,6 +1200,7 @@ export default function ExpenseTable({
                             currentDepartment={expense.department}
                             currentCategory={expense.category}
                             slackNotificationCount={expense.slack_notification_count}
+                        slackLastNotifiedAt={expense.slack_last_notified_at}
                             onNotificationSent={() => onNotificationSent?.(expense.id)}
                           />
                         </div>

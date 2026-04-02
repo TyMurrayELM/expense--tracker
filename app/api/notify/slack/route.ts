@@ -500,13 +500,17 @@ export async function POST(request: Request) {
     console.log('=== Slack notification sent successfully ===');
     console.log('Message ID:', slackData.ts);
 
-    // Increment slack_notification_count for this expense
-    const { error: updateError } = await supabaseAdmin.rpc('increment_slack_notification_count', {
-      expense_id: expenseId,
-    });
+    // Increment notification count and record timestamp
+    const { error: updateError } = await supabaseAdmin
+      .from('expenses')
+      .update({
+        slack_notification_count: (currentNotificationCount || 0) + 1,
+        slack_last_notified_at: new Date().toISOString(),
+      })
+      .eq('id', expenseId);
 
     if (updateError) {
-      console.error('Failed to increment notification count:', updateError);
+      console.error('Failed to update notification tracking:', updateError);
       // Don't fail the request — notification was already sent
     }
 

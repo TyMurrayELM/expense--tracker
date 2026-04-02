@@ -21,6 +21,7 @@ export interface Expense {
   approval_modified_at: string | null;
   bill_sync_status: string | null; // NEW: PENDING, SYNCED, ERROR, MANUAL_SYNCED, NOT_SYNCED
   slack_notification_count: number;
+  slack_last_notified_at: string | null;
 }
 
 export const FLAG_CATEGORIES = [

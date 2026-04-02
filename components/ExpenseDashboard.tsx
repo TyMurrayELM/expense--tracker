@@ -679,7 +679,7 @@ export default function ExpenseDashboard({
   const handleNotificationSent = (expenseId: string) => {
     setExpenses(prev => prev.map(expense =>
       expense.id === expenseId
-        ? { ...expense, slack_notification_count: (expense.slack_notification_count || 0) + 1 }
+        ? { ...expense, slack_notification_count: (expense.slack_notification_count || 0) + 1, slack_last_notified_at: new Date().toISOString() }
         : expense
     ));
   };
