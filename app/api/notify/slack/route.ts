@@ -251,7 +251,7 @@ export async function POST(request: Request) {
         elements: [
           {
             type: 'mrkdwn',
-            text: `🔔 This is the ${ordinal} reminder for this transaction.`,
+            text: `:noun_alert: This is the ${ordinal} reminder for this transaction.`,
           },
         ],
       });
