@@ -425,6 +425,11 @@ export default function ExpenseDashboard({
     return { totalAmount, totalCount, flaggedCount, byBranch, byDepartment, byVendor, byPurchaser, byCategory };
   }, [filteredExpenses]);
 
+  const readyToSyncExpenses = useMemo(() =>
+    expenses.filter(e => e.transaction_type === 'Credit Card' && e.status === 'Complete' && e.bill_sync_status !== 'SYNCED' && e.flag_category === 'Good to Sync'),
+    [expenses]
+  );
+
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
@@ -554,6 +559,28 @@ export default function ExpenseDashboard({
       ...prev,
       showFlagged: prev.showFlagged === 'flagged' ? 'all' : 'flagged'
     }));
+  };
+
+  const isReadyToSyncActive = filters.transactionType === 'Credit Card' && filters.status === 'Complete' && filters.syncStatus === 'not-synced' && filters.flagCategory.length === 1 && filters.flagCategory[0] === 'Good to Sync';
+
+  const handleReadyToSyncClick = () => {
+    if (isReadyToSyncActive) {
+      setFilters(prev => ({
+        ...prev,
+        transactionType: 'all',
+        status: 'all',
+        syncStatus: 'all',
+        flagCategory: [],
+      }));
+    } else {
+      setFilters(prev => ({
+        ...prev,
+        transactionType: 'Credit Card',
+        status: 'Complete',
+        syncStatus: 'not-synced',
+        flagCategory: ['Good to Sync'],
+      }));
+    }
   };
 
   // Check if any non-default filters are active (excludes months)
@@ -1297,20 +1324,34 @@ export default function ExpenseDashboard({
 
       {/* Filters */}
       <div className="mb-6">
-        <button
-          onClick={() => toggleSection('filters')}
-          className="flex items-center gap-2 text-lg font-semibold text-gray-700 mb-3 hover:text-gray-900 transition-colors"
-        >
-          <svg 
-            className={`w-5 h-5 transition-transform duration-200 ${sectionsCollapsed.filters ? '-rotate-90' : ''}`}
-            fill="none" 
-            stroke="currentColor" 
-            viewBox="0 0 24 24"
+        <div className="flex items-center gap-3 mb-3">
+          <button
+            onClick={() => toggleSection('filters')}
+            className="flex items-center gap-2 text-lg font-semibold text-gray-700 hover:text-gray-900 transition-colors"
           >
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-          </svg>
-          Filters
-        </button>
+            <svg
+              className={`w-5 h-5 transition-transform duration-200 ${sectionsCollapsed.filters ? '-rotate-90' : ''}`}
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+            </svg>
+            Filters
+          </button>
+          {isAdmin && (
+            <button
+              onClick={handleReadyToSyncClick}
+              className={`px-3 py-1 text-xs font-medium rounded-full transition-colors ${
+                isReadyToSyncActive
+                  ? 'bg-green-800 text-white'
+                  : 'bg-green-100 text-green-800 hover:bg-green-200'
+              }`}
+            >
+              Ready to Sync ({readyToSyncExpenses.length})
+            </button>
+          )}
+        </div>
         {!sectionsCollapsed.filters && (
         <FilterBar
           vendors={vendors}
