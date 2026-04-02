@@ -148,132 +148,77 @@ export default function SyncButton({ currentUser }: SyncButtonProps) {
   }
 
   return (
-    <div className="flex flex-col items-end gap-2 w-full lg:w-auto">
+    <div className="flex flex-col items-end gap-1 w-full lg:w-auto">
       {message && (
-        <span className={`text-sm ${message.startsWith('✓') ? 'text-green-600' : message.startsWith('⏳') ? 'text-blue-600' : 'text-red-600'}`}>
+        <span className="text-xs text-white">
           {message}
         </span>
       )}
-      
-      {/* Desktop Layout */}
-      <div className="hidden lg:flex flex-col items-end gap-1">
-        <div className="flex gap-2">
-          <div className="flex flex-col items-center">
-            <button
-              onClick={handleVendorBillSync}
-              disabled={isAnySyncing}
-              className="px-2 py-1 bg-teal-700 text-white text-xs font-medium rounded hover:bg-teal-800 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center gap-1"
-            >
-              <Image
-                src="/logos/netsuite.png"
-                alt="NetSuite"
-                width={16}
-                height={16}
-                className="flex-shrink-0"
-              />
-              {syncingVendorBills ? 'Syncing...' : 'Sync Vendor Bills'}
-            </button>
-            <span className="text-xs text-gray-700 mt-1">
-              Last: {formatLastSyncTime()}
-            </span>
-          </div>
 
-          <div className="flex flex-col items-center">
-            <button
-              onClick={handleCreditCardSync}
-              disabled={isAnySyncing}
-              className="px-2 py-1 bg-orange-600 text-white text-xs font-medium rounded hover:bg-orange-700 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center gap-1"
-            >
-              <Image
-                src="/logos/bill.png"
-                alt="Bill.com"
-                width={16}
-                height={16}
-                className="flex-shrink-0"
-              />
-              {syncingCreditCards ? 'Syncing...' : 'Sync Credit Cards'}
-            </button>
-            <span className="text-xs text-gray-700 mt-1">
-              Last: {formatLastSyncTime()}
-            </span>
-          </div>
-          
-          <div className="flex flex-col items-center">
-            <button
-              onClick={handleHistoricalImport}
-              disabled={isAnySyncing}
-              className="px-2 py-1 bg-purple-600 text-white text-xs font-medium rounded hover:bg-purple-700 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center gap-1"
-              title="One-time import of all transactions since Oct 1, 2025"
-            >
-              <svg
-                className="w-4 h-4"
-                fill="currentColor"
-                viewBox="0 0 20 20"
-              >
-                <path fillRule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clipRule="evenodd" />
-              </svg>
-              {syncingHistorical ? 'Importing...' : 'Historical Import'}
-            </button>
-            <span className="text-xs text-gray-700 mt-1">
-              Last: {formatLastSyncTime()}
-            </span>
-          </div>
-        </div>
+      {/* Desktop Layout */}
+      <div className="hidden lg:flex items-center gap-2">
+        <button
+          onClick={handleVendorBillSync}
+          disabled={isAnySyncing}
+          className="px-2.5 py-1.5 bg-white/15 text-white text-xs font-medium rounded-lg hover:bg-white/25 border border-white/20 transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1.5"
+        >
+          <Image src="/logos/netsuite.png" alt="NetSuite" width={14} height={14} className="flex-shrink-0" />
+          {syncingVendorBills ? 'Syncing...' : 'Vendor Bills'}
+        </button>
+        <button
+          onClick={handleCreditCardSync}
+          disabled={isAnySyncing}
+          className="px-2.5 py-1.5 bg-white/15 text-white text-xs font-medium rounded-lg hover:bg-white/25 border border-white/20 transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1.5"
+        >
+          <Image src="/logos/bill.png" alt="Bill.com" width={14} height={14} className="flex-shrink-0" />
+          {syncingCreditCards ? 'Syncing...' : 'Credit Cards'}
+        </button>
+        <button
+          onClick={handleHistoricalImport}
+          disabled={isAnySyncing}
+          className="px-2.5 py-1.5 bg-white/15 text-white text-xs font-medium rounded-lg hover:bg-white/25 border border-white/20 transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1.5"
+          title="One-time import of all transactions since Mar 1, 2026"
+        >
+          <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20">
+            <path fillRule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clipRule="evenodd" />
+          </svg>
+          {syncingHistorical ? 'Importing...' : 'Historical'}
+        </button>
+        <span className="text-[10px] text-white/70 ml-1">{formatLastSyncTime()}</span>
       </div>
 
       {/* Mobile Layout */}
-      <div className="lg:hidden w-full space-y-3">
-        <div className="flex flex-col gap-2">
+      <div className="lg:hidden w-full">
+        <div className="flex gap-2">
           <button
             onClick={handleVendorBillSync}
             disabled={isAnySyncing}
-            className="w-full px-2 py-1.5 bg-teal-700 text-white text-xs font-medium rounded hover:bg-teal-800 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center justify-center gap-1"
+            className="flex-1 px-2 py-2 bg-white/15 text-white text-xs font-medium rounded-lg hover:bg-white/25 border border-white/20 transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-1.5"
           >
-            <Image
-              src="/logos/netsuite.png"
-              alt="NetSuite"
-              width={16}
-              height={16}
-              className="flex-shrink-0"
-            />
-            <span>{syncingVendorBills ? 'Syncing...' : 'Sync Vendor Bills'}</span>
+            <Image src="/logos/netsuite.png" alt="NetSuite" width={14} height={14} className="flex-shrink-0" />
+            {syncingVendorBills ? 'Syncing...' : 'Vendor Bills'}
           </button>
-
           <button
             onClick={handleCreditCardSync}
             disabled={isAnySyncing}
-            className="w-full px-2 py-1.5 bg-orange-600 text-white text-xs font-medium rounded hover:bg-orange-700 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center justify-center gap-1"
+            className="flex-1 px-2 py-2 bg-white/15 text-white text-xs font-medium rounded-lg hover:bg-white/25 border border-white/20 transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-1.5"
           >
-            <Image
-              src="/logos/bill.png"
-              alt="Bill.com"
-              width={16}
-              height={16}
-              className="flex-shrink-0"
-            />
-            <span>{syncingCreditCards ? 'Syncing...' : 'Sync Credit Cards'}</span>
+            <Image src="/logos/bill.png" alt="Bill.com" width={14} height={14} className="flex-shrink-0" />
+            {syncingCreditCards ? 'Syncing...' : 'Credit Cards'}
           </button>
-
           <button
             onClick={handleHistoricalImport}
             disabled={isAnySyncing}
-            className="w-full px-2 py-1.5 bg-purple-600 text-white text-xs font-medium rounded hover:bg-purple-700 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center justify-center gap-1"
-            title="One-time import of all transactions since Oct 1, 2025"
+            className="flex-1 px-2 py-2 bg-white/15 text-white text-xs font-medium rounded-lg hover:bg-white/25 border border-white/20 transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-1.5"
+            title="One-time import of all transactions since Mar 1, 2026"
           >
-            <svg
-              className="w-4 h-4"
-              fill="currentColor"
-              viewBox="0 0 20 20"
-            >
+            <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20">
               <path fillRule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clipRule="evenodd" />
             </svg>
-            <span>{syncingHistorical ? 'Importing...' : 'Historical Import'}</span>
+            {syncingHistorical ? 'Importing...' : 'Historical'}
           </button>
         </div>
-        
-        <div className="text-xs text-gray-700 text-center">
-          Last sync: {formatLastSyncTime()}
-        </div>
+        <p className="text-[10px] text-white/70 text-center mt-1.5">{formatLastSyncTime()}</p>
       </div>
     </div>
   );
