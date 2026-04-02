@@ -739,7 +739,7 @@ export default function ExpenseDashboard({
       <div className="mb-6">
         <button
           onClick={() => toggleSection('dateFilters')}
-          className="flex items-center gap-2 text-lg font-semibold text-gray-700 mb-3 hover:text-gray-900 transition-colors"
+          className="flex items-center gap-2 text-lg font-semibold text-gray-900 mb-3 hover:text-black transition-colors"
         >
           <svg 
             className={`w-5 h-5 transition-transform duration-200 ${sectionsCollapsed.dateFilters ? '-rotate-90' : ''}`}
@@ -871,7 +871,7 @@ export default function ExpenseDashboard({
       <div className="mb-4">
         <button
           onClick={() => toggleSection('byBranch')}
-          className="flex items-center gap-2 text-lg font-semibold text-gray-700 mb-3 hover:text-gray-900 transition-colors"
+          className="flex items-center gap-2 text-lg font-semibold text-gray-900 mb-3 hover:text-black transition-colors"
         >
           <svg 
             className={`w-5 h-5 transition-transform duration-200 ${sectionsCollapsed.byBranch ? '-rotate-90' : ''}`}
@@ -972,7 +972,7 @@ export default function ExpenseDashboard({
         <div className="flex items-center gap-4 mb-3">
           <button
             onClick={() => toggleSection('bySecondary')}
-            className="flex items-center gap-2 text-lg font-semibold text-gray-700 hover:text-gray-900 transition-colors"
+            className="flex items-center gap-2 text-lg font-semibold text-gray-900 hover:text-black transition-colors"
           >
             <svg 
               className={`w-5 h-5 transition-transform duration-200 ${sectionsCollapsed.bySecondary ? '-rotate-90' : ''}`}
@@ -1154,7 +1154,7 @@ export default function ExpenseDashboard({
       {/* Third Layer - Shows Purchasers when a Department is selected */}
       {secondaryView === 'department' && filters.department !== 'all' && (
         <div className="mb-8">
-          <h2 className="text-lg font-semibold text-gray-700 mb-3">
+          <h2 className="text-lg font-semibold text-gray-900 mb-3">
             Purchasers
             <span className="text-sm font-normal text-gray-700 ml-2">
               in {cleanDepartmentName(filters.department)}
@@ -1182,7 +1182,7 @@ export default function ExpenseDashboard({
       {/* Fourth Layer - Shows Vendors when both Department and Purchaser are selected */}
       {secondaryView === 'department' && filters.department !== 'all' && filters.purchaser.length > 0 && (
         <div className="mb-8">
-          <h2 className="text-lg font-semibold text-gray-700 mb-3">
+          <h2 className="text-lg font-semibold text-gray-900 mb-3">
             Vendors
             <span className="text-sm font-normal text-gray-700 ml-2">
               for {filters.purchaser.join(', ')} in {cleanDepartmentName(filters.department)}
@@ -1211,7 +1211,7 @@ export default function ExpenseDashboard({
       {/* Third Layer - Shows Vendors when a Purchaser is selected */}
       {secondaryView === 'purchaser' && filters.purchaser.length > 0 && (
         <div className="mb-8">
-          <h2 className="text-lg font-semibold text-gray-700 mb-3">
+          <h2 className="text-lg font-semibold text-gray-900 mb-3">
             Vendors
             <span className="text-sm font-normal text-gray-700 ml-2">
               for {filters.purchaser.join(', ')}
@@ -1240,7 +1240,7 @@ export default function ExpenseDashboard({
       {/* Third Layer - Shows Departments when a Vendor is selected */}
       {secondaryView === 'vendor' && filters.vendor !== 'all' && (
         <div className="mb-8">
-          <h2 className="text-lg font-semibold text-gray-700 mb-3">
+          <h2 className="text-lg font-semibold text-gray-900 mb-3">
             Departments
             <span className="text-sm font-normal text-gray-700 ml-2">
               for {filters.vendor}
@@ -1267,7 +1267,7 @@ export default function ExpenseDashboard({
       {/* Fourth Layer - Shows Purchasers when both Vendor and Department are selected */}
       {secondaryView === 'vendor' && filters.vendor !== 'all' && filters.department !== 'all' && (
         <div className="mb-8">
-          <h2 className="text-lg font-semibold text-gray-700 mb-3">
+          <h2 className="text-lg font-semibold text-gray-900 mb-3">
             Purchasers
             <span className="text-sm font-normal text-gray-700 ml-2">
               in {cleanDepartmentName(filters.department)} for {filters.vendor}
@@ -1327,7 +1327,7 @@ export default function ExpenseDashboard({
         <div className="flex items-center gap-3 mb-3">
           <button
             onClick={() => toggleSection('filters')}
-            className="flex items-center gap-2 text-lg font-semibold text-gray-700 hover:text-gray-900 transition-colors"
+            className="flex items-center gap-2 text-lg font-semibold text-gray-900 hover:text-black transition-colors"
           >
             <svg
               className={`w-5 h-5 transition-transform duration-200 ${sectionsCollapsed.filters ? '-rotate-90' : ''}`}

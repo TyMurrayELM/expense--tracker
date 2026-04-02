@@ -21,15 +21,15 @@ interface KPICardProps {
   slackSending?: boolean;
 }
 
-export default function KPICard({ 
-  title, 
-  value, 
-  subtitle, 
-  trend, 
-  bgColor = 'bg-white', 
-  size = 'normal', 
-  onClick, 
-  isActive = false, 
+export default function KPICard({
+  title,
+  value,
+  subtitle,
+  trend,
+  bgColor = 'bg-white',
+  size = 'normal',
+  onClick,
+  isActive = false,
   icon,
   showSlackButton = false,
   onSlackClick,
@@ -55,33 +55,15 @@ export default function KPICard({
       maximumFractionDigits: 0,
     }).format(amount);
   };
-  
-  return (
-    <div 
-      className={`${bgColor} rounded-lg ${isActive ? 'border-2 border-green-500 shadow-2xl scale-105' : 'border border-gray-200 shadow-sm hover:shadow-lg hover:scale-105'} ${isSmall ? 'p-3' : 'p-6'} transition-all duration-200 cursor-pointer relative`}
-      onClick={onClick}
-      style={isActive ? {
-        animation: 'pulse-glow 2s ease-in-out infinite'
-      } : undefined}
-    >
-      {isActive && (
-        <>
-          <style jsx>{`
-            @keyframes pulse-glow {
-              0%, 100% {
-                box-shadow: 0 0 20px rgba(34, 197, 94, 0.5), 0 10px 25px -5px rgba(0, 0, 0, 0.1);
-              }
-              50% {
-                box-shadow: 0 0 30px rgba(34, 197, 94, 0.8), 0 10px 25px -5px rgba(0, 0, 0, 0.1);
-              }
-            }
-          `}</style>
-        </>
-      )}
 
+  return (
+    <div
+      className={`${bgColor} rounded-xl ${isActive ? 'ring-2 ring-[#003264] shadow-lg scale-[1.03]' : 'border border-gray-200 shadow-sm hover:shadow-md hover:scale-[1.02]'} ${isSmall ? 'p-3' : 'p-5'} transition-all duration-200 cursor-pointer relative`}
+      onClick={onClick}
+    >
       {/* Unapproved Alert Badge */}
       {hasUnapproved && (
-        <div 
+        <div
           className="absolute -top-2 -right-2 bg-orange-500 text-white text-xs font-bold rounded-full min-w-[20px] h-5 flex items-center justify-center px-1.5 shadow-md z-20"
           title={`${unapprovedCount} unapproved (${formatCurrency(unapprovedAmount)})`}
         >
@@ -94,9 +76,9 @@ export default function KPICard({
         <button
           onClick={handleSlackClick}
           disabled={slackSending}
-          className={`absolute top-1 right-1 p-1.5 rounded-md transition-colors z-20 ${
-            slackSending 
-              ? 'bg-gray-100 text-gray-400 cursor-not-allowed' 
+          className={`absolute top-1.5 right-1.5 p-1.5 rounded-lg transition-colors z-20 ${
+            slackSending
+              ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
               : 'bg-purple-50 text-purple-600 hover:bg-purple-100 hover:text-purple-700'
           }`}
           title="Send summary to Slack"
@@ -113,30 +95,30 @@ export default function KPICard({
           )}
         </button>
       )}
-      
+
       {/* Icon and Title Row */}
       <div className="flex items-center gap-2 mb-1">
         {icon && (
-          <img 
-            src={icon} 
-            alt={title} 
+          <img
+            src={icon}
+            alt={title}
             className={`${isSmall ? 'h-6 w-6' : 'h-8 w-8'} object-contain`}
           />
         )}
-        <div className={`${isSmall ? 'text-xs' : 'text-sm'} font-medium ${isActive ? 'text-green-700 font-bold' : 'text-gray-700'} relative z-10 flex-1 ${showSlackButton ? 'pr-6' : ''}`}>
+        <div className={`${isSmall ? 'text-xs' : 'text-sm'} font-medium ${isActive ? 'text-[#003264] font-semibold' : 'text-gray-600'} relative z-10 flex-1 ${showSlackButton ? 'pr-6' : ''}`}>
           {title}
         </div>
       </div>
-      
-      <div className={`${isSmall ? 'text-lg' : 'text-3xl'} font-bold text-gray-900 mb-1 relative z-10`}>{value}</div>
+
+      <div className={`${isSmall ? 'text-lg' : 'text-3xl'} font-bold text-gray-900 mb-0.5 relative z-10`}>{value}</div>
       {subtitle && (
-        <div className={`${isSmall ? 'text-xs' : 'text-sm'} text-gray-700 relative z-10`}>{subtitle}</div>
+        <div className={`${isSmall ? 'text-xs' : 'text-sm'} text-gray-500 relative z-10`}>{subtitle}</div>
       )}
 
       {/* Unapproved indicator text */}
       {hasUnapproved && (
         <div className={`${isSmall ? 'text-xs' : 'text-sm'} text-orange-600 font-medium mt-1 relative z-10`}>
-          ⚠️ {unapprovedCount} unapproved
+          {unapprovedCount} unapproved
         </div>
       )}
 

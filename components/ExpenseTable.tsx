@@ -484,11 +484,11 @@ export default function ExpenseTable({
           <thead className="sticky top-0 z-10">
             <tr>
               {showFlagColumn && (
-                <th className="px-3 py-3 text-left text-xs font-medium text-white uppercase tracking-wider bg-blue-900">
+                <th className="px-3 py-3 text-left text-xs font-medium text-white uppercase tracking-wider [background:#003264]">
                   Flag
                 </th>
               )}
-              <th className="px-3 py-3 text-center text-xs font-medium text-white uppercase tracking-wider bg-blue-900">
+              <th className="px-3 py-3 text-center text-xs font-medium text-white uppercase tracking-wider [background:#003264]">
                 <div className="flex items-center justify-center gap-1" title="Approval">
                   <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
                     <path d="M2 10.5a1.5 1.5 0 113 0v6a1.5 1.5 0 01-3 0v-6zM6 10.333v5.43a2 2 0 001.106 1.79l.05.025A4 4 0 008.943 18h5.416a2 2 0 001.962-1.608l1.2-6A2 2 0 0015.56 8H12V4a2 2 0 00-2-2 1 1 0 00-1 1v.667a4 4 0 01-.8 2.4L6.8 7.933a4 4 0 00-.8 2.4z" />
@@ -499,7 +499,7 @@ export default function ExpenseTable({
                 </div>
               </th>
               <th 
-                className="px-3 py-3 text-left text-xs font-medium text-white uppercase tracking-wider bg-blue-900 cursor-pointer hover:bg-blue-800"
+                className="px-3 py-3 text-left text-xs font-medium text-white uppercase tracking-wider cursor-pointer hover:brightness-125 [background:#003264]"
                 onClick={() => handleSort('date')}
               >
                 <div className="flex items-center gap-1">
@@ -508,7 +508,7 @@ export default function ExpenseTable({
                 </div>
               </th>
               <th 
-                className="px-3 py-3 text-left text-xs font-medium text-white uppercase tracking-wider bg-blue-900 cursor-pointer hover:bg-blue-800"
+                className="px-3 py-3 text-left text-xs font-medium text-white uppercase tracking-wider cursor-pointer hover:brightness-125 [background:#003264]"
                 onClick={() => handleSort('vendor')}
               >
                 <div className="flex items-center gap-1">
@@ -517,7 +517,7 @@ export default function ExpenseTable({
                 </div>
               </th>
               <th 
-                className="px-3 py-3 text-left text-xs font-medium text-white uppercase tracking-wider bg-blue-900 cursor-pointer hover:bg-blue-800"
+                className="px-3 py-3 text-left text-xs font-medium text-white uppercase tracking-wider cursor-pointer hover:brightness-125 [background:#003264]"
                 onClick={() => handleSort('purchaser')}
               >
                 <div className="flex items-center gap-1">
@@ -526,7 +526,7 @@ export default function ExpenseTable({
                 </div>
               </th>
               <th
-                className="px-3 py-3 text-left text-xs font-medium text-white uppercase tracking-wider bg-blue-900 cursor-pointer hover:bg-blue-800"
+                className="px-3 py-3 text-left text-xs font-medium text-white uppercase tracking-wider cursor-pointer hover:brightness-125 [background:#003264]"
                 onClick={() => handleSort('category')}
               >
                 <div className="flex items-center gap-1">
@@ -535,7 +535,7 @@ export default function ExpenseTable({
                 </div>
               </th>
               <th 
-                className="px-3 py-3 text-left text-xs font-medium text-white uppercase tracking-wider bg-blue-900 cursor-pointer hover:bg-blue-800"
+                className="px-3 py-3 text-left text-xs font-medium text-white uppercase tracking-wider cursor-pointer hover:brightness-125 [background:#003264]"
                 onClick={() => handleSort('branch')}
               >
                 <div className="flex items-center gap-1">
@@ -544,7 +544,7 @@ export default function ExpenseTable({
                 </div>
               </th>
               <th 
-                className="px-3 py-3 text-left text-xs font-medium text-white uppercase tracking-wider bg-blue-900 cursor-pointer hover:bg-blue-800"
+                className="px-3 py-3 text-left text-xs font-medium text-white uppercase tracking-wider cursor-pointer hover:brightness-125 [background:#003264]"
                 onClick={() => handleSort('department')}
               >
                 <div className="flex items-center gap-1">
@@ -553,7 +553,7 @@ export default function ExpenseTable({
                 </div>
               </th>
               <th 
-                className="px-3 py-3 text-right text-xs font-medium text-white uppercase tracking-wider bg-blue-900 cursor-pointer hover:bg-blue-800"
+                className="px-3 py-3 text-right text-xs font-medium text-white uppercase tracking-wider cursor-pointer hover:brightness-125 [background:#003264]"
                 onClick={() => handleSort('amount')}
               >
                 <div className="flex items-center justify-end gap-1">
@@ -562,7 +562,7 @@ export default function ExpenseTable({
                 </div>
               </th>
               <th 
-                className="px-3 py-3 text-left text-xs font-medium text-white uppercase tracking-wider bg-blue-900 cursor-pointer hover:bg-blue-800"
+                className="px-3 py-3 text-left text-xs font-medium text-white uppercase tracking-wider cursor-pointer hover:brightness-125 [background:#003264]"
                 onClick={() => handleSort('status')}
               >
                 <div className="flex items-center gap-1">
@@ -570,14 +570,14 @@ export default function ExpenseTable({
                   <SortIcon field="status" />
                 </div>
               </th>
-              <th className="px-3 py-3 text-left text-xs font-medium text-white uppercase tracking-wider bg-blue-900">
+              <th className="px-3 py-3 text-left text-xs font-medium text-white uppercase tracking-wider [background:#003264]">
                 Memo
               </th>
-              <th className="px-3 py-3 text-center text-xs font-medium text-white uppercase tracking-wider bg-blue-900">
+              <th className="px-3 py-3 text-center text-xs font-medium text-white uppercase tracking-wider [background:#003264]">
                 View
               </th>
               {showNotifyColumn && (
-                <th className="px-3 py-3 text-center text-xs font-medium text-white uppercase tracking-wider bg-blue-900">
+                <th className="px-3 py-3 text-center text-xs font-medium text-white uppercase tracking-wider [background:#003264]">
                   Notify
                 </th>
               )}
