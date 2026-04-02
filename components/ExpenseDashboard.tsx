@@ -583,6 +583,32 @@ export default function ExpenseDashboard({
     }
   };
 
+  const isReadyToReviewActive = filters.transactionType === 'Credit Card' && filters.status === 'Complete' && filters.syncStatus === 'not-synced' && filters.flagCategory.length === 0;
+
+  const handleReadyToReviewClick = () => {
+    if (isReadyToReviewActive) {
+      setFilters(prev => ({
+        ...prev,
+        transactionType: 'all',
+        status: 'all',
+        syncStatus: 'all',
+      }));
+    } else {
+      setFilters(prev => ({
+        ...prev,
+        transactionType: 'Credit Card',
+        status: 'Complete',
+        syncStatus: 'not-synced',
+        flagCategory: [],
+      }));
+    }
+  };
+
+  const readyToReviewExpenses = useMemo(() =>
+    expenses.filter(e => e.transaction_type === 'Credit Card' && e.status === 'Complete' && e.bill_sync_status !== 'SYNCED' && !e.flag_category),
+    [expenses]
+  );
+
   // Check if any non-default filters are active (excludes months)
   const activeFilterEntries = useMemo(() => {
     const defaults = getDefaultFilters();
@@ -1355,6 +1381,18 @@ export default function ExpenseDashboard({
               }`}
             >
               Ready to Sync ({readyToSyncExpenses.length})
+            </button>
+          )}
+          {isAdmin && (
+            <button
+              onClick={handleReadyToReviewClick}
+              className={`px-3 py-1 text-xs font-medium rounded-full transition-colors ${
+                isReadyToReviewActive
+                  ? 'bg-blue-800 text-white'
+                  : 'bg-blue-100 text-blue-800 hover:bg-blue-200'
+              }`}
+            >
+              Ready to Review ({readyToReviewExpenses.length})
             </button>
           )}
         </div>
