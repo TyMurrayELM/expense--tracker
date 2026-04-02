@@ -774,6 +774,9 @@ export default function ExpenseDashboard({
                           '2026-01': 'Jan 2026',
                           '2026-02': 'Feb 2026',
                           '2026-03': 'Mar 2026',
+                          '2026-04': 'Apr 2026',
+                          '2026-05': 'May 2026',
+                          '2026-06': 'Jun 2026',
                         };
                         return monthLabels[filters.months[0]] || filters.months[0];
                       })()
@@ -800,6 +803,9 @@ export default function ExpenseDashboard({
                       { value: '2026-01', label: 'January 2026' },
                       { value: '2026-02', label: 'February 2026' },
                       { value: '2026-03', label: 'March 2026' },
+                      { value: '2026-04', label: 'April 2026' },
+                      { value: '2026-05', label: 'May 2026' },
+                      { value: '2026-06', label: 'June 2026' },
                     ].map((month) => {
                       const isSelected = filters.months.includes(month.value);
                       const isAllSelected = filters.months.includes('all');
