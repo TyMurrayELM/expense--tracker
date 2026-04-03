@@ -51,6 +51,9 @@ export const DEPARTMENT_SLACK_CHANNELS: Record<string, Record<string, string>> =
     'Spray': 'C06U9K3EKT7',
     'PHC': 'C0896PY7EAF',
   },
+  'Business Development': {
+    'Business Development': 'C02KV91H44Q',
+  },
   'Test': {
     'Test Channel': 'C046RPZGEHE',
   },
