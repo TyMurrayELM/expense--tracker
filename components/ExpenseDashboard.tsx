@@ -29,6 +29,7 @@ interface FiltersState {
   dateTo: string;
   showFlagged: string;
   flagCategory: string[];
+  excludeFlagCategories: string[];
   transactionType: string;
   status: string;
   approvalStatus: string[];
@@ -94,6 +95,7 @@ export default function ExpenseDashboard({
     dateTo: '',
     showFlagged: 'all',
     flagCategory: [],
+    excludeFlagCategories: [],
     transactionType: 'all',
     status: 'all',
     approvalStatus: [],
@@ -122,6 +124,7 @@ export default function ExpenseDashboard({
         purchaser: Array.isArray(parsed.purchaser) ? parsed.purchaser : [],
         category: Array.isArray(parsed.category) ? parsed.category : [],
         flagCategory: Array.isArray(parsed.flagCategory) ? parsed.flagCategory : [],
+        excludeFlagCategories: Array.isArray(parsed.excludeFlagCategories) ? parsed.excludeFlagCategories : [],
         approvalStatus: Array.isArray(parsed.approvalStatus) ? parsed.approvalStatus : [],
       };
     } catch (error) {
@@ -304,6 +307,11 @@ export default function ExpenseDashboard({
 
       // Flag category filter (multi-select)
       if (filters.flagCategory.length > 0 && (!expense.flag_category || !filters.flagCategory.includes(expense.flag_category))) {
+        return false;
+      }
+
+      // Exclude flag categories filter
+      if (filters.excludeFlagCategories.length > 0 && expense.flag_category && filters.excludeFlagCategories.includes(expense.flag_category)) {
         return false;
       }
 
@@ -546,6 +554,7 @@ export default function ExpenseDashboard({
       dateTo: '',
       showFlagged: 'all',
       flagCategory: [],
+      excludeFlagCategories: [],
       transactionType: 'all',
       status: 'all',
       approvalStatus: [],
@@ -583,7 +592,7 @@ export default function ExpenseDashboard({
     }
   };
 
-  const isReadyToReviewActive = filters.transactionType === 'Credit Card' && filters.status === 'Complete' && filters.syncStatus === 'not-synced' && filters.flagCategory.length === 0;
+  const isReadyToReviewActive = filters.transactionType === 'Credit Card' && filters.status === 'Complete' && filters.syncStatus === 'not-synced' && filters.flagCategory.length === 0 && filters.excludeFlagCategories.includes('Has WO #');
 
   const handleReadyToReviewClick = () => {
     if (isReadyToReviewActive) {
@@ -592,6 +601,7 @@ export default function ExpenseDashboard({
         transactionType: 'all',
         status: 'all',
         syncStatus: 'all',
+        excludeFlagCategories: [],
       }));
     } else {
       setFilters(prev => ({
@@ -600,12 +610,13 @@ export default function ExpenseDashboard({
         status: 'Complete',
         syncStatus: 'not-synced',
         flagCategory: [],
+        excludeFlagCategories: ['Has WO #'],
       }));
     }
   };
 
   const readyToReviewExpenses = useMemo(() =>
-    expenses.filter(e => e.transaction_type === 'Credit Card' && e.status === 'Complete' && e.bill_sync_status !== 'SYNCED' && (!e.flag_category || e.flag_category === 'Has WO #')),
+    expenses.filter(e => e.transaction_type === 'Credit Card' && e.status === 'Complete' && e.bill_sync_status !== 'SYNCED' && !e.flag_category),
     [expenses]
   );
 
