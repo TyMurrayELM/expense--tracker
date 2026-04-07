@@ -605,7 +605,7 @@ export default function ExpenseDashboard({
   };
 
   const readyToReviewExpenses = useMemo(() =>
-    expenses.filter(e => e.transaction_type === 'Credit Card' && e.status === 'Complete' && e.bill_sync_status !== 'SYNCED' && !e.flag_category),
+    expenses.filter(e => e.transaction_type === 'Credit Card' && e.status === 'Complete' && e.bill_sync_status !== 'SYNCED' && (!e.flag_category || e.flag_category === 'Has WO #')),
     [expenses]
   );
 
