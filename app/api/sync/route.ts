@@ -47,7 +47,7 @@ export async function POST() {
     const nsClient = createNetSuiteClient();
 
     // Fetch all bill data + expense lines + vendor names in one bulk SuiteQL query
-    const fromDate = '2026-03-01';
+    const fromDate = '2026-04-01';
     console.log('Fetching vendor bills with details from NetSuite...');
 
     const allBills = await nsClient.searchVendorBillsFull(fromDate);
@@ -62,7 +62,7 @@ export async function POST() {
       .from('expenses')
       .select('netsuite_id, flag_category, approval_status, approval_modified_by, approval_modified_at')
       .eq('transaction_type', 'Vendor Bill')
-      .gte('transaction_date', '2026-03-01')
+      .gte('transaction_date', '2026-04-01')
       .not('netsuite_id', 'like', '%-%');
 
     // Save flags from old-format records keyed by bill ID
