@@ -41,7 +41,7 @@ export async function POST() {
     const billClient = createBillClient();
     console.log('Bill.com client initialized');
 
-    // Calculate days back from Mar 1, 2026 to today
+    // Calculate days back from Apr 1, 2026 to today
     const apr1 = new Date('2026-04-01');
     const today = new Date();
     const daysBack = Math.ceil((today.getTime() - apr1.getTime()) / (1000 * 60 * 60 * 24));
