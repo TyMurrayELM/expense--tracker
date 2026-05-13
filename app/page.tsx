@@ -1,7 +1,7 @@
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { redirect } from 'next/navigation';
-import { supabase, supabaseAdmin } from '@/lib/supabase';
+import { supabaseAdmin } from '@/lib/supabase';
 import PageWrapper from '@/components/PageWrapper';
 import { Expense } from '@/types/expense';
 
@@ -38,23 +38,51 @@ async function getExpenses() {
 }
 
 async function getFilterOptions() {
-  // Get unique vendors
-  const { data: vendorData } = await supabase
-    .from('expenses')
-    .select('vendor_name')
-    .gte('transaction_date', '2025-10-01');
+  const PAGE_SIZE = 1000;
 
-  // Get unique purchasers (cardholders)
-  const { data: purchaserData } = await supabase
-    .from('expenses')
-    .select('cardholder')
-    .not('cardholder', 'is', null)
-    .gte('transaction_date', '2025-10-01');
+  const vendorSet = new Set<string>();
+  let offset = 0;
+  while (true) {
+    const { data, error } = await supabaseAdmin
+      .from('expenses')
+      .select('vendor_name')
+      .gte('transaction_date', '2025-10-01')
+      .range(offset, offset + PAGE_SIZE - 1);
+    if (error) {
+      console.error('Error fetching vendors for filter options:', error);
+      break;
+    }
+    if (!data || data.length === 0) break;
+    for (const row of data) {
+      if (row.vendor_name) vendorSet.add(row.vendor_name);
+    }
+    if (data.length < PAGE_SIZE) break;
+    offset += PAGE_SIZE;
+  }
 
-  const vendors = [...new Set(vendorData?.map(d => d.vendor_name) || [])]
-    .filter(v => !EXCLUDED_VENDORS.includes(v))
-    .sort();
-  const purchasers = [...new Set(purchaserData?.map(d => d.cardholder) || [])].sort();
+  const purchaserSet = new Set<string>();
+  offset = 0;
+  while (true) {
+    const { data, error } = await supabaseAdmin
+      .from('expenses')
+      .select('cardholder')
+      .not('cardholder', 'is', null)
+      .gte('transaction_date', '2025-10-01')
+      .range(offset, offset + PAGE_SIZE - 1);
+    if (error) {
+      console.error('Error fetching purchasers for filter options:', error);
+      break;
+    }
+    if (!data || data.length === 0) break;
+    for (const row of data) {
+      if (row.cardholder) purchaserSet.add(row.cardholder);
+    }
+    if (data.length < PAGE_SIZE) break;
+    offset += PAGE_SIZE;
+  }
+
+  const vendors = [...vendorSet].filter(v => !EXCLUDED_VENDORS.includes(v)).sort();
+  const purchasers = [...purchaserSet].sort();
 
   return { vendors, purchasers };
 }

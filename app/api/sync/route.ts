@@ -284,7 +284,7 @@ export async function POST() {
         records_created: recordsCreated,
         records_updated: recordsUpdated,
         errors: errors.length > 0 ? errors : null,
-        status: errors.length === bills.length ? 'failed' : errors.length > 0 ? 'partial' : 'success',
+        status: bills.length > 0 && errors.length === bills.length ? 'failed' : errors.length > 0 ? 'partial' : 'success',
       })
       .eq('id', syncLog.id);
 

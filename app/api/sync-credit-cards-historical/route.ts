@@ -211,9 +211,9 @@ export async function POST() {
         const vendorName = transaction.merchantName || 'Unknown Merchant';
         const cardholderName = userMapping[transaction.userId] || 'Unknown User';
         
-        let amount = transaction.amount;
+        const amount = transaction.amount;
         if (amount > 10000) {
-          amount = amount / 100;
+          console.warn(`Large transaction amount $${amount} for ${vendorName} (id ${transaction.id}) — verify Bill.com is returning dollars, not cents`);
         }
 
         // Get memo from custom fields - leave blank if not provided
@@ -361,7 +361,7 @@ export async function POST() {
         records_created: recordsCreated,
         records_updated: recordsUpdated,
         errors: errors.length > 0 ? errors : null,
-        status: errors.length === allTransactions.length ? 'failed' : errors.length > 0 ? 'partial' : 'success',
+        status: allTransactions.length > 0 && errors.length === allTransactions.length ? 'failed' : errors.length > 0 ? 'partial' : 'success',
       })
       .eq('id', syncLog.id);
 

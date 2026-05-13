@@ -171,10 +171,9 @@ export class BillClient {
   ): Promise<BillTransaction[]> {
     const transactions: BillTransaction[] = [];
     
-    // Calculate start date
-    const today = new Date();
-    const startDate = new Date(today);
-    startDate.setDate(startDate.getDate() - daysBack);
+    // Calculate start date (UTC math — toISOString below converts to UTC, so mixing local setDate causes off-by-one near midnight)
+    const startDate = new Date();
+    startDate.setUTCDate(startDate.getUTCDate() - daysBack);
     const startDateStr = startDate.toISOString().split('T')[0];
 
     // Build filters with syncStatus
@@ -227,10 +226,9 @@ export class BillClient {
     syncStatus: 'SYNCED' | 'MANUAL_SYNCED' | 'NOT_SYNCED' | 'ERROR'
   ): Promise<BillTransaction[]> {
     const transactions: BillTransaction[] = [];
-    
-    const today = new Date();
-    const startDate = new Date(today);
-    startDate.setDate(startDate.getDate() - daysBack);
+
+    const startDate = new Date();
+    startDate.setUTCDate(startDate.getUTCDate() - daysBack);
     const startDateStr = startDate.toISOString().split('T')[0];
 
     const filters = `occurredTime:gte:${startDateStr},syncStatus:eq:${syncStatus}`;
@@ -270,125 +268,6 @@ export class BillClient {
 
     const filtered = transactions.filter(t => t.transactionType === 'CLEAR');
     console.log(`Fetched ${transactions.length} total transactions with syncStatus=${syncStatus}, filtered to ${filtered.length} CLEAR transactions`);
-    
-    return filtered;
-  }
-
-  /**
-   * Fetch all transactions with automatic pagination
-   * DEPRECATED: Use fetchTransactionsBySyncStatus for better sync status coverage
-   */
-  async fetchAllTransactions(
-    daysBack: number = 8,
-    includeIncomplete: boolean = true
-  ): Promise<BillTransaction[]> {
-    const transactions: BillTransaction[] = [];
-    
-    // Calculate start date
-    const today = new Date();
-    const startDate = new Date(today);
-    startDate.setDate(startDate.getDate() - daysBack);
-    const startDateStr = startDate.toISOString().split('T')[0];
-
-    let filters = `occurredTime:gte:${startDateStr}`;
-    if (!includeIncomplete) {
-      filters = `complete:eq:true,${filters}`;
-    }
-
-    let currentOptions: any = {
-      max: 25,
-      filters: filters
-    };
-
-    let pageCount = 0;
-    const maxPages = 20;
-
-    while (pageCount < maxPages) {
-      pageCount++;
-      
-      const response = await this.getTransactions(currentOptions);
-      
-      if (response.results && response.results.length > 0) {
-        transactions.push(...response.results);
-        
-        if (response.nextPage) {
-          currentOptions.nextPage = response.nextPage;
-          await new Promise(resolve => setTimeout(resolve, 500));
-        } else {
-          break;
-        }
-      } else {
-        break;
-      }
-    }
-
-    const filtered = transactions.filter(t => t.transactionType === 'CLEAR');
-    console.log(`Fetched ${transactions.length} total transactions, filtered to ${filtered.length} CLEAR (posted) transactions`);
-    
-    return filtered;
-  }
-
-  /**
-   * Fetch all transactions for historical import (higher page limit)
-   * DEPRECATED: Use fetchTransactionsBySyncStatusHistorical for better sync status coverage
-   */
-  async fetchAllTransactionsHistorical(
-    daysBack: number
-  ): Promise<BillTransaction[]> {
-    const transactions: BillTransaction[] = [];
-    
-    const today = new Date();
-    const startDate = new Date(today);
-    startDate.setDate(startDate.getDate() - daysBack);
-    const startDateStr = startDate.toISOString().split('T')[0];
-
-    const filters = `occurredTime:gte:${startDateStr}`;
-
-    let currentOptions: any = {
-      max: 50,
-      filters: filters
-    };
-
-    let pageCount = 0;
-    const maxPages = 100;
-
-    console.log(`Starting historical fetch from ${startDateStr} (${daysBack} days)`);
-
-    while (pageCount < maxPages) {
-      pageCount++;
-      
-      if (pageCount % 10 === 0) {
-        console.log(`Fetching page ${pageCount} of transactions...`);
-      }
-      
-      const response = await this.getTransactions(currentOptions);
-      
-      if (response.results && response.results.length > 0) {
-        transactions.push(...response.results);
-        
-        if (pageCount % 10 === 0) {
-          console.log(`Progress: ${transactions.length} transactions fetched so far...`);
-        }
-        
-        if (response.nextPage) {
-          currentOptions.nextPage = response.nextPage;
-          await new Promise(resolve => setTimeout(resolve, 300));
-        } else {
-          console.log(`Completed pagination. Total pages: ${pageCount}`);
-          break;
-        }
-      } else {
-        console.log('No results in current page');
-        break;
-      }
-    }
-
-    if (pageCount >= maxPages) {
-      console.log(`⚠️  Reached max page limit of ${maxPages}. There may be more transactions to fetch.`);
-    }
-
-    const filtered = transactions.filter(t => t.transactionType === 'CLEAR');
-    console.log(`Fetched ${transactions.length} total transactions, filtered to ${filtered.length} CLEAR (posted) transactions`);
     
     return filtered;
   }
