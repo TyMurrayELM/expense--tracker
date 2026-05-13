@@ -121,43 +121,53 @@ export async function POST() {
     if (branchUuid) console.log(`✓ Branch field found`);
     if (departmentUuid) console.log(`✓ Department field found`);
 
-    // CRITICAL FIX: Batch the flag fetching to avoid connection issues with large queries
-    console.log('Fetching existing flags for preservation...');
+    // Batch the existing-record fetching to avoid connection issues with large queries.
+    // Map holds the full set of fields we preserve across syncs (flag + approval state).
+    console.log('Fetching existing records for flag/approval preservation and change detection...');
     const netsuiteIds = allTransactions.map(t => `BILL-${t.transaction.id}`);
     console.log(`Built ${netsuiteIds.length} NetSuite IDs to check`);
-    
-    const batchSize = 100; // Conservative batch size to avoid connection issues
-    const existingFlagsMap = new Map<string, string | null>();
-    
+
+    interface PreservedFields {
+      flag_category: string | null;
+      approval_status: string | null;
+      approval_modified_by: string | null;
+      approval_modified_at: string | null;
+    }
+    const batchSize = 100;
+    const existingMap = new Map<string, PreservedFields>();
+
     for (let i = 0; i < netsuiteIds.length; i += batchSize) {
       const batch = netsuiteIds.slice(i, i + batchSize);
-      
+
       try {
-        const { data: batchFlags, error: flagError } = await supabaseAdmin
+        const { data: batchRows, error: fetchError } = await supabaseAdmin
           .from('expenses')
-          .select('netsuite_id, flag_category')
+          .select('netsuite_id, flag_category, approval_status, approval_modified_by, approval_modified_at')
           .in('netsuite_id', batch);
-        
-        if (flagError) {
-          console.error(`Error fetching batch ${Math.floor(i / batchSize) + 1}:`, flagError);
+
+        if (fetchError) {
+          console.error(`Error fetching batch ${Math.floor(i / batchSize) + 1}:`, fetchError);
         } else {
-          (batchFlags || []).forEach(e => {
-            existingFlagsMap.set(e.netsuite_id, e.flag_category);
+          (batchRows || []).forEach(e => {
+            existingMap.set(e.netsuite_id, {
+              flag_category: e.flag_category,
+              approval_status: e.approval_status,
+              approval_modified_by: e.approval_modified_by,
+              approval_modified_at: e.approval_modified_at,
+            });
           });
         }
       } catch (batchError: any) {
         console.error(`Exception in batch ${Math.floor(i / batchSize) + 1}:`, batchError.message);
       }
-      
+
       if (i + batchSize < netsuiteIds.length) {
         console.log(`  Checked ${Math.min(i + batchSize, netsuiteIds.length)}/${netsuiteIds.length} transactions...`);
       }
     }
-    
-    console.log(`✓ Loaded ${existingFlagsMap.size} existing records into map`);
-    
-    // Count records with actual flags
-    const recordsWithActualFlags = Array.from(existingFlagsMap.values()).filter(v => v !== null).length;
+
+    console.log(`✓ Loaded ${existingMap.size} existing records into map`);
+    const recordsWithActualFlags = Array.from(existingMap.values()).filter(v => v.flag_category !== null).length;
     console.log(`Records with non-null flags: ${recordsWithActualFlags}`);
 
     let recordsCreated = 0;
@@ -267,20 +277,26 @@ export async function POST() {
 
         const status = transaction.complete ? 'Complete' : 'Incomplete';
 
-        // FLAG PRESERVATION LOGIC: Check if record exists with a manually-set flag
+        // Preserve flag + approval state across syncs.
         const netsuiteId = `BILL-${transaction.id}`;
-        const existingFlag = existingFlagsMap.get(netsuiteId);
-        
-        let flagCategory = null;
-        if (existingFlag) {
-          // Preserve existing flag - user manually set it
-          flagCategory = existingFlag;
-          flagsPreserved++;
-        } else {
-          // Only auto-flag new records or records without flags
-          if (category && category.toLowerCase().includes('reimburse')) {
-            flagCategory = 'Needs Review';
+        const existing = existingMap.get(netsuiteId);
+
+        let flagCategory: string | null = null;
+        let approvalStatus: string | null = null;
+        let approvalModifiedBy: string | null = null;
+        let approvalModifiedAt: string | null = null;
+
+        if (existing) {
+          flagCategory = existing.flag_category;
+          approvalStatus = existing.approval_status;
+          approvalModifiedBy = existing.approval_modified_by;
+          approvalModifiedAt = existing.approval_modified_at;
+          if (existing.flag_category || existing.approval_status) {
+            flagsPreserved++;
           }
+        } else if (category && category.toLowerCase().includes('reimburse')) {
+          // Auto-flag new reimbursable transactions
+          flagCategory = 'Needs Review';
         }
 
         // Use the known sync status from our filtered queries
@@ -308,6 +324,9 @@ export async function POST() {
           transaction_type: 'Credit Card',
           cardholder: cardholderName,
           flag_category: flagCategory,
+          approval_status: approvalStatus,
+          approval_modified_by: approvalModifiedBy,
+          approval_modified_at: approvalModifiedAt,
           bill_sync_status: billSyncStatus,
           last_synced_at: new Date().toISOString(),
         };
@@ -325,18 +344,10 @@ export async function POST() {
             vendor: vendorName,
             error: upsertError.message,
           });
+        } else if (existing) {
+          recordsUpdated++;
         } else {
-          const { data: existing } = await supabaseAdmin
-            .from('expenses')
-            .select('created_at, updated_at')
-            .eq('netsuite_id', netsuiteId)
-            .single();
-
-          if (existing && existing.created_at === existing.updated_at) {
-            recordsCreated++;
-          } else {
-            recordsUpdated++;
-          }
+          recordsCreated++;
         }
       } catch (error: any) {
         console.error(`Error processing transaction ${transaction.id}:`, error);

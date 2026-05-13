@@ -56,7 +56,16 @@ export async function POST() {
     );
     console.log(`Found ${allBills.length} expense line rows, ${allBills.length - bills.length} excluded by category, ${bills.length} to sync`);
 
+    // Build netsuite_id for each row: {billId}-{lineNumber} or {billId} if no line
+    const newNetsuiteIds = bills.map((bill: any) =>
+      bill.linesequencenumber != null
+        ? `${bill.id}-${bill.linesequencenumber}`
+        : bill.id.toString()
+    );
+    const newIdsSet = new Set(newNetsuiteIds);
+
     // --- Old-record cleanup: migrate old single-record-per-bill format for Feb+ ---
+    // Skip IDs that this sync will reinsert (e.g., a bill with no expense lines whose new id is also bare).
     console.log('Checking for old-format Feb+ records to migrate...');
     const { data: oldFormatRecords } = await supabaseAdmin
       .from('expenses')
@@ -65,10 +74,10 @@ export async function POST() {
       .gte('transaction_date', '2026-04-01')
       .not('netsuite_id', 'like', '%-%');
 
-    // Save flags from old-format records keyed by bill ID
     const oldFlagsMap = new Map<string, any>();
-    if (oldFormatRecords && oldFormatRecords.length > 0) {
-      for (const rec of oldFormatRecords) {
+    const oldToDelete = (oldFormatRecords || []).filter(r => !newIdsSet.has(r.netsuite_id));
+    if (oldToDelete.length > 0) {
+      for (const rec of oldToDelete) {
         oldFlagsMap.set(rec.netsuite_id, {
           flag_category: rec.flag_category,
           approval_status: rec.approval_status,
@@ -76,8 +85,8 @@ export async function POST() {
           approval_modified_at: rec.approval_modified_at,
         });
       }
-      console.log(`Found ${oldFormatRecords.length} old-format records, deleting...`);
-      const oldIds = oldFormatRecords.map(r => r.netsuite_id);
+      console.log(`Found ${oldToDelete.length} old-format records, deleting...`);
+      const oldIds = oldToDelete.map(r => r.netsuite_id);
       for (let i = 0; i < oldIds.length; i += 500) {
         const batch = oldIds.slice(i, i + 500);
         await supabaseAdmin.from('expenses').delete().in('netsuite_id', batch);
@@ -86,13 +95,6 @@ export async function POST() {
     } else {
       console.log('No old-format records to migrate');
     }
-
-    // Build netsuite_id for each row: {billId}-{lineNumber} or {billId} if no line
-    const newNetsuiteIds = bills.map((bill: any) =>
-      bill.linesequencenumber != null
-        ? `${bill.id}-${bill.linesequencenumber}`
-        : bill.id.toString()
-    );
 
     // Fetch existing records for flag preservation and change detection
     console.log('Fetching existing records...');

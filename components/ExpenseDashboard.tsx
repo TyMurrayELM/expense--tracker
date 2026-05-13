@@ -606,6 +606,8 @@ export default function ExpenseDashboard({
     } else {
       setFilters(prev => ({
         ...prev,
+        // Show all months so the table matches the global badge count
+        months: ['all'],
         transactionType: 'Credit Card',
         status: 'Complete',
         syncStatus: 'not-synced',
@@ -615,8 +617,14 @@ export default function ExpenseDashboard({
     }
   };
 
+  // Mirrors the filter set by handleReadyToReviewClick so the badge count matches what clicking will show.
   const readyToReviewExpenses = useMemo(() =>
-    expenses.filter(e => e.transaction_type === 'Credit Card' && e.status === 'Complete' && e.bill_sync_status !== 'SYNCED' && !e.flag_category),
+    expenses.filter(e =>
+      e.transaction_type === 'Credit Card' &&
+      e.status === 'Complete' &&
+      e.bill_sync_status !== 'SYNCED' &&
+      e.flag_category !== 'Has WO #'
+    ),
     [expenses]
   );
 
