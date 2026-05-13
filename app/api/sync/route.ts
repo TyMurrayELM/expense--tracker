@@ -223,7 +223,56 @@ export async function POST() {
       }
     }
 
-    console.log(`✓ Processing complete: ${recordsCreated} created, ${recordsUpdated} updated`);
+    // --- Delete stragglers: vendor bills in Supabase (in date range) no longer in NetSuite ---
+    // Safety: skip cleanup if NetSuite returned nothing (likely a transient error, not "all bills deleted")
+    let recordsDeleted = 0;
+    if (allBills.length === 0) {
+      console.log('Skipping straggler cleanup — NetSuite returned 0 bills (likely transient error)');
+    } else {
+    console.log('Checking for deleted/stale vendor bills to remove...');
+    const returnedIds = new Set(newNetsuiteIds);
+    const allDbIds: string[] = [];
+    let pageStart = 0;
+    const PAGE = 1000;
+    while (true) {
+      const { data: page, error: pageError } = await supabaseAdmin
+        .from('expenses')
+        .select('netsuite_id')
+        .eq('transaction_type', 'Vendor Bill')
+        .gte('transaction_date', fromDate)
+        .range(pageStart, pageStart + PAGE - 1);
+      if (pageError) {
+        console.error('Failed to fetch existing db ids for cleanup:', pageError.message);
+        break;
+      }
+      if (!page || page.length === 0) break;
+      allDbIds.push(...page.map(r => r.netsuite_id));
+      if (page.length < PAGE) break;
+      pageStart += PAGE;
+    }
+
+    const stragglers = allDbIds.filter(id => !returnedIds.has(id));
+    if (stragglers.length > 0) {
+      console.log(`Found ${stragglers.length} stragglers to delete (no longer in NetSuite)`);
+      for (let i = 0; i < stragglers.length; i += 500) {
+        const batch = stragglers.slice(i, i + 500);
+        const { error: deleteError } = await supabaseAdmin
+          .from('expenses')
+          .delete()
+          .in('netsuite_id', batch);
+        if (deleteError) {
+          console.error(`Failed to delete straggler batch at offset ${i}:`, deleteError.message);
+        } else {
+          recordsDeleted += batch.length;
+        }
+      }
+      console.log(`Deleted ${recordsDeleted} stale records`);
+    } else {
+      console.log('No stragglers to delete');
+    }
+    }
+
+    console.log(`✓ Processing complete: ${recordsCreated} created, ${recordsUpdated} updated, ${recordsDeleted} deleted`);
     console.log(`Flags preserved: ${flagsPreserved}`);
 
     // Update sync log
@@ -241,11 +290,12 @@ export async function POST() {
 
     return NextResponse.json({
       success: true,
-      message: `Vendor bill sync completed: ${recordsCreated} created, ${recordsUpdated} updated, ${flagsPreserved} flags preserved`,
+      message: `Vendor bill sync completed: ${recordsCreated} created, ${recordsUpdated} updated, ${recordsDeleted} deleted, ${flagsPreserved} flags preserved`,
       stats: {
         fetched: bills.length,
         created: recordsCreated,
         updated: recordsUpdated,
+        deleted: recordsDeleted,
         flagsPreserved: flagsPreserved,
         errors: errors.length,
       },
