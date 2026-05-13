@@ -205,28 +205,41 @@ export async function POST() {
       return branchName;
     };
 
-    console.log(`Processing ${allTransactions.length} transactions...`);
-    let processedCount = 0;
+    console.log(`Building ${allTransactions.length} expense rows...`);
 
-    // Process each transaction
+    // Build expense data + tally created/updated/preserved counts.
+    interface ExpenseRow {
+      netsuite_id: string;
+      transaction_date: string;
+      vendor_name: string;
+      amount: number;
+      currency: string;
+      status: string;
+      department: string | null;
+      branch: string | null;
+      memo: string | null;
+      category: string | null;
+      transaction_type: string;
+      cardholder: string;
+      flag_category: string | null;
+      approval_status: string | null;
+      approval_modified_by: string | null;
+      approval_modified_at: string | null;
+      bill_sync_status: string | null;
+      last_synced_at: string;
+    }
+    const expenseDataList: ExpenseRow[] = [];
+
     for (const { transaction, knownSyncStatus } of allTransactions) {
-      processedCount++;
-      
-      // Log progress every 100 transactions for historical import
-      if (processedCount % 100 === 0) {
-        console.log(`Progress: ${processedCount}/${allTransactions.length} transactions processed...`);
-      }
-
       try {
         const vendorName = transaction.merchantName || 'Unknown Merchant';
         const cardholderName = userMapping[transaction.userId] || 'Unknown User';
-        
+
         const amount = transaction.amount;
         if (amount > 10000) {
           console.warn(`Large transaction amount $${amount} for ${vendorName} (id ${transaction.id}) — verify Bill.com is returning dollars, not cents`);
         }
 
-        // Get memo from custom fields - leave blank if not provided
         let memo = null;
         if (transaction.customFields && transaction.customFields.length > 0) {
           const descriptionField = transaction.customFields.find((cf: any) => cf.note);
@@ -235,27 +248,16 @@ export async function POST() {
           }
         }
 
-        // Get Purchase Category from custom fields - leave blank if not provided
         let category = null;
         if (purchaseCategoryUuid) {
-          const purchaseCategory = billClient.extractCustomFieldValue(
-            transaction,
-            purchaseCategoryUuid
-          );
-          if (purchaseCategory) {
-            category = purchaseCategory;
-          }
+          const purchaseCategory = billClient.extractCustomFieldValue(transaction, purchaseCategoryUuid);
+          if (purchaseCategory) category = purchaseCategory;
         }
 
         let branch = null;
         if (branchUuid) {
-          const branchValue = billClient.extractCustomFieldValue(
-            transaction,
-            branchUuid
-          );
-          if (branchValue) {
-            branch = normalizeBranchName(branchValue);
-          }
+          const branchValue = billClient.extractCustomFieldValue(transaction, branchUuid);
+          if (branchValue) branch = normalizeBranchName(branchValue);
         }
         if (!branch && transaction.budgetId) {
           const budgetId = transaction.budgetId;
@@ -266,18 +268,12 @@ export async function POST() {
 
         let department = null;
         if (departmentUuid) {
-          const departmentValue = billClient.extractCustomFieldValue(
-            transaction,
-            departmentUuid
-          );
-          if (departmentValue) {
-            department = departmentValue;
-          }
+          const departmentValue = billClient.extractCustomFieldValue(transaction, departmentUuid);
+          if (departmentValue) department = departmentValue;
         }
 
         const status = transaction.complete ? 'Complete' : 'Incomplete';
 
-        // Preserve flag + approval state across syncs.
         const netsuiteId = `BILL-${transaction.id}`;
         const existing = existingMap.get(netsuiteId);
 
@@ -291,36 +287,30 @@ export async function POST() {
           approvalStatus = existing.approval_status;
           approvalModifiedBy = existing.approval_modified_by;
           approvalModifiedAt = existing.approval_modified_at;
-          if (existing.flag_category || existing.approval_status) {
-            flagsPreserved++;
-          }
+          if (existing.flag_category || existing.approval_status) flagsPreserved++;
         } else if (category && category.toLowerCase().includes('reimburse')) {
-          // Auto-flag new reimbursable transactions
           flagCategory = 'Needs Review';
         }
 
-        // Use the known sync status from our filtered queries
         const billSyncStatus = knownSyncStatus;
-        
-        if (billSyncStatus === 'SYNCED') {
-          syncStatusBreakdown['SYNCED']++;
-        } else if (billSyncStatus === 'ERROR') {
-          syncStatusBreakdown['ERROR']++;
-        } else {
-          syncStatusBreakdown['NOT_SYNCED']++;
-        }
+        if (billSyncStatus === 'SYNCED') syncStatusBreakdown['SYNCED']++;
+        else if (billSyncStatus === 'ERROR') syncStatusBreakdown['ERROR']++;
+        else syncStatusBreakdown['NOT_SYNCED']++;
 
-        const expenseData = {
+        if (existing) recordsUpdated++;
+        else recordsCreated++;
+
+        expenseDataList.push({
           netsuite_id: netsuiteId,
           transaction_date: transaction.occurredTime.split('T')[0],
           vendor_name: vendorName,
           amount: parseFloat(amount.toString()) || 0,
           currency: 'USD',
-          status: status,
-          department: department,
-          branch: branch,
-          memo: memo,
-          category: category,
+          status,
+          department,
+          branch,
+          memo,
+          category,
           transaction_type: 'Credit Card',
           cardholder: cardholderName,
           flag_category: flagCategory,
@@ -329,34 +319,51 @@ export async function POST() {
           approval_modified_at: approvalModifiedAt,
           bill_sync_status: billSyncStatus,
           last_synced_at: new Date().toISOString(),
-        };
-
-        const { error: upsertError } = await supabaseAdmin
-          .from('expenses')
-          .upsert(expenseData, {
-            onConflict: 'netsuite_id',
-            ignoreDuplicates: false,
-          });
-
-        if (upsertError) {
-          errors.push({
-            transaction_id: transaction.id,
-            vendor: vendorName,
-            error: upsertError.message,
-          });
-        } else if (existing) {
-          recordsUpdated++;
-        } else {
-          recordsCreated++;
-        }
+        });
       } catch (error: any) {
         console.error(`Error processing transaction ${transaction.id}:`, error);
         errors.push({
+          netsuite_id: `BILL-${transaction.id}`,
           transaction_id: transaction.id,
           vendor: transaction.merchantName,
           error: error.message,
         });
       }
+    }
+
+    // Batch upsert (with per-record fallback on failure)
+    console.log(`Upserting ${expenseDataList.length} records...`);
+    const UPSERT_BATCH = 200;
+    for (let i = 0; i < expenseDataList.length; i += UPSERT_BATCH) {
+      const batch = expenseDataList.slice(i, i + UPSERT_BATCH);
+      const { error: batchError } = await supabaseAdmin
+        .from('expenses')
+        .upsert(batch, { onConflict: 'netsuite_id', ignoreDuplicates: false });
+
+      if (batchError) {
+        console.log(`Batch upsert failed at offset ${i}, falling back to per-record...`);
+        for (const item of batch) {
+          const { error: itemError } = await supabaseAdmin
+            .from('expenses')
+            .upsert(item, { onConflict: 'netsuite_id', ignoreDuplicates: false });
+          if (itemError) {
+            errors.push({
+              netsuite_id: item.netsuite_id,
+              vendor: item.vendor_name,
+              error: itemError.message,
+            });
+          }
+        }
+      } else if ((i / UPSERT_BATCH) % 5 === 0 && i + UPSERT_BATCH < expenseDataList.length) {
+        console.log(`  Upserted ${i + batch.length}/${expenseDataList.length} records...`);
+      }
+    }
+
+    // Decrement created/updated for any rows that failed to persist
+    const errorIds = new Set(errors.map(e => e.netsuite_id).filter(Boolean));
+    for (const eid of errorIds) {
+      if (existingMap.has(eid)) recordsUpdated--;
+      else recordsCreated--;
     }
 
     console.log(`✓ Processing complete: ${recordsCreated} created, ${recordsUpdated} updated`);
