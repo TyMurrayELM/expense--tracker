@@ -592,7 +592,7 @@ export default function ExpenseDashboard({
     }
   };
 
-  const isReadyToReviewActive = filters.transactionType === 'Credit Card' && filters.status === 'Complete' && filters.syncStatus === 'not-synced' && filters.flagCategory.length === 0 && filters.excludeFlagCategories.includes('Has WO #');
+  const isReadyToReviewActive = filters.transactionType === 'Credit Card' && filters.status === 'Complete' && filters.syncStatus === 'not-synced' && filters.flagCategory.length === 0 && filters.excludeFlagCategories.includes('Has WO #') && filters.excludeFlagCategories.includes('Good to Sync');
 
   const handleReadyToReviewClick = () => {
     if (isReadyToReviewActive) {
@@ -612,7 +612,7 @@ export default function ExpenseDashboard({
         status: 'Complete',
         syncStatus: 'not-synced',
         flagCategory: [],
-        excludeFlagCategories: ['Has WO #'],
+        excludeFlagCategories: ['Has WO #', 'Good to Sync'],
       }));
     }
   };
@@ -623,7 +623,8 @@ export default function ExpenseDashboard({
       e.transaction_type === 'Credit Card' &&
       e.status === 'Complete' &&
       e.bill_sync_status !== 'SYNCED' &&
-      e.flag_category !== 'Has WO #'
+      e.flag_category !== 'Has WO #' &&
+      e.flag_category !== 'Good to Sync'
     ),
     [expenses]
   );
