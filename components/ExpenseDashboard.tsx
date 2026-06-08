@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useMemo, useEffect, useRef } from 'react';
-import { Expense } from '@/types/expense';
+import { Expense, isBillSynced } from '@/types/expense';
 import ExpenseTable from './ExpenseTable';
 import FilterBar from './FilterBar';
 import KPICard from './KPICard';
@@ -337,10 +337,10 @@ export default function ExpenseDashboard({
       if (filters.syncStatus !== 'all') {
         // Only filter credit card transactions by sync status
         if (expense.transaction_type === 'Credit Card') {
-          if (filters.syncStatus === 'synced' && expense.bill_sync_status !== 'SYNCED') {
+          if (filters.syncStatus === 'synced' && !isBillSynced(expense.bill_sync_status)) {
             return false;
           }
-          if (filters.syncStatus === 'not-synced' && expense.bill_sync_status === 'SYNCED') {
+          if (filters.syncStatus === 'not-synced' && isBillSynced(expense.bill_sync_status)) {
             return false;
           }
         }
@@ -434,7 +434,7 @@ export default function ExpenseDashboard({
   }, [filteredExpenses]);
 
   const readyToSyncExpenses = useMemo(() =>
-    expenses.filter(e => e.transaction_type === 'Credit Card' && e.status === 'Complete' && e.bill_sync_status !== 'SYNCED' && e.flag_category === 'Good to Sync'),
+    expenses.filter(e => e.transaction_type === 'Credit Card' && e.status === 'Complete' && !isBillSynced(e.bill_sync_status) && e.flag_category === 'Good to Sync'),
     [expenses]
   );
 
@@ -622,7 +622,7 @@ export default function ExpenseDashboard({
     filteredExpenses.filter(e =>
       e.transaction_type === 'Credit Card' &&
       e.status === 'Complete' &&
-      e.bill_sync_status !== 'SYNCED' &&
+      !isBillSynced(e.bill_sync_status) &&
       e.flag_category !== 'Has WO #' &&
       e.flag_category !== 'Good to Sync'
     ),

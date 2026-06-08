@@ -142,8 +142,14 @@ export class NetSuiteClient {
     try {
       const allRows: any[] = [];
       const PAGE_SIZE = 1000;
-      const MAX_PAGES = 10;
+      // Safety bound far above any realistic expense-line-row count. This query
+      // returns one row per expense line, so the total can be several times the
+      // bill count. If we ever hit this cap we throw (below) rather than silently
+      // truncating: a partial result would make the caller treat the missing
+      // bills as deleted "stragglers" and remove them from Supabase.
+      const MAX_PAGES = 200;
 
+      let complete = false;
       for (let page = 0; page < MAX_PAGES; page++) {
         const offset = page * PAGE_SIZE;
         console.log(`Fetching page ${page + 1} at offset ${offset}...`);
@@ -161,12 +167,18 @@ export class NetSuiteClient {
 
         if (items.length < PAGE_SIZE) {
           console.log('Last page reached');
+          complete = true;
           break;
         }
 
-        if (page < MAX_PAGES - 1) {
-          await new Promise(resolve => setTimeout(resolve, 200));
-        }
+        await new Promise(resolve => setTimeout(resolve, 200));
+      }
+
+      if (!complete) {
+        throw new Error(
+          `NetSuite vendor-bill query exceeded ${MAX_PAGES} pages (${MAX_PAGES * PAGE_SIZE} rows) ` +
+          `without reaching the end; aborting to avoid a truncated sync that would delete valid bills.`
+        );
       }
 
       // Return one record per row (one per expense line)
