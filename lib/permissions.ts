@@ -52,18 +52,24 @@ export function hasAccessToExpense(user: UserWithPermissions, expense: Expense):
     return true;
   }
 
-  // Check branch access (if expense has a branch)
-  if (expense.branch) {
-    const branchAccess = hasAccessToBranch(user, expense.branch);
-    if (!branchAccess) {
+  // A non-admin with no branch AND no department permissions has access to nothing
+  // (mirrors the "no permissions" welcome screen in PageWrapper).
+  if (user.branches.length === 0 && user.departments.length === 0) {
+    return false;
+  }
+
+  // Branch-restricted users: the expense must carry one of the allowed branches.
+  // A missing branch is treated as no-access (same as the display filter), so a user
+  // can never act on an expense that wouldn't appear in their view.
+  if (user.branches.length > 0) {
+    if (!expense.branch || !user.branches.includes(expense.branch)) {
       return false;
     }
   }
 
-  // Check department access (if expense has a department)
-  if (expense.department) {
-    const departmentAccess = hasAccessToDepartment(user, expense.department);
-    if (!departmentAccess) {
+  // Department-restricted users: the expense must carry one of the allowed departments.
+  if (user.departments.length > 0) {
+    if (!expense.department || !user.departments.includes(expense.department)) {
       return false;
     }
   }

@@ -4,6 +4,8 @@ import { redirect } from 'next/navigation';
 import { supabaseAdmin } from '@/lib/supabase';
 import PageWrapper from '@/components/PageWrapper';
 import { Expense } from '@/types/expense';
+import { getCurrentUserWithPermissions } from '@/lib/currentUser';
+import { filterExpensesByPermissions } from '@/lib/permissions';
 
 // Vendors to exclude from the dashboard (data stays in DB)
 const EXCLUDED_VENDORS = ['Blue Cross - Portal'];
@@ -37,84 +39,19 @@ async function getExpenses() {
   return filtered;
 }
 
-async function getFilterOptions() {
-  const PAGE_SIZE = 1000;
-
+// Derive the vendor/purchaser dropdown options from a given set of expenses.
+// Deriving from the (already permission-scoped) expenses the user will receive
+// means non-admins never get the full vendor/purchaser name lists in their payload.
+function deriveFilterOptions(expenses: Expense[]) {
   const vendorSet = new Set<string>();
-  let offset = 0;
-  while (true) {
-    const { data, error } = await supabaseAdmin
-      .from('expenses')
-      .select('vendor_name')
-      .gte('transaction_date', '2025-10-01')
-      .range(offset, offset + PAGE_SIZE - 1);
-    if (error) {
-      console.error('Error fetching vendors for filter options:', error);
-      break;
-    }
-    if (!data || data.length === 0) break;
-    for (const row of data) {
-      if (row.vendor_name) vendorSet.add(row.vendor_name);
-    }
-    if (data.length < PAGE_SIZE) break;
-    offset += PAGE_SIZE;
-  }
-
   const purchaserSet = new Set<string>();
-  offset = 0;
-  while (true) {
-    const { data, error } = await supabaseAdmin
-      .from('expenses')
-      .select('cardholder')
-      .not('cardholder', 'is', null)
-      .gte('transaction_date', '2025-10-01')
-      .range(offset, offset + PAGE_SIZE - 1);
-    if (error) {
-      console.error('Error fetching purchasers for filter options:', error);
-      break;
-    }
-    if (!data || data.length === 0) break;
-    for (const row of data) {
-      if (row.cardholder) purchaserSet.add(row.cardholder);
-    }
-    if (data.length < PAGE_SIZE) break;
-    offset += PAGE_SIZE;
+  for (const e of expenses) {
+    if (e.vendor_name && !EXCLUDED_VENDORS.includes(e.vendor_name)) vendorSet.add(e.vendor_name);
+    if (e.cardholder) purchaserSet.add(e.cardholder);
   }
-
-  const vendors = [...vendorSet].filter(v => !EXCLUDED_VENDORS.includes(v)).sort();
-  const purchasers = [...purchaserSet].sort();
-
-  return { vendors, purchasers };
-}
-
-async function getCurrentUserWithPermissions(email: string) {
-  // Fetch user with permissions
-  const { data: user, error: userError } = await supabaseAdmin
-    .from('users')
-    .select('*')
-    .eq('email', email.toLowerCase())
-    .single();
-
-  if (userError || !user) {
-    return null;
-  }
-
-  // Fetch branch permissions
-  const { data: branchPermissions } = await supabaseAdmin
-    .from('user_branch_permissions')
-    .select('branch_name')
-    .eq('user_id', user.id);
-
-  // Fetch department permissions
-  const { data: departmentPermissions } = await supabaseAdmin
-    .from('user_department_permissions')
-    .select('department_name')
-    .eq('user_id', user.id);
-
   return {
-    ...user,
-    branches: branchPermissions?.map(bp => bp.branch_name) || [],
-    departments: departmentPermissions?.map(dp => dp.department_name) || [],
+    vendors: [...vendorSet].sort(),
+    purchasers: [...purchaserSet].sort(),
   };
 }
 
@@ -137,17 +74,20 @@ export default async function Home() {
     redirect('/auth/error?error=AccountInactive');
   }
 
-  // Fetch all expenses and filter options
-  const expenses = await getExpenses();
-  const { vendors, purchasers } = await getFilterOptions();
+  // Fetch all expenses, then scope to what this user is allowed to see BEFORE it
+  // leaves the server. Admins receive the full set (required for masquerade);
+  // non-admins only receive their permitted rows. Filter options are derived from
+  // the scoped set so vendor/purchaser names don't leak either.
+  const allExpenses = await getExpenses();
+  const visibleExpenses = filterExpensesByPermissions(allExpenses, currentUser);
+  const { vendors, purchasers } = deriveFilterOptions(visibleExpenses);
 
   return (
     <PageWrapper
-      initialExpenses={expenses}
+      initialExpenses={visibleExpenses}
       vendors={vendors}
       purchasers={purchasers}
       currentUser={currentUser}
     />
   );
 }
-// test comment 
