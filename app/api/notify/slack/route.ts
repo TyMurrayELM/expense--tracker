@@ -391,6 +391,7 @@ export async function POST(request: Request) {
           body: JSON.stringify({
             users: allSlackIds.join(','),
           }),
+          signal: AbortSignal.timeout(15000),
         });
 
         const conversationData = await conversationResponse.json();
@@ -457,6 +458,7 @@ export async function POST(request: Request) {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify(message),
+        signal: AbortSignal.timeout(15000),
       });
 
       console.log('Slack API response status:', slackResponse.status);

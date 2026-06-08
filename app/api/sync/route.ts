@@ -12,6 +12,9 @@ const EXCLUDED_CATEGORY_PREFIXES = [
 ];
 
 export async function POST() {
+  // Hoisted so the catch can mark an in-progress sync_log as failed instead of
+  // leaving it stuck "running" forever.
+  let syncLogId: string | null = null;
   try {
     const session = await getServerSession(authOptions);
     if (!session || !session.user) {
@@ -41,6 +44,7 @@ export async function POST() {
       throw new Error(`Failed to create sync log: ${syncLogError.message}`);
     }
 
+    syncLogId = syncLog.id;
     console.log('Sync log created with ID:', syncLog.id);
 
     // Initialize NetSuite client
@@ -306,6 +310,19 @@ export async function POST() {
 
   } catch (error: any) {
     console.error('Vendor bill sync error:', error);
+
+    // Don't leave the sync_log stuck "running" if we threw partway through.
+    if (syncLogId) {
+      await supabaseAdmin
+        .from('sync_logs')
+        .update({
+          status: 'failed',
+          sync_completed_at: new Date().toISOString(),
+          errors: [error?.message || 'Unknown error'],
+        })
+        .eq('id', syncLogId);
+    }
+
     return NextResponse.json(
       {
         success: false,

@@ -46,6 +46,7 @@ export class SlackClient {
           'Authorization': `Bearer ${this.apiToken}`,
           'Content-Type': 'application/json',
         },
+        signal: AbortSignal.timeout(15000),
       });
 
       console.log('Slack API response status:', response.status, response.statusText);
@@ -167,6 +168,7 @@ export class SlackClient {
           'Authorization': `Bearer ${this.apiToken}`,
           'Content-Type': 'application/json',
         },
+        signal: AbortSignal.timeout(15000),
       });
 
       if (!response.ok) {

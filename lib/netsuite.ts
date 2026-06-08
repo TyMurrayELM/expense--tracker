@@ -91,6 +91,9 @@ export class NetSuiteClient {
     const options: RequestInit = {
       method,
       headers,
+      // Without a timeout a half-open connection hangs the whole sync until the
+      // platform kills the function (and leaves the sync_log stuck "running").
+      signal: AbortSignal.timeout(30000),
     };
 
     if (body) {

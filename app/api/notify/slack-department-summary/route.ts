@@ -267,6 +267,7 @@ export async function POST(request: Request) {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify(message),
+        signal: AbortSignal.timeout(15000),
       });
 
       console.log('Slack API response status:', slackResponse.status);
@@ -361,6 +362,7 @@ export async function POST(request: Request) {
               unfurl_links: false,
               unfurl_media: false,
             }),
+            signal: AbortSignal.timeout(15000),
           });
 
           console.log(`Posted thread reply with ${unapprovedExpenses.length} unapproved transactions`);
