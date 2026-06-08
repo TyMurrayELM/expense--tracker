@@ -70,6 +70,16 @@ export default function ExpenseDashboard({
     return `${year}-${month}`;
   };
 
+  // Get previous month in YYYY-MM format (handles January -> December rollover).
+  // Uses day=1 + local Date constructor so month arithmetic can't slip a day.
+  const getLastMonth = () => {
+    const now = new Date();
+    const d = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    return `${year}-${month}`;
+  };
+
   // Helper function to get branch icon path
   const getBranchIcon = (branchName: string): string => {
     const iconMap: Record<string, string> = {
@@ -905,6 +915,29 @@ export default function ExpenseDashboard({
                   </div>
                 </>
               )}
+
+              {/* Quick month filters */}
+              <div className="flex gap-2 mt-2">
+                {[
+                  { label: 'Current Month', value: getCurrentMonth() },
+                  { label: 'Last Month', value: getLastMonth() },
+                ].map(quick => {
+                  const isActive = filters.months.length === 1 && filters.months[0] === quick.value;
+                  return (
+                    <button
+                      key={quick.value}
+                      onClick={() => setFilters(prev => ({ ...prev, months: [quick.value] }))}
+                      className={`px-2.5 py-1 text-xs font-medium rounded-full transition-colors ${
+                        isActive
+                          ? 'bg-blue-800 text-white'
+                          : 'bg-blue-100 text-blue-800 hover:bg-blue-200'
+                      }`}
+                    >
+                      {quick.label}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
 
             <div className="flex-1 min-w-[200px]">
