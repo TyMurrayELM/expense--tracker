@@ -10,7 +10,11 @@ import SyncStatusIcon from './SyncStatusIcon';
 interface ExpenseTableProps {
   expenses: Expense[];
   onFlagUpdate?: (expenseId: string, newFlagCategory: string | null) => void;
-  onApprovalUpdate?: (expenseId: string, newApprovalStatus: 'approved' | 'rejected' | null) => void;
+  onApprovalUpdate?: (
+    expenseId: string,
+    newApprovalStatus: 'approved' | 'rejected' | null,
+    modified?: { approval_modified_by: string | null; approval_modified_at: string | null }
+  ) => void;
   onNotificationSent?: (expenseId: string) => void;
   isAdmin?: boolean;
   canSendSlack?: boolean;
@@ -92,8 +96,10 @@ export default function ExpenseTable({
           bValue = b.amount || 0;
           break;
         case 'status':
-          aValue = a.approval_status || '';
-          bValue = b.approval_status || '';
+          // This column renders the completion status (expense.status), so sort on
+          // that — not approval_status, which lives in a separate Approval column.
+          aValue = a.status || '';
+          bValue = b.status || '';
           break;
         default:
           return 0;
@@ -425,14 +431,15 @@ export default function ExpenseTable({
       const data = await response.json();
 
       if (data.success) {
-        // Trigger a refresh of the data with the new approval status AND tracking info
+        // Update local state with the new status and the tracking fields the
+        // server returned (approval_modified_by/at), so no full page reload is
+        // needed — preserving filters, scroll position, and avoiding a refetch.
         if (onApprovalUpdate) {
-          onApprovalUpdate(expenseId, approvalStatus);
+          onApprovalUpdate(expenseId, approvalStatus, {
+            approval_modified_by: data.data?.approval_modified_by ?? null,
+            approval_modified_at: data.data?.approval_modified_at ?? null,
+          });
         }
-        
-        // IMPORTANT: Force a page refresh to get the updated tracking data
-        // This ensures we get approval_modified_by and approval_modified_at from the database
-        window.location.reload();
       } else {
         console.error('Failed to update approval:', data.error);
         alert('Failed to update approval. Please try again.');

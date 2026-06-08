@@ -200,7 +200,9 @@ export default function ExpenseDashboard({
       try {
         const stored = localStorage.getItem('expenseDashboardSections');
         if (stored) {
-          setSectionsCollapsed(JSON.parse(stored));
+          // Merge over defaults so sections added after this was saved don't come
+          // back as undefined from older stored data.
+          setSectionsCollapsed({ ...getDefaultSectionsCollapsed(), ...JSON.parse(stored) });
         }
       } catch (error) {
         console.error('Error reading sections from localStorage:', error);
@@ -353,13 +355,18 @@ export default function ExpenseDashboard({
   // Separate filtered expenses for Trends tab
   const trendsFilteredExpenses = useMemo(() => {
     return expenses.filter(expense => {
+      // Compare on the date portion only. transaction_date is a full timestamp, so
+      // comparing it directly against a YYYY-MM-DD bound drops the last day of the
+      // range (e.g. "2026-04-30T07:00:00Z" > "2026-04-30").
+      const expenseDate = expense.transaction_date.substring(0, 10);
+
       // Date from filter
-      if (trendsFilters.dateFrom && expense.transaction_date < trendsFilters.dateFrom) {
+      if (trendsFilters.dateFrom && expenseDate < trendsFilters.dateFrom) {
         return false;
       }
 
       // Date to filter
-      if (trendsFilters.dateTo && expense.transaction_date > trendsFilters.dateTo) {
+      if (trendsFilters.dateTo && expenseDate > trendsFilters.dateTo) {
         return false;
       }
 
@@ -713,11 +720,16 @@ export default function ExpenseDashboard({
     ));
   };
 
-  const handleApprovalUpdate = (expenseId: string, newApprovalStatus: 'approved' | 'rejected' | null) => {
-    // Update the local expense state with the new approval status
+  const handleApprovalUpdate = (
+    expenseId: string,
+    newApprovalStatus: 'approved' | 'rejected' | null,
+    modified?: { approval_modified_by: string | null; approval_modified_at: string | null }
+  ) => {
+    // Update the local expense state with the new approval status (and the
+    // server-returned tracking fields, so we don't need a full page reload).
     setExpenses(prev => prev.map(expense =>
       expense.id === expenseId
-        ? { ...expense, approval_status: newApprovalStatus }
+        ? { ...expense, approval_status: newApprovalStatus, ...(modified || {}) }
         : expense
     ));
   };
