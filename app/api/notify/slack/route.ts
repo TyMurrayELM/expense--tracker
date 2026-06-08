@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
+import { formatCurrency, ordinal } from '@/lib/format';
 
 interface SlackNotificationRequest {
   expenseId: string;
@@ -210,7 +211,7 @@ export async function POST(request: Request) {
     console.log('Changes to notify:', changes.length);
 
     // Build the transaction info text with inline formatting
-    let transactionInfo = `*Vendor:* ${vendor}  |  *Amount:* $${amount.toFixed(2)}  |  *Date:* ${date}`;
+    let transactionInfo = `*Vendor:* ${vendor}  |  *Amount:* ${formatCurrency(amount, { cents: true })}  |  *Date:* ${date}`;
     
     // Add transaction link if available
     if (billUrl) {
@@ -240,7 +241,7 @@ export async function POST(request: Request) {
       // Compact format for channel posts
       const type = isVendorBill ? 'Vendor Bill' : 'Credit Card';
       const who = isVendorBill ? '' : `  —  *${greetingName}*`;
-      let body = `⚠️ *${type} Correction*${who}  |  ${vendor}  |  $${amount.toFixed(2)}  |  ${date}`;
+      let body = `⚠️ *${type} Correction*${who}  |  ${vendor}  |  ${formatCurrency(amount, { cents: true })}  |  ${date}`;
       if (billUrl) body += `  |  <${billUrl}|View>`;
       body += '\n' + changes.join('\n');
       if (additionalMessage && additionalMessage.trim()) {
@@ -255,10 +256,9 @@ export async function POST(request: Request) {
       ];
 
       if (currentNotificationCount > 0) {
-        const ordinal = currentNotificationCount === 1 ? '2nd' : currentNotificationCount === 2 ? '3rd' : `${currentNotificationCount + 1}th`;
         blocks.push({
           type: 'context',
-          elements: [{ type: 'mrkdwn', text: `:noun_alert: ${ordinal} reminder for correction` }],
+          elements: [{ type: 'mrkdwn', text: `:noun_alert: ${ordinal(currentNotificationCount + 1)} reminder for correction` }],
         });
       }
     } else {
@@ -283,13 +283,12 @@ export async function POST(request: Request) {
 
       // Add follow-up notice if this isn't the first notification
       if (currentNotificationCount > 0) {
-        const ordinal = currentNotificationCount === 1 ? '2nd' : currentNotificationCount === 2 ? '3rd' : `${currentNotificationCount + 1}th`;
         blocks.push({
           type: 'context',
           elements: [
             {
               type: 'mrkdwn',
-              text: `:noun_alert: This is the ${ordinal} reminder for correction.`,
+              text: `:noun_alert: This is the ${ordinal(currentNotificationCount + 1)} reminder for correction.`,
             },
           ],
         });

@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { supabaseAdmin } from '@/lib/supabase';
 import { DEPARTMENT_SLACK_CHANNELS } from '@/lib/slackChannels';
+import { formatCurrency } from '@/lib/format';
 
 // Vendors to exclude from Slack notifications (kept in DB but hidden from dashboard)
 const EXCLUDED_VENDORS = ['Blue Cross - Portal'];
@@ -133,16 +134,6 @@ export async function POST(request: Request) {
     const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 
                         'July', 'August', 'September', 'October', 'November', 'December'];
     const monthDisplay = `${monthNames[parseInt(monthNum, 10) - 1]} ${year}`;
-
-    // Format currency
-    const formatCurrency = (amount: number) => {
-      return new Intl.NumberFormat('en-US', {
-        style: 'currency',
-        currency: 'USD',
-        minimumFractionDigits: 0,
-        maximumFractionDigits: 0,
-      }).format(amount);
-    };
 
     // Clean department name for display
     const cleanDepartmentName = (dept: string) => {
