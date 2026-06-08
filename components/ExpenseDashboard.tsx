@@ -450,9 +450,11 @@ export default function ExpenseDashboard({
     return { totalAmount, totalCount, flaggedCount, byBranch, byDepartment, byVendor, byPurchaser, byCategory };
   }, [filteredExpenses]);
 
+  // Based on filteredExpenses so the count respects the active filters (month, branch, etc.),
+  // matching the Ready to Review badge.
   const readyToSyncExpenses = useMemo(() =>
-    expenses.filter(e => e.transaction_type === 'Credit Card' && e.status === 'Complete' && !isBillSynced(e.bill_sync_status) && e.flag_category === 'Good to Sync'),
-    [expenses]
+    filteredExpenses.filter(e => e.transaction_type === 'Credit Card' && e.status === 'Complete' && !isBillSynced(e.bill_sync_status) && e.flag_category === 'Good to Sync'),
+    [filteredExpenses]
   );
 
   const formatCurrency = (amount: number) => {
