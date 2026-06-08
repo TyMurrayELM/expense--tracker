@@ -58,7 +58,7 @@ export default function KPICard({
 
   return (
     <div
-      className={`${bgColor} rounded-xl ${isActive ? 'ring-2 ring-[#003264] shadow-lg scale-[1.03]' : 'border border-gray-200 shadow-sm hover:shadow-md hover:scale-[1.02]'} ${isSmall ? 'p-3' : 'p-5'} transition-all duration-200 cursor-pointer relative`}
+      className={`${bgColor} rounded-xl ${isActive ? 'ring-2 ring-[#003264] shadow-lg scale-[1.03]' : 'border border-gray-200 shadow-sm hover:shadow-md hover:scale-[1.02]'} ${isSmall ? 'p-2.5' : 'p-5'} transition-all duration-200 cursor-pointer relative`}
       onClick={onClick}
     >
       {/* Unapproved Alert Badge */}
@@ -97,12 +97,12 @@ export default function KPICard({
       )}
 
       {/* Icon and Title Row */}
-      <div className="flex items-center gap-2 mb-1">
+      <div className={`flex items-center gap-2 ${isSmall ? 'mb-0.5' : 'mb-1'}`}>
         {icon && (
           <img
             src={icon}
             alt={title}
-            className={`${isSmall ? 'h-6 w-6' : 'h-8 w-8'} object-contain`}
+            className={`${isSmall ? 'h-5 w-5' : 'h-8 w-8'} object-contain`}
           />
         )}
         <div className={`${isSmall ? 'text-xs' : 'text-sm'} font-medium ${isActive ? 'text-[#003264] font-semibold' : 'text-gray-600'} relative z-10 flex-1 ${showSlackButton ? 'pr-6' : ''}`}>
@@ -110,9 +110,9 @@ export default function KPICard({
         </div>
       </div>
 
-      <div className={`${isSmall ? 'text-lg' : 'text-3xl'} font-bold text-gray-900 mb-0.5 relative z-10`}>{value}</div>
+      <div className={`${isSmall ? 'text-lg leading-tight mb-0' : 'text-3xl mb-0.5'} font-bold text-gray-900 relative z-10`}>{value}</div>
       {subtitle && (
-        <div className={`${isSmall ? 'text-xs' : 'text-sm'} text-gray-500 relative z-10`}>{subtitle}</div>
+        <div className={`${isSmall ? 'text-xs leading-tight' : 'text-sm'} text-gray-500 relative z-10`}>{subtitle}</div>
       )}
 
       {/* Unapproved indicator text */}
