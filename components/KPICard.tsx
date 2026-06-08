@@ -117,7 +117,7 @@ export default function KPICard({
 
       {/* Unapproved indicator text */}
       {hasUnapproved && (
-        <div className={`${isSmall ? 'text-xs' : 'text-sm'} text-orange-600 font-medium mt-1 relative z-10`}>
+        <div className={`${isSmall ? 'text-xs leading-tight mt-0.5' : 'text-sm mt-1'} text-orange-600 font-medium relative z-10`}>
           {unapprovedCount} unapproved
         </div>
       )}
