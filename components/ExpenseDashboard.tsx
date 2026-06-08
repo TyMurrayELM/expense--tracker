@@ -761,9 +761,15 @@ export default function ExpenseDashboard({
       return;
     }
 
-    const selectedMonth = filters.months.length === 1 && filters.months[0] !== 'all' 
-      ? filters.months[0] 
-      : getCurrentMonth();
+    // The summary is scoped to a single month server-side, so require exactly one
+    // specific month selected — otherwise the message would silently report the
+    // current month and not match what's on screen.
+    if (filters.months.length !== 1 || filters.months[0] === 'all') {
+      alert('Please select a single month before sending to Slack.');
+      return;
+    }
+
+    const selectedMonth = filters.months[0];
 
     setSlackSendingDepartment(department);
 
