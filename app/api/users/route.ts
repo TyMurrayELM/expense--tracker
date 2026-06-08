@@ -64,10 +64,7 @@ export async function GET() {
   } catch (error: any) {
     console.error('Error fetching users:', error);
     return NextResponse.json(
-      {
-        success: false,
-        error: error.message,
-      },
+      { success: false, error: 'Failed to fetch users' },
       { status: 500 }
     );
   }
@@ -97,11 +94,27 @@ export async function POST(request: Request) {
       );
     }
 
+    // Normalize + validate the email against the allowed domain. The session/jwt
+    // callbacks look users up by lowercased email, so a mixed-case or off-domain
+    // row would never match a real login (silent dead row / allowlist bypass).
+    const normalizedEmail = String(email).trim().toLowerCase();
+    const allowedDomain = process.env.ALLOWED_EMAIL_DOMAIN || 'encorelm.com';
+    if (!normalizedEmail.endsWith(`@${allowedDomain}`)) {
+      return NextResponse.json(
+        { success: false, error: `Email must be a @${allowedDomain} address` },
+        { status: 400 }
+      );
+    }
+
+    // Coerce permission lists to string arrays of known-shape values.
+    const branchList: string[] = Array.isArray(branches) ? branches.filter((b: unknown) => typeof b === 'string') : [];
+    const departmentList: string[] = Array.isArray(departments) ? departments.filter((d: unknown) => typeof d === 'string') : [];
+
     // Create user
     const { data: user, error: userError } = await supabaseAdmin
       .from('users')
       .insert({
-        email,
+        email: normalizedEmail,
         full_name,
         is_admin: is_admin || false,
         is_active: true,
@@ -115,8 +128,8 @@ export async function POST(request: Request) {
     }
 
     // Add branch permissions
-    if (branches && branches.length > 0) {
-      const branchPermissions = branches.map((branch: string) => ({
+    if (branchList.length > 0) {
+      const branchPermissions = branchList.map((branch: string) => ({
         user_id: user.id,
         branch_name: branch,
       }));
@@ -131,8 +144,8 @@ export async function POST(request: Request) {
     }
 
     // Add department permissions
-    if (departments && departments.length > 0) {
-      const departmentPermissions = departments.map((department: string) => ({
+    if (departmentList.length > 0) {
+      const departmentPermissions = departmentList.map((department: string) => ({
         user_id: user.id,
         department_name: department,
       }));
@@ -150,18 +163,15 @@ export async function POST(request: Request) {
       success: true,
       user: {
         ...user,
-        branches: branches || [],
-        departments: departments || [],
+        branches: branchList,
+        departments: departmentList,
       },
     });
 
   } catch (error: any) {
     console.error('Error creating user:', error);
     return NextResponse.json(
-      {
-        success: false,
-        error: error.message,
-      },
+      { success: false, error: 'Failed to create user' },
       { status: 500 }
     );
   }
