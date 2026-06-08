@@ -983,7 +983,7 @@ export default function ExpenseDashboard({
           By Branch
         </button>
         {!sectionsCollapsed.byBranch && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-7 gap-4">
+        <div className="grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] gap-3">
           <KPICard
             title="Total Expenses"
             value={formatCurrency(kpis.totalAmount)}
@@ -1148,7 +1148,7 @@ export default function ExpenseDashboard({
           </div>
         </div>
         {!sectionsCollapsed.bySecondary && (
-        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 xl:grid-cols-8 gap-3">
+        <div className="grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] gap-3">
           {secondaryView === 'department' && (
             <>
               {Object.entries(kpis.byDepartment)
@@ -1259,7 +1259,7 @@ export default function ExpenseDashboard({
               in {cleanDepartmentName(filters.department)}
             </span>
           </h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 xl:grid-cols-8 gap-3">
+          <div className="grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] gap-3">
             {Object.entries(kpis.byPurchaser)
               .sort(([, a], [, b]) => b.amount - a.amount)
               .map(([purchaser, data]) => (
@@ -1287,7 +1287,7 @@ export default function ExpenseDashboard({
               for {filters.purchaser.join(', ')} in {cleanDepartmentName(filters.department)}
             </span>
           </h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 xl:grid-cols-8 gap-3">
+          <div className="grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] gap-3">
             {Object.entries(kpis.byVendor)
               .sort(([, a], [, b]) => b.amount - a.amount)
               .slice(0, 40)
@@ -1316,7 +1316,7 @@ export default function ExpenseDashboard({
               for {filters.purchaser.join(', ')}
             </span>
           </h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 xl:grid-cols-8 gap-3">
+          <div className="grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] gap-3">
             {Object.entries(kpis.byVendor)
               .sort(([, a], [, b]) => b.amount - a.amount)
               .slice(0, 40)
@@ -1345,7 +1345,7 @@ export default function ExpenseDashboard({
               for {filters.vendor}
             </span>
           </h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 xl:grid-cols-8 gap-3">
+          <div className="grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] gap-3">
             {Object.entries(kpis.byDepartment)
               .sort(([, a], [, b]) => b.amount - a.amount)
               .map(([department, data]) => (
@@ -1372,7 +1372,7 @@ export default function ExpenseDashboard({
               in {cleanDepartmentName(filters.department)} for {filters.vendor}
             </span>
           </h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 xl:grid-cols-8 gap-3">
+          <div className="grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] gap-3">
             {Object.entries(kpis.byPurchaser)
               .sort(([, a], [, b]) => b.amount - a.amount)
               .map(([purchaser, data]) => (
