@@ -62,12 +62,11 @@ export async function POST(request: Request) {
       branch,
       department,
       month,
-      totalAmount,
-      totalCount,
-      unapprovedAmount,
-      unapprovedCount,
       dashboardUrl,
     } = body;
+    // Note: client-supplied totals are intentionally ignored. The unapproved
+    // count/amount are computed server-side below from the same query that
+    // builds the thread reply, so the header and the listed items can't diverge.
 
     // Validate required fields
     if (!branch || !department || !month) {
@@ -172,6 +171,45 @@ export async function POST(request: Request) {
                                  'jul', 'aug', 'sep', 'oct', 'nov', 'dec'];
     const monthEmoji = `:${monthAbbreviations[parseInt(monthNum, 10) - 1]}:`;
     const deptEmoji = getDepartmentEmoji(department);
+
+    // Load the unapproved transactions for this branch/department/month ONCE. Both
+    // the header figures and the thread reply are derived from this list so they
+    // always agree.
+    const monthStart = `${month}-01`;
+    const [rangeY, rangeM] = month.split('-').map(Number);
+    const nextMonth = rangeM === 12
+      ? `${rangeY + 1}-01-01`
+      : `${rangeY}-${String(rangeM + 1).padStart(2, '0')}-01`;
+
+    const { data: unapprovedRows, error: unapprovedError } = await supabaseAdmin
+      .from('expenses')
+      .select('vendor_name, amount, transaction_date, cardholder, memo, flag_category')
+      .eq('branch', branch)
+      .ilike('department', `%${department.replace(/ : /g, '%')}%`)
+      .gte('transaction_date', monthStart)
+      .lt('transaction_date', nextMonth)
+      .or('approval_status.neq.approved,approval_status.is.null')
+      .order('transaction_date', { ascending: false });
+
+    if (unapprovedError) {
+      console.error('Failed to load unapproved transactions:', unapprovedError.message);
+      return NextResponse.json(
+        { success: false, error: 'Failed to load transactions' },
+        { status: 500 }
+      );
+    }
+
+    // Exclude hidden vendors in JS. A PostgREST `.neq` filter would also drop rows
+    // with a null vendor_name (neq evaluates to null for nulls), silently hiding
+    // legitimate unapproved bills.
+    const unapprovedExpenses = (unapprovedRows || []).filter(
+      e => !e.vendor_name || !EXCLUDED_VENDORS.includes(e.vendor_name)
+    );
+    const unapprovedCount = unapprovedExpenses.length;
+    const unapprovedAmount = unapprovedExpenses.reduce(
+      (sum, e) => sum + (parseFloat(e.amount) || 0),
+      0
+    );
 
     // Build blocks for the Slack message
     const blocks: any[] = [
@@ -311,32 +349,11 @@ export async function POST(request: Request) {
     console.log('=== Slack department summary sent successfully ===');
     console.log('Message ID:', slackData.ts);
 
-    // Post a thread reply listing all unapproved transactions
+    // Post a thread reply listing all unapproved transactions (reusing the list
+    // already fetched above so it matches the header count exactly).
     if (unapprovedCount > 0) {
       try {
-        // Calculate month date range from YYYY-MM
-        const monthStart = `${month}-01`;
-        const [y, m] = month.split('-').map(Number);
-        const nextMonth = m === 12 ? `${y + 1}-01-01` : `${y}-${String(m + 1).padStart(2, '0')}-01`;
-
-        let query = supabaseAdmin
-          .from('expenses')
-          .select('vendor_name, amount, transaction_date, cardholder, memo, flag_category')
-          .eq('branch', branch)
-          .ilike('department', `%${department.replace(/ : /g, '%')}%`)
-          .gte('transaction_date', monthStart)
-          .lt('transaction_date', nextMonth)
-          .or('approval_status.neq.approved,approval_status.is.null')
-          .order('transaction_date', { ascending: false });
-
-        // Exclude hidden vendors
-        for (const vendor of EXCLUDED_VENDORS) {
-          query = query.neq('vendor_name', vendor);
-        }
-
-        const { data: unapprovedExpenses } = await query;
-
-        if (unapprovedExpenses && unapprovedExpenses.length > 0) {
+        if (unapprovedExpenses.length > 0) {
           const lines = unapprovedExpenses.map(e => {
             const date = e.transaction_date?.substring(0, 10) || 'N/A';
             const amt = formatCurrency(parseFloat(e.amount) || 0);

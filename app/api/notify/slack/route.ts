@@ -502,18 +502,23 @@ export async function POST(request: Request) {
     console.log('=== Slack notification sent successfully ===');
     console.log('Message ID:', slackData.ts);
 
-    // Increment notification count and record timestamp
+    // Atomically increment the notification count + stamp the timestamp so that
+    // concurrent sends for the same expense can't clobber each other's increment.
     const { error: updateError } = await supabaseAdmin
-      .from('expenses')
-      .update({
-        slack_notification_count: (currentNotificationCount || 0) + 1,
-        slack_last_notified_at: new Date().toISOString(),
-      })
-      .eq('id', expenseId);
+      .rpc('increment_slack_notification_count', { p_expense_id: expenseId });
 
     if (updateError) {
-      console.error('Failed to update notification tracking:', updateError);
-      // Don't fail the request — notification was already sent
+      console.error('Failed to update notification tracking (atomic):', updateError);
+      // Fallback for environments where the RPC migration hasn't been applied yet:
+      // best-effort non-atomic update so tracking still advances. (Notification was
+      // already sent, so never fail the request on a tracking error.)
+      await supabaseAdmin
+        .from('expenses')
+        .update({
+          slack_notification_count: (currentNotificationCount || 0) + 1,
+          slack_last_notified_at: new Date().toISOString(),
+        })
+        .eq('id', expenseId);
     }
 
     return NextResponse.json({

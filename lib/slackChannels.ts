@@ -61,16 +61,13 @@ export const DEPARTMENT_SLACK_CHANNELS: Record<string, Record<string, string>> =
 
 // Build a deduplicated list of { branch, department, channelId } for the channel picker
 export function getChannelOptions(): { label: string; channelId: string }[] {
-  const seen = new Set<string>();
   const options: { label: string; channelId: string }[] = [];
 
   for (const [branch, departments] of Object.entries(DEPARTMENT_SLACK_CHANNELS)) {
     for (const [department, channelId] of Object.entries(departments)) {
-      // Skip duplicated department name variants — only keep the shortest
-      if (seen.has(channelId + branch)) continue;
-      seen.add(channelId + branch);
-
-      // Use the simplest department name (strip "Maintenance : " prefix)
+      // Collapse the Maintenance name variants (they all map to one channel and
+      // simplify to the same label), but keep genuinely distinct departments even
+      // when they share a channel (e.g. every Las Vegas department).
       const simpleDept = department.replace(/^Maintenance : /, '');
       if (simpleDept === 'Maintenance Recurring') continue; // duplicate of Maintenance
 
