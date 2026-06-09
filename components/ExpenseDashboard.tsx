@@ -413,6 +413,43 @@ export default function ExpenseDashboard({
     });
   }, [expenses, trendsFilters]);
 
+  // Single aggregation pass for the Trends tab. The chart, summary stats, and
+  // breakdown table all read from this; previously each re-scanned the full
+  // expense list inline on every render (including unrelated state changes).
+  const trendsData = useMemo(() => {
+    const monthlyData: Record<string, Record<string, number>> = {};
+    const dimensionData: Record<string, { byMonth: Record<string, number>; total: number; count: number }> = {};
+    const monthTotals: Record<string, number> = {};
+    let grandTotal = 0;
+
+    trendsFilteredExpenses.forEach(exp => {
+      const month = exp.transaction_date.substring(0, 7); // YYYY-MM
+      const dimension =
+        secondaryView === 'department' ? (exp.department || 'Unknown')
+        : secondaryView === 'purchaser' ? (exp.cardholder || 'Unknown')
+        : secondaryView === 'vendor' ? (exp.vendor_name || 'Unknown')
+        : (exp.category || 'Unknown');
+      const amount = Number(exp.amount);
+
+      if (!monthlyData[month]) monthlyData[month] = {};
+      monthlyData[month][dimension] = (monthlyData[month][dimension] || 0) + amount;
+
+      if (!dimensionData[dimension]) dimensionData[dimension] = { byMonth: {}, total: 0, count: 0 };
+      dimensionData[dimension].byMonth[month] = (dimensionData[dimension].byMonth[month] || 0) + amount;
+      dimensionData[dimension].total += amount;
+      dimensionData[dimension].count += 1;
+
+      monthTotals[month] = (monthTotals[month] || 0) + amount;
+      grandTotal += amount;
+    });
+
+    const sortedMonths = Object.keys(monthlyData).sort();
+    const sortedDimensions = Object.entries(dimensionData).sort(([, a], [, b]) => b.total - a.total);
+    const topDimensions = sortedDimensions.slice(0, 10).map(([dim]) => dim);
+
+    return { monthlyData, sortedMonths, sortedDimensions, topDimensions, monthTotals, grandTotal };
+  }, [trendsFilteredExpenses, secondaryView]);
+
   // Calculate KPIs based on filtered data
   const kpis = useMemo(() => {
     const totalAmount = filteredExpenses.reduce((sum, exp) => sum + Number(exp.amount), 0);
@@ -610,6 +647,12 @@ export default function ExpenseDashboard({
     }));
   };
 
+  // Full reset, months included — unlike handleTotalClick (the Total KPI card),
+  // which deliberately keeps the month selection.
+  const handleClearAllFilters = () => {
+    setFilters(getDefaultFilters());
+  };
+
   const handleFlaggedClick = () => {
     // Toggle between showing all and showing only flagged
     setFilters(prev => ({
@@ -677,10 +720,13 @@ export default function ExpenseDashboard({
     [filteredExpenses]
   );
 
-  // Check if any non-default filters are active (excludes months)
+  // Check if any non-default filters are active (months counts as active when
+  // it differs from the current-month default — it's persisted in localStorage,
+  // so without a chip a stale month selection is invisible and unexplainable)
   const activeFilterEntries = useMemo(() => {
     const defaults = getDefaultFilters();
     const labelMap: Record<string, string> = {
+      months: 'Months',
       branch: 'Branch',
       department: 'Department',
       vendor: 'Vendor',
@@ -710,6 +756,7 @@ export default function ExpenseDashboard({
       'Corporate': { bg: 'bg-gray-100', border: 'border-gray-300', text: 'text-gray-800', x: 'text-gray-400', xHover: 'hover:text-gray-700' },
     };
     const filterColorMap: Record<string, { bg: string; border: string; text: string; x: string; xHover: string }> = {
+      months: { bg: 'bg-sky-50', border: 'border-sky-200', text: 'text-sky-800', x: 'text-sky-400', xHover: 'hover:text-sky-700' },
       vendor: { bg: 'bg-indigo-50', border: 'border-indigo-200', text: 'text-indigo-800', x: 'text-indigo-400', xHover: 'hover:text-indigo-700' },
       purchaser: { bg: 'bg-purple-50', border: 'border-purple-200', text: 'text-purple-800', x: 'text-purple-400', xHover: 'hover:text-purple-700' },
       category: { bg: 'bg-teal-50', border: 'border-teal-200', text: 'text-teal-800', x: 'text-teal-400', xHover: 'hover:text-teal-700' },
@@ -721,6 +768,20 @@ export default function ExpenseDashboard({
     const entries: { key: string; label: string; value: string; colors: { bg: string; border: string; text: string; x: string; xHover: string } }[] = [];
     for (const key of Object.keys(labelMap)) {
       const current = filters[key as keyof FiltersState];
+      // Months: chip only when it differs from the current-month default
+      if (key === 'months') {
+        const months = current as string[];
+        const isDefault = months.length === 1 && months[0] === getCurrentMonth();
+        if (!isDefault) {
+          const displayValue = months.includes('all')
+            ? 'All Months'
+            : months.length === 0
+            ? 'None selected'
+            : months.map(m => availableMonths.find(am => am.value === m)?.shortLabel || m).join(', ');
+          entries.push({ key, label: labelMap[key], value: displayValue, colors: filterColorMap[key] ?? defaultChipColor });
+        }
+        continue;
+      }
       // Handle array filters (multi-select)
       if (Array.isArray(current)) {
         if (current.length > 0) {
@@ -1427,7 +1488,7 @@ export default function ExpenseDashboard({
             </span>
           ))}
           <button
-            onClick={handleTotalClick}
+            onClick={handleClearAllFilters}
             className="ml-auto text-sm font-medium text-red-600 hover:text-red-800 transition-colors"
           >
             Clear All Filters
@@ -1498,6 +1559,7 @@ export default function ExpenseDashboard({
         isAdmin={isAdmin}
         canSendSlack={canSendSlack}
         isMasquerading={isMasquerading}
+        onClearFilters={hasActiveFilters ? handleClearAllFilters : undefined}
       />
       </>
       )}
@@ -1588,38 +1650,9 @@ export default function ExpenseDashboard({
                 style={{ overflow: 'visible' }}
               >
                 {(() => {
-                  // Group expenses by month and secondaryView dimension
-                  const monthlyData: Record<string, Record<string, number>> = {};
-                  const allDimensions = new Set<string>();
-                  
-                  trendsFilteredExpenses.forEach(exp => {
-                    const month = exp.transaction_date.substring(0, 7); // YYYY-MM
-                    let dimension = '';
-                    
-                    if (secondaryView === 'department') dimension = exp.department || 'Unknown';
-                    else if (secondaryView === 'purchaser') dimension = exp.cardholder || 'Unknown';
-                    else if (secondaryView === 'vendor') dimension = exp.vendor_name || 'Unknown';
-                    else if (secondaryView === 'category') dimension = exp.category || 'Unknown';
-                    
-                    if (!monthlyData[month]) monthlyData[month] = {};
-                    if (!monthlyData[month][dimension]) monthlyData[month][dimension] = 0;
-                    
-                    monthlyData[month][dimension] += Number(exp.amount);
-                    allDimensions.add(dimension);
-                  });
-                  
-                  // Sort months chronologically
-                  const sortedMonths = Object.keys(monthlyData).sort();
-                  const dimensionArray = Array.from(allDimensions).sort();
-                  
-                  // Limit to top 10 dimensions by total amount
-                  const dimensionTotals = dimensionArray.map(dim => ({
-                    dimension: dim,
-                    total: sortedMonths.reduce((sum, month) => sum + (monthlyData[month][dim] || 0), 0)
-                  })).sort((a, b) => b.total - a.total).slice(0, 10);
-                  
-                  const topDimensions = dimensionTotals.map(d => d.dimension);
-                  
+                  // Aggregations come from the shared trendsData memo
+                  const { monthlyData, sortedMonths, topDimensions } = trendsData;
+
                   if (sortedMonths.length === 0) {
                     return (
                       <text x="500" y="200" textAnchor="middle" fill="#6B7280" fontSize="16">
@@ -1795,7 +1828,7 @@ export default function ExpenseDashboard({
             <div className="bg-white border border-gray-200 rounded-lg p-4">
               <h3 className="text-xs font-medium text-gray-700 mb-1">Total Expenses</h3>
               <p className="text-2xl font-bold text-gray-900">
-                {formatCurrency(trendsFilteredExpenses.reduce((sum, exp) => sum + Number(exp.amount), 0))}
+                {formatCurrency(trendsData.grandTotal)}
               </p>
               <p className="text-xs text-gray-700 mt-1">{trendsFilteredExpenses.length} transactions</p>
             </div>
@@ -1803,9 +1836,8 @@ export default function ExpenseDashboard({
               <h3 className="text-xs font-medium text-gray-700 mb-1">Avg per Month</h3>
               <p className="text-2xl font-bold text-gray-900">
                 {formatCurrency(
-                  trendsFilteredExpenses.length > 0
-                    ? trendsFilteredExpenses.reduce((sum, exp) => sum + Number(exp.amount), 0) / 
-                      new Set(trendsFilteredExpenses.map(e => e.transaction_date.substring(0, 7))).size
+                  trendsData.sortedMonths.length > 0
+                    ? trendsData.grandTotal / trendsData.sortedMonths.length
                     : 0
                 )}
               </p>
@@ -1813,14 +1845,8 @@ export default function ExpenseDashboard({
             <div className="bg-white border border-gray-200 rounded-lg p-4">
               <h3 className="text-xs font-medium text-gray-700 mb-1">Time Range</h3>
               <p className="text-base font-semibold text-gray-900">
-                {trendsFilteredExpenses.length > 0
-                  ? (() => {
-                      // String min/max on YYYY-MM avoids UTC-parse day/month shift
-                      const months = trendsFilteredExpenses.map(e => e.transaction_date.substring(0, 7));
-                      const min = months.reduce((a, b) => (b < a ? b : a));
-                      const max = months.reduce((a, b) => (b > a ? b : a));
-                      return `${formatMonthLabel(min)} - ${formatMonthLabel(max)}`;
-                    })()
+                {trendsData.sortedMonths.length > 0
+                  ? `${formatMonthLabel(trendsData.sortedMonths[0])} - ${formatMonthLabel(trendsData.sortedMonths[trendsData.sortedMonths.length - 1])}`
                   : 'No data'
                 }
               </p>
@@ -1849,21 +1875,11 @@ export default function ExpenseDashboard({
                         'Category'
                       }
                     </th>
-                    {(() => {
-                      // Get unique months from filtered expenses
-                      const months = Array.from(new Set(
-                        trendsFilteredExpenses.map(e => e.transaction_date.substring(0, 7))
-                      )).sort();
-                      
-                      return months.map(month => {
-                        const label = formatMonthLabel(month);
-                        return (
-                          <th key={month} className="px-4 py-3 text-right text-xs font-medium text-gray-700 uppercase tracking-wider">
-                            {label}
-                          </th>
-                        );
-                      });
-                    })()}
+                    {trendsData.sortedMonths.map(month => (
+                      <th key={month} className="px-4 py-3 text-right text-xs font-medium text-gray-700 uppercase tracking-wider">
+                        {formatMonthLabel(month)}
+                      </th>
+                    ))}
                     <th className="px-4 py-3 text-right text-xs font-medium text-gray-700 uppercase tracking-wider">
                       Total
                     </th>
@@ -1874,48 +1890,9 @@ export default function ExpenseDashboard({
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
                   {(() => {
-                    // Group data by dimension and month
-                    const dimensionData: Record<string, {
-                      byMonth: Record<string, number>;
-                      total: number;
-                      count: number;
-                    }> = {};
-                    
-                    trendsFilteredExpenses.forEach(exp => {
-                      let dimension = '';
-                      if (secondaryView === 'department') dimension = exp.department || 'Unknown';
-                      else if (secondaryView === 'purchaser') dimension = exp.cardholder || 'Unknown';
-                      else if (secondaryView === 'vendor') dimension = exp.vendor_name || 'Unknown';
-                      else if (secondaryView === 'category') dimension = exp.category || 'Unknown';
-                      
-                      const month = exp.transaction_date.substring(0, 7);
-                      
-                      if (!dimensionData[dimension]) {
-                        dimensionData[dimension] = {
-                          byMonth: {},
-                          total: 0,
-                          count: 0
-                        };
-                      }
-                      
-                      if (!dimensionData[dimension].byMonth[month]) {
-                        dimensionData[dimension].byMonth[month] = 0;
-                      }
-                      
-                      dimensionData[dimension].byMonth[month] += Number(exp.amount);
-                      dimensionData[dimension].total += Number(exp.amount);
-                      dimensionData[dimension].count += 1;
-                    });
-                    
-                    // Get unique months for column headers
-                    const months = Array.from(new Set(
-                      trendsFilteredExpenses.map(e => e.transaction_date.substring(0, 7))
-                    )).sort();
-                    
-                    // Sort dimensions by total amount
-                    const sortedDimensions = Object.entries(dimensionData)
-                      .sort(([, a], [, b]) => b.total - a.total);
-                    
+                    // Aggregations come from the shared trendsData memo
+                    const { sortedDimensions, sortedMonths: months } = trendsData;
+
                     if (sortedDimensions.length === 0) {
                       return (
                         <tr>
@@ -1947,20 +1924,9 @@ export default function ExpenseDashboard({
                   })()}
                   {/* Total Row */}
                   {(() => {
-                    const months = Array.from(new Set(
-                      trendsFilteredExpenses.map(e => e.transaction_date.substring(0, 7))
-                    )).sort();
-                    
-                    const monthTotals: Record<string, number> = {};
-                    trendsFilteredExpenses.forEach(exp => {
-                      const month = exp.transaction_date.substring(0, 7);
-                      if (!monthTotals[month]) monthTotals[month] = 0;
-                      monthTotals[month] += Number(exp.amount);
-                    });
-                    
-                    const grandTotal = trendsFilteredExpenses.reduce((sum, exp) => sum + Number(exp.amount), 0);
+                    const { sortedMonths: months, monthTotals, grandTotal } = trendsData;
                     const totalCount = trendsFilteredExpenses.length;
-                    
+
                     if (months.length === 0) return null;
                     
                     return (

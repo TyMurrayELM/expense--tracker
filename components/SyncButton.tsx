@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { UserWithPermissions } from '@/types/user';
 
@@ -9,18 +10,19 @@ interface SyncButtonProps {
 }
 
 export default function SyncButton({ currentUser }: SyncButtonProps) {
+  const router = useRouter();
   const [syncingVendorBills, setSyncingVendorBills] = useState(false);
   const [syncingCreditCards, setSyncingCreditCards] = useState(false);
   const [syncingHistorical, setSyncingHistorical] = useState(false);
   const [message, setMessage] = useState('');
   const [lastSyncTime, setLastSyncTime] = useState<string | null>(null);
 
-  // Fetch last sync time on mount - MUST be before the early return
+  // Fetch last sync time on mount - MUST be before the early return.
+  // Fetched for everyone: non-admins don't get sync buttons but still need to
+  // know how fresh the data is.
   useEffect(() => {
-    if (currentUser.is_admin) {
-      fetchLastSyncTime();
-    }
-  }, [currentUser.is_admin]);
+    fetchLastSyncTime();
+  }, []);
 
   const fetchLastSyncTime = async () => {
     try {
@@ -75,7 +77,10 @@ export default function SyncButton({ currentUser }: SyncButtonProps) {
       if (data.success) {
         setMessage(`✓ Vendor Bills synced: ${data.stats.created} created, ${data.stats.updated} updated`);
         fetchLastSyncTime();
-        setTimeout(() => window.location.reload(), 2000);
+        // Re-runs the server component and streams fresh expenses into the
+        // existing tree — unlike a full reload, this keeps scroll position,
+        // the active tab, and the success message visible.
+        router.refresh();
       } else {
         setMessage(`✗ Vendor Bill sync failed: ${data.error}`);
       }
@@ -100,7 +105,7 @@ export default function SyncButton({ currentUser }: SyncButtonProps) {
       if (data.success) {
         setMessage(`✓ Credit Cards synced: ${data.stats.created} created, ${data.stats.updated} updated`);
         fetchLastSyncTime();
-        setTimeout(() => window.location.reload(), 2000);
+        router.refresh();
       } else {
         setMessage(`✗ Credit Card sync failed: ${data.error}`);
       }
@@ -129,7 +134,7 @@ export default function SyncButton({ currentUser }: SyncButtonProps) {
       if (data.success) {
         setMessage(`✓ Historical import complete: ${data.stats.created} created, ${data.stats.updated} updated (${data.stats.dateRange})`);
         fetchLastSyncTime();
-        setTimeout(() => window.location.reload(), 3000);
+        router.refresh();
       } else {
         setMessage(`✗ Historical import failed: ${data.error}`);
       }
@@ -142,9 +147,14 @@ export default function SyncButton({ currentUser }: SyncButtonProps) {
 
   const isAnySyncing = syncingVendorBills || syncingCreditCards || syncingHistorical;
 
-  // Only show sync buttons for admins - MUST be after all hooks
+  // Non-admins don't get sync buttons, but still see how fresh the data is -
+  // MUST be after all hooks
   if (!currentUser.is_admin) {
-    return null;
+    return (
+      <span className="text-[10px] text-white/70" title="Last successful data sync">
+        Data as of: {formatLastSyncTime()}
+      </span>
+    );
   }
 
   return (

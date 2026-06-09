@@ -57,9 +57,20 @@ export default function KPICard({
   };
 
   return (
+    // role="button" rather than <button>: the card contains a nested Slack
+    // <button>, which is invalid inside a real button element.
     <div
-      className={`${bgColor} rounded-xl ${isActive ? 'ring-2 ring-[#003264] shadow-lg scale-[1.03]' : 'border border-gray-200 shadow-sm hover:shadow-md hover:scale-[1.02]'} ${isSmall ? 'p-2.5' : 'p-5'} transition-all duration-200 cursor-pointer relative`}
+      className={`${bgColor} rounded-xl ${isActive ? 'ring-2 ring-[#003264] shadow-lg scale-[1.03]' : 'border border-gray-200 shadow-sm hover:shadow-md hover:scale-[1.02]'} ${isSmall ? 'p-2.5' : 'p-5'} transition-all duration-200 cursor-pointer relative focus:outline-none focus-visible:ring-2 focus-visible:ring-[#003264]`}
       onClick={onClick}
+      role={onClick ? 'button' : undefined}
+      tabIndex={onClick ? 0 : undefined}
+      aria-pressed={onClick ? isActive : undefined}
+      onKeyDown={(e) => {
+        if (onClick && (e.key === 'Enter' || e.key === ' ')) {
+          e.preventDefault();
+          onClick();
+        }
+      }}
     >
       {/* Unapproved Alert Badge */}
       {hasUnapproved && (
