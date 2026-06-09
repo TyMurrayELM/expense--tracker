@@ -46,6 +46,21 @@ export async function POST(request: Request) {
 
     console.log('Authenticated user:', session.user.email);
 
+    // Authorization: same gate the UI uses (admin or can_send_slack). Any
+    // domain login auto-provisions an account, so a session alone isn't enough.
+    const { data: authUser } = await supabaseAdmin
+      .from('users')
+      .select('is_admin, can_send_slack, is_active')
+      .eq('email', session.user.email.toLowerCase())
+      .single();
+    if (!authUser || !authUser.is_active || (!authUser.is_admin && !authUser.can_send_slack)) {
+      console.log('Forbidden: user lacks Slack notification permission');
+      return NextResponse.json(
+        { success: false, error: 'Forbidden - Slack notification permission required' },
+        { status: 403 }
+      );
+    }
+
     // Parse request body
     let body: DepartmentSummaryRequest;
     try {

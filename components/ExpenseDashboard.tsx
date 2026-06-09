@@ -80,6 +80,27 @@ export default function ExpenseDashboard({
     return `${year}-${month}`;
   };
 
+  // Selectable months: October 2025 (earliest synced data) through the current
+  // month, generated so the list never goes stale at a hardcoded end date.
+  const EARLIEST_MONTH = '2025-10';
+  const availableMonths = (() => {
+    const [startYear, startMonth] = EARLIEST_MONTH.split('-').map(Number);
+    const currentMonth = getCurrentMonth();
+    const months: { value: string; label: string; shortLabel: string }[] = [];
+    const d = new Date(startYear, startMonth - 1, 1);
+    while (true) {
+      const value = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+      months.push({
+        value,
+        label: d.toLocaleDateString('en-US', { month: 'long', year: 'numeric' }),
+        shortLabel: d.toLocaleDateString('en-US', { month: 'short', year: 'numeric' }),
+      });
+      if (value >= currentMonth) break;
+      d.setMonth(d.getMonth() + 1);
+    }
+    return months;
+  })();
+
   // Helper function to get branch icon path
   const getBranchIcon = (branchName: string): string => {
     const iconMap: Record<string, string> = {
@@ -842,20 +863,7 @@ export default function ExpenseDashboard({
                     : filters.months.length === 0
                     ? 'Select months...'
                     : filters.months.length === 1
-                    ? (() => {
-                        const monthLabels: Record<string, string> = {
-                          '2025-10': 'Oct 2025',
-                          '2025-11': 'Nov 2025',
-                          '2025-12': 'Dec 2025',
-                          '2026-01': 'Jan 2026',
-                          '2026-02': 'Feb 2026',
-                          '2026-03': 'Mar 2026',
-                          '2026-04': 'Apr 2026',
-                          '2026-05': 'May 2026',
-                          '2026-06': 'Jun 2026',
-                        };
-                        return monthLabels[filters.months[0]] || filters.months[0];
-                      })()
+                    ? (availableMonths.find(m => m.value === filters.months[0])?.shortLabel || filters.months[0])
                     : `${filters.months.length} months selected`
                   }
                 </span>
@@ -873,15 +881,7 @@ export default function ExpenseDashboard({
                   <div className="absolute z-20 mt-1 w-full bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-auto">
                     {[
                       { value: 'all', label: 'All Months' },
-                      { value: '2025-10', label: 'October 2025' },
-                      { value: '2025-11', label: 'November 2025' },
-                      { value: '2025-12', label: 'December 2025' },
-                      { value: '2026-01', label: 'January 2026' },
-                      { value: '2026-02', label: 'February 2026' },
-                      { value: '2026-03', label: 'March 2026' },
-                      { value: '2026-04', label: 'April 2026' },
-                      { value: '2026-05', label: 'May 2026' },
-                      { value: '2026-06', label: 'June 2026' },
+                      ...availableMonths,
                     ].map((month) => {
                       const isSelected = filters.months.includes(month.value);
                       const isAllSelected = filters.months.includes('all');
