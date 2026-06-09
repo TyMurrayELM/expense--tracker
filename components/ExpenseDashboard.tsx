@@ -43,6 +43,14 @@ interface TrendsFiltersState {
   dateTo: string;
 }
 
+// One source of truth for the Trends default range: the initial view and the
+// "Reset Date Range" button previously disagreed (Dec vs Oct start), so reset
+// silently changed the totals instead of restoring the first view.
+const TRENDS_DEFAULT_FILTERS: TrendsFiltersState = {
+  dateFrom: '2025-12-01',
+  dateTo: '',
+};
+
 // Type definition for collapsible sections
 interface SectionsCollapsedState {
   dateFilters: boolean;
@@ -212,10 +220,7 @@ export default function ExpenseDashboard({
   }, [filters]);
 
   // Separate filters for Trends tab
-  const [trendsFilters, setTrendsFilters] = useState<TrendsFiltersState>({
-    dateFrom: '2025-12-01',
-    dateTo: '',
-  });
+  const [trendsFilters, setTrendsFilters] = useState<TrendsFiltersState>(TRENDS_DEFAULT_FILTERS);
 
   const [secondaryView, setSecondaryView] = useState<'department' | 'purchaser' | 'vendor' | 'category'>('department');
   const [monthDropdownOpen, setMonthDropdownOpen] = useState(false);
@@ -1631,10 +1636,10 @@ export default function ExpenseDashboard({
                 />
               </div>
               
-              {(trendsFilters.dateFrom || trendsFilters.dateTo) && (
+              {(trendsFilters.dateFrom !== TRENDS_DEFAULT_FILTERS.dateFrom || trendsFilters.dateTo !== TRENDS_DEFAULT_FILTERS.dateTo) && (
                 <button
                   onClick={() => {
-                    setTrendsFilters({ dateFrom: '2025-10-01', dateTo: '' });
+                    setTrendsFilters(TRENDS_DEFAULT_FILTERS);
                   }}
                   className="text-sm text-blue-600 hover:text-blue-800 font-medium"
                 >
@@ -1652,7 +1657,18 @@ export default function ExpenseDashboard({
               >
                 {(() => {
                   // Aggregations come from the shared trendsData memo
-                  const { monthlyData, sortedMonths, topDimensions } = trendsData;
+                  const { monthlyData, sortedMonths, topDimensions, sortedDimensions, monthTotals } = trendsData;
+
+                  // Stack everything outside the top 10 into an "Other" band so
+                  // the chart's visual total matches the Total Expenses stat —
+                  // previously the remainder was silently dropped.
+                  const hasOther = sortedDimensions.length > topDimensions.length;
+                  const stackDimensions = hasOther ? [...topDimensions, 'Other'] : topDimensions;
+                  const OTHER_COLOR = '#9CA3AF';
+                  const valueOf = (month: string, dim: string) =>
+                    dim === 'Other'
+                      ? Math.max(0, (monthTotals[month] || 0) - topDimensions.reduce((s, d) => s + (monthlyData[month][d] || 0), 0))
+                      : (monthlyData[month][dim] || 0);
 
                   if (sortedMonths.length === 0) {
                     return (
@@ -1668,8 +1684,8 @@ export default function ExpenseDashboard({
                   const padding = { left: 80, right: 200, top: 20, bottom: 60 };
                   
                   // Calculate scales
-                  const maxTotal = Math.max(...sortedMonths.map(month => 
-                    topDimensions.reduce((sum, dim) => sum + (monthlyData[month][dim] || 0), 0)
+                  const maxTotal = Math.max(...sortedMonths.map(month =>
+                    stackDimensions.reduce((sum, dim) => sum + valueOf(month, dim), 0)
                   ));
                   
                   const xScale = (index: number) => {
@@ -1688,20 +1704,20 @@ export default function ExpenseDashboard({
                   ];
                   
                   // Create stacked areas
-                  const areas = topDimensions.map((dimension, dimIndex) => {
+                  const areas = stackDimensions.map((dimension, dimIndex) => {
                     const points = sortedMonths.map((month, monthIndex) => {
                       // Calculate cumulative height up to this dimension
-                      const cumulativeBelow = topDimensions.slice(0, dimIndex).reduce(
-                        (sum, d) => sum + (monthlyData[month][d] || 0), 0
+                      const cumulativeBelow = stackDimensions.slice(0, dimIndex).reduce(
+                        (sum, d) => sum + valueOf(month, d), 0
                       );
-                      const cumulativeCurrent = cumulativeBelow + (monthlyData[month][dimension] || 0);
-                      
+                      const cumulativeCurrent = cumulativeBelow + valueOf(month, dimension);
+
                       return {
                         x: xScale(monthIndex),
                         yBottom: yScale(cumulativeBelow),
                         yTop: yScale(cumulativeCurrent),
                         month,
-                        value: monthlyData[month][dimension] || 0
+                        value: valueOf(month, dimension)
                       };
                     });
                     
@@ -1714,13 +1730,14 @@ export default function ExpenseDashboard({
                       `${i === 0 ? 'L' : 'L'} ${p.x},${p.yBottom}`
                     ).reverse().join(' ');
                     
+                    const fillColor = dimension === 'Other' ? OTHER_COLOR : colors[dimIndex % colors.length];
                     return (
                       <g key={dimension}>
                         <path
                           d={`${topPath} ${bottomPath} Z`}
-                          fill={colors[dimIndex % colors.length]}
+                          fill={fillColor}
                           opacity="0.7"
-                          stroke={colors[dimIndex % colors.length]}
+                          stroke={fillColor}
                           strokeWidth="2"
                         />
                       </g>
@@ -1797,14 +1814,14 @@ export default function ExpenseDashboard({
                       {areas}
                       
                       {/* Legend */}
-                      {topDimensions.map((dimension, i) => (
-                        <g key={dimension} transform={`translate(${chartWidth - padding.right + 20}, ${chartHeight / 2 - (topDimensions.length * 25) / 2 + i * 25})`}>
+                      {stackDimensions.map((dimension, i) => (
+                        <g key={dimension} transform={`translate(${chartWidth - padding.right + 20}, ${chartHeight / 2 - (stackDimensions.length * 25) / 2 + i * 25})`}>
                           <rect
                             x="0"
                             y="0"
                             width="15"
                             height="15"
-                            fill={colors[i % colors.length]}
+                            fill={dimension === 'Other' ? OTHER_COLOR : colors[i % colors.length]}
                             opacity="0.7"
                           />
                           <text

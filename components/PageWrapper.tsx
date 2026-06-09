@@ -6,6 +6,7 @@ import { UserWithPermissions } from '@/types/user';
 import Header from './Header';
 import ExpenseDashboard from './ExpenseDashboard';
 import AdminDashboard from './AdminDashboard';
+import { toast } from 'sonner';
 
 interface PageWrapperProps {
   initialExpenses: Expense[];
@@ -18,6 +19,7 @@ export default function PageWrapper({ initialExpenses, vendors, purchasers, curr
   const [activeTab, setActiveTab] = useState<'dashboard' | 'trends' | 'admin'>('dashboard');
   const [masqueradingAsUser, setMasqueradingAsUser] = useState<UserWithPermissions | null>(null);
   const [allUsers, setAllUsers] = useState<UserWithPermissions[]>([]);
+  const [usersLoading, setUsersLoading] = useState(false);
 
   // Fetch users for masquerading dropdown (only if current user is admin)
   useEffect(() => {
@@ -27,14 +29,20 @@ export default function PageWrapper({ initialExpenses, vendors, purchasers, curr
   }, [currentUser.is_admin]);
 
   const fetchUsers = async () => {
+    setUsersLoading(true);
     try {
       const response = await fetch('/api/users');
       const data = await response.json();
       if (data.success) {
         setAllUsers(data.users);
+      } else {
+        toast.error('Failed to load users for View As');
       }
     } catch (error) {
       console.error('Error fetching users:', error);
+      toast.error('Failed to load users for View As');
+    } finally {
+      setUsersLoading(false);
     }
   };
 
@@ -66,16 +74,8 @@ export default function PageWrapper({ initialExpenses, vendors, purchasers, curr
   , [effectiveUser.id, effectiveUser.is_admin, effectiveUser.branches, effectiveUser.departments]);
 
   const filteredExpenses = useMemo(() => {
-    console.log('=== FILTERING EXPENSES ===');
-    console.log('Effective User:', effectiveUser.full_name);
-    console.log('Is Admin:', effectiveUser.is_admin);
-    console.log('Branches:', effectiveUser.branches);
-    console.log('Departments:', effectiveUser.departments);
-    console.log('Masquerading:', masqueradingAsUser ? 'YES' : 'NO');
-    
     // If effective user is admin, show all
     if (effectiveUser.is_admin) {
-      console.log('Admin user - showing all', initialExpenses.length, 'expenses');
       return initialExpenses;
     }
 
@@ -97,9 +97,7 @@ export default function PageWrapper({ initialExpenses, vendors, purchasers, curr
 
       return true;
     });
-    
-    console.log('Filtered to', filtered.length, 'expenses');
-    console.log('=== END FILTERING ===');
+
     return filtered;
   }, [initialExpenses, filterKey, effectiveUser.full_name, effectiveUser.is_admin, effectiveUser.branches, effectiveUser.departments, masqueradingAsUser]);
 
@@ -130,6 +128,7 @@ export default function PageWrapper({ initialExpenses, vendors, purchasers, curr
         masqueradingAsUser={masqueradingAsUser}
         onMasqueradeChange={setMasqueradingAsUser}
         allUsers={allUsers}
+        usersLoading={usersLoading}
       />
 
       <main className="max-w-[1600px] mx-auto px-6 py-8">

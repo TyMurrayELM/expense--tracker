@@ -34,63 +34,78 @@ export class SlackClient {
   }
 
   /**
-   * Fetch all users from Slack
+   * Fetch all users from Slack (paginated via cursor)
    */
   async fetchUsers(): Promise<SlackUserData[]> {
     try {
       console.log('Fetching Slack users...');
-      
-      const response = await fetch(`${this.baseUrl}/users.list`, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${this.apiToken}`,
-          'Content-Type': 'application/json',
-        },
-        signal: AbortSignal.timeout(15000),
-      });
 
-      console.log('Slack API response status:', response.status, response.statusText);
+      const allMembers: SlackUser[] = [];
+      let cursor: string | undefined;
 
-      // Check if response is ok
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('Slack API HTTP error:', errorText);
-        throw new Error(`Slack API request failed: ${response.status} ${response.statusText}`);
-      }
+      do {
+        const params = new URLSearchParams({ limit: '200' });
+        if (cursor) {
+          params.set('cursor', cursor);
+        }
 
-      // Get response as text first to debug
-      const responseText = await response.text();
-      console.log('Slack API response length:', responseText.length);
-      
-      if (!responseText || responseText.trim() === '') {
-        throw new Error('Slack API returned empty response');
-      }
+        const response = await fetch(`${this.baseUrl}/users.list?${params.toString()}`, {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${this.apiToken}`,
+            'Content-Type': 'application/json',
+          },
+          signal: AbortSignal.timeout(15000),
+        });
 
-      // Try to parse JSON
-      let data: SlackUsersListResponse;
-      try {
-        data = JSON.parse(responseText);
-      } catch (parseError) {
-        console.error('JSON parse error. Response text:', responseText.substring(0, 500));
-        throw new Error(`Failed to parse Slack API response: ${parseError instanceof Error ? parseError.message : 'Unknown error'}`);
-      }
+        console.log('Slack API response status:', response.status, response.statusText);
 
-      console.log('Slack API response parsed successfully');
-      console.log('Response ok:', data.ok);
-      console.log('Number of members:', data.members?.length || 0);
+        // Check if response is ok
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error('Slack API HTTP error:', errorText);
+          throw new Error(`Slack API request failed: ${response.status} ${response.statusText}`);
+        }
 
-      if (!data.ok) {
-        console.error('Slack API error:', data.error);
-        throw new Error(`Slack API Error: ${data.error || 'Unknown error'}`);
-      }
+        // Get response as text first to debug
+        const responseText = await response.text();
+        console.log('Slack API response length:', responseText.length);
 
-      if (!data.members || !Array.isArray(data.members)) {
-        console.error('Invalid members data:', data);
-        throw new Error('Slack API returned invalid members data');
-      }
+        if (!responseText || responseText.trim() === '') {
+          throw new Error('Slack API returned empty response');
+        }
+
+        // Try to parse JSON
+        let data: SlackUsersListResponse;
+        try {
+          data = JSON.parse(responseText);
+        } catch (parseError) {
+          console.error('JSON parse error. Response text:', responseText.substring(0, 500));
+          throw new Error(`Failed to parse Slack API response: ${parseError instanceof Error ? parseError.message : 'Unknown error'}`);
+        }
+
+        console.log('Slack API response parsed successfully');
+        console.log('Response ok:', data.ok);
+        console.log('Number of members in page:', data.members?.length || 0);
+
+        if (!data.ok) {
+          console.error('Slack API error:', data.error);
+          throw new Error(`Slack API Error: ${data.error || 'Unknown error'}`);
+        }
+
+        if (!data.members || !Array.isArray(data.members)) {
+          console.error('Invalid members data:', data);
+          throw new Error('Slack API returned invalid members data');
+        }
+
+        allMembers.push(...data.members);
+        cursor = data.response_metadata?.next_cursor || undefined;
+      } while (cursor);
+
+      console.log('Total members fetched across all pages:', allMembers.length);
 
       // Filter and process users
-      const userData: SlackUserData[] = data.members
+      const userData: SlackUserData[] = allMembers
         .filter(member => {
           // Exclude bots, deleted users, and users without email
           const hasEmail = member.profile && member.profile.email;
@@ -198,6 +213,35 @@ export class SlackClient {
       };
     }
   }
+}
+
+/**
+ * POST to Slack chat.postMessage, retrying once on HTTP 429 (rate limit).
+ * Waits min(Retry-After, 10) seconds before the single retry.
+ */
+export async function postSlackMessage(token: string, payload: unknown): Promise<Response> {
+  const doFetch = () => fetch('https://slack.com/api/chat.postMessage', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(payload),
+    signal: AbortSignal.timeout(15000),
+  });
+
+  let response = await doFetch();
+
+  if (response.status === 429) {
+    const retryAfterHeader = response.headers.get('Retry-After');
+    const retryAfterSeconds = parseInt(retryAfterHeader || '1', 10);
+    const waitSeconds = Math.min(Number.isNaN(retryAfterSeconds) ? 1 : retryAfterSeconds, 10);
+    console.warn(`Slack rate limited (429). Retrying once after ${waitSeconds}s...`);
+    await new Promise(resolve => setTimeout(resolve, waitSeconds * 1000));
+    response = await doFetch();
+  }
+
+  return response;
 }
 
 /**

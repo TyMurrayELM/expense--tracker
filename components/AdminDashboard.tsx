@@ -70,7 +70,7 @@ export default function AdminDashboard({ availableBranches, availableDepartments
       const data = await response.json();
 
       if (data.success) {
-        setUsers([...users, data.user]);
+        setUsers(prev => [...prev, data.user]);
         setShowCreateModal(false);
         resetForm();
         if (onUsersChange) onUsersChange();
@@ -98,7 +98,7 @@ export default function AdminDashboard({ availableBranches, availableDepartments
       const data = await response.json();
 
       if (data.success) {
-        setUsers(users.map(u => u.id === editingUser.id ? data.user : u));
+        setUsers(prev => prev.map(u => u.id === editingUser.id ? data.user : u));
         setEditingUser(null);
         resetForm();
         if (onUsersChange) onUsersChange();
@@ -115,7 +115,7 @@ export default function AdminDashboard({ availableBranches, availableDepartments
   const handleToggleSlack = async (user: UserWithPermissions) => {
     const newValue = !user.can_send_slack;
     // Optimistic update
-    setUsers(users.map(u => u.id === user.id ? { ...u, can_send_slack: newValue } : u));
+    setUsers(prev => prev.map(u => u.id === user.id ? { ...u, can_send_slack: newValue } : u));
     try {
       const response = await fetch(`/api/users/${user.id}`, {
         method: 'PATCH',
@@ -125,11 +125,12 @@ export default function AdminDashboard({ availableBranches, availableDepartments
       const data = await response.json();
       if (!data.success) {
         // Revert on failure
-        setUsers(users.map(u => u.id === user.id ? { ...u, can_send_slack: !newValue } : u));
+        setUsers(prev => prev.map(u => u.id === user.id ? { ...u, can_send_slack: !newValue } : u));
         toast.error(`Failed to update: ${data.error}`);
       }
-    } catch {
-      setUsers(users.map(u => u.id === user.id ? { ...u, can_send_slack: !newValue } : u));
+    } catch (err: any) {
+      setUsers(prev => prev.map(u => u.id === user.id ? { ...u, can_send_slack: !newValue } : u));
+      toast.error(`Failed to update: ${err.message}`);
     }
   };
 
@@ -144,7 +145,7 @@ export default function AdminDashboard({ availableBranches, availableDepartments
       const data = await response.json();
 
       if (data.success) {
-        setUsers(users.filter(u => u.id !== userId));
+        setUsers(prev => prev.filter(u => u.id !== userId));
         if (onUsersChange) onUsersChange();
       } else {
         toast.error(`Failed to delete user: ${data.error}`);

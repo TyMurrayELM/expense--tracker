@@ -12,6 +12,7 @@ interface HeaderProps {
   masqueradingAsUser: UserWithPermissions | null;
   onMasqueradeChange: (user: UserWithPermissions | null) => void;
   allUsers: UserWithPermissions[];
+  usersLoading: boolean;
 }
 
 export default function Header({
@@ -20,7 +21,8 @@ export default function Header({
   currentUser,
   masqueradingAsUser,
   onMasqueradeChange,
-  allUsers
+  allUsers,
+  usersLoading
 }: HeaderProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
@@ -103,11 +105,12 @@ export default function Header({
             <div className="w-px h-8 bg-white/20" />
 
             {/* View As Dropdown (Admin only) */}
-            {currentUser.is_admin && allUsers.length > 0 && (
+            {currentUser.is_admin && (usersLoading || allUsers.length > 0) && (
               <div className="flex items-center gap-2">
                 <label className="text-xs font-medium text-white/80 uppercase tracking-wider">View As</label>
                 <select
                   value={masqueradingAsUser?.id || ''}
+                  disabled={usersLoading}
                   onChange={(e) => {
                     const userId = e.target.value;
                     if (userId === '') {
@@ -119,17 +122,23 @@ export default function Header({
                       }
                     }
                   }}
-                  className="bg-white/10 border border-white/20 rounded-lg px-2 py-1.5 text-sm text-white focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent max-w-[200px] [&>option]:text-gray-900"
+                  className="bg-white/10 border border-white/20 rounded-lg px-2 py-1.5 text-sm text-white focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent max-w-[200px] [&>option]:text-gray-900 disabled:opacity-60 disabled:cursor-not-allowed"
                 >
-                  <option value="">My View (Admin)</option>
-                  {allUsers
-                    .filter(u => !u.is_admin && u.id !== currentUser.id)
-                    .sort((a, b) => a.full_name.localeCompare(b.full_name))
-                    .map(user => (
-                      <option key={user.id} value={user.id}>
-                        {user.full_name} ({user.email})
-                      </option>
-                    ))}
+                  {usersLoading ? (
+                    <option value="">Loading users...</option>
+                  ) : (
+                    <>
+                      <option value="">My View (Admin)</option>
+                      {allUsers
+                        .filter(u => !u.is_admin && u.id !== currentUser.id)
+                        .sort((a, b) => a.full_name.localeCompare(b.full_name))
+                        .map(user => (
+                          <option key={user.id} value={user.id}>
+                            {user.full_name} ({user.email})
+                          </option>
+                        ))}
+                    </>
+                  )}
                 </select>
               </div>
             )}
@@ -352,11 +361,12 @@ export default function Header({
               </nav>
 
               {/* View As Dropdown (Admin only - Mobile) */}
-              {currentUser.is_admin && allUsers.length > 0 && (
+              {currentUser.is_admin && (usersLoading || allUsers.length > 0) && (
                 <div className="px-4 space-y-1.5">
                   <label className="text-xs font-medium text-white/80 uppercase tracking-wider">View As</label>
                   <select
                     value={masqueradingAsUser?.id || ''}
+                    disabled={usersLoading}
                     onChange={(e) => {
                       const userId = e.target.value;
                       if (userId === '') {
@@ -368,17 +378,23 @@ export default function Header({
                         }
                       }
                     }}
-                    className="w-full bg-white/10 border border-white/20 rounded-lg px-3 py-2.5 text-sm text-white focus:outline-none focus:ring-2 focus:ring-blue-400 [&>option]:text-gray-900"
+                    className="w-full bg-white/10 border border-white/20 rounded-lg px-3 py-2.5 text-sm text-white focus:outline-none focus:ring-2 focus:ring-blue-400 [&>option]:text-gray-900 disabled:opacity-60 disabled:cursor-not-allowed"
                   >
-                    <option value="">My View (Admin)</option>
-                    {allUsers
-                      .filter(u => !u.is_admin && u.id !== currentUser.id)
-                      .sort((a, b) => a.full_name.localeCompare(b.full_name))
-                      .map(user => (
-                        <option key={user.id} value={user.id}>
-                          {user.full_name}
-                        </option>
-                      ))}
+                    {usersLoading ? (
+                      <option value="">Loading users...</option>
+                    ) : (
+                      <>
+                        <option value="">My View (Admin)</option>
+                        {allUsers
+                          .filter(u => !u.is_admin && u.id !== currentUser.id)
+                          .sort((a, b) => a.full_name.localeCompare(b.full_name))
+                          .map(user => (
+                            <option key={user.id} value={user.id}>
+                              {user.full_name}
+                            </option>
+                          ))}
+                      </>
+                    )}
                   </select>
                 </div>
               )}

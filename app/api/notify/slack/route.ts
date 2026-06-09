@@ -3,6 +3,7 @@ import { supabaseAdmin } from '@/lib/supabase';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { formatCurrency, ordinal } from '@/lib/format';
+import { postSlackMessage } from '@/lib/slack';
 
 interface SlackNotificationRequest {
   expenseId: string;
@@ -159,6 +160,15 @@ export async function POST(request: Request) {
           error: `No user found with name: ${purchaserName}`,
           suggestion: 'User may need to be created first. Try the "Auto-Create Users" button in Admin.',
         }, { status: 404 });
+      }
+
+      if (users.length > 1) {
+        const matchedNames = users.map(u => u.full_name).join(', ');
+        console.log('Ambiguous purchaser match:', matchedNames);
+        return NextResponse.json({
+          success: false,
+          error: `Multiple users match "${purchaserName}": ${matchedNames}. Please disambiguate.`,
+        }, { status: 400 });
       }
 
       targetUser = users[0];
@@ -462,18 +472,10 @@ export async function POST(request: Request) {
 
     console.log('Sending message to Slack...');
 
-    // Send to Slack
+    // Send to Slack (retries once on 429)
     let slackResponse;
     try {
-      slackResponse = await fetch('https://slack.com/api/chat.postMessage', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${slackToken}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(message),
-        signal: AbortSignal.timeout(15000),
-      });
+      slackResponse = await postSlackMessage(slackToken, message);
 
       console.log('Slack API response status:', slackResponse.status);
     } catch (fetchError: any) {
@@ -516,6 +518,61 @@ export async function POST(request: Request) {
     console.log('=== Slack notification sent successfully ===');
     console.log('Message ID:', slackData.ts);
 
+    // When sending to a channel override, additional recipients still get a DM copy
+    if (channelOverride && additionalSlackIds && additionalSlackIds.length > 0) {
+      try {
+        console.log('Opening DM conversation for additional recipients:', additionalSlackIds);
+        const conversationResponse = await fetch('https://slack.com/api/conversations.open', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${slackToken}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            users: additionalSlackIds.join(','),
+          }),
+          signal: AbortSignal.timeout(15000),
+        });
+
+        const conversationData = await conversationResponse.json();
+
+        if (!conversationData.ok) {
+          console.error('Failed to open DM conversation for additional recipients:', conversationData.error);
+        } else {
+          const dmResponse = await postSlackMessage(slackToken, {
+            ...message,
+            channel: conversationData.channel.id,
+          });
+          const dmData = await dmResponse.json();
+
+          if (!dmData.ok) {
+            console.error('Failed to send DM copy to additional recipients:', dmData.error);
+          } else {
+            console.log('DM copy sent to additional recipients');
+
+            // Get the additional users' names for the confirmation message
+            let additionalNames = `${additionalSlackIds.length} additional recipient(s)`;
+            try {
+              const additionalUsersResult = await supabaseAdmin
+                .from('users')
+                .select('full_name')
+                .in('slack_id', additionalSlackIds);
+
+              if (additionalUsersResult.data && additionalUsersResult.data.length > 0) {
+                additionalNames = additionalUsersResult.data.map(u => u.full_name).join(', ');
+              }
+            } catch (error) {
+              console.log('Could not fetch additional user names, continuing anyway');
+            }
+            recipientNames = `channel and ${additionalNames}`;
+          }
+        }
+      } catch (dmError: any) {
+        // The channel message already went out; don't fail the request if the DM copy fails
+        console.error('Error sending DM copy to additional recipients:', dmError);
+      }
+    }
+
     // Atomically increment the notification count + stamp the timestamp so that
     // concurrent sends for the same expense can't clobber each other's increment.
     const { error: updateError } = await supabaseAdmin
@@ -547,13 +604,9 @@ export async function POST(request: Request) {
     console.error('Error type:', error?.constructor?.name);
     console.error('Error message:', error?.message);
     console.error('Error stack:', error?.stack);
-    
+
     return NextResponse.json(
-      {
-        success: false,
-        error: error?.message || 'Unknown error occurred',
-        errorType: error?.constructor?.name || 'Unknown',
-      },
+      { success: false, error: 'Internal server error' },
       { status: 500 }
     );
   }

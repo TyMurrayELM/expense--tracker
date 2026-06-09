@@ -4,6 +4,7 @@ import { authOptions } from '@/lib/auth';
 import { supabaseAdmin } from '@/lib/supabase';
 import { DEPARTMENT_SLACK_CHANNELS } from '@/lib/slackChannels';
 import { formatCurrency } from '@/lib/format';
+import { postSlackMessage } from '@/lib/slack';
 
 // Vendors to exclude from Slack notifications (kept in DB but hidden from dashboard)
 const EXCLUDED_VENDORS = ['Blue Cross - Portal'];
@@ -301,18 +302,10 @@ export async function POST(request: Request) {
 
     console.log('Sending message to Slack channel:', channelId);
 
-    // Send to Slack
+    // Send to Slack (retries once on 429)
     let slackResponse;
     try {
-      slackResponse = await fetch('https://slack.com/api/chat.postMessage', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${slackToken}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(message),
-        signal: AbortSignal.timeout(15000),
-      });
+      slackResponse = await postSlackMessage(slackToken, message);
 
       console.log('Slack API response status:', slackResponse.status);
     } catch (fetchError: any) {
@@ -372,20 +365,12 @@ export async function POST(request: Request) {
 
           const threadText = `📋 *Unapproved transactions* (${unapprovedExpenses.length}):\n\n${lines.join('\n')}`;
 
-          await fetch('https://slack.com/api/chat.postMessage', {
-            method: 'POST',
-            headers: {
-              'Authorization': `Bearer ${slackToken}`,
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              channel: channelId,
-              thread_ts: slackData.ts,
-              text: threadText,
-              unfurl_links: false,
-              unfurl_media: false,
-            }),
-            signal: AbortSignal.timeout(15000),
+          await postSlackMessage(slackToken, {
+            channel: channelId,
+            thread_ts: slackData.ts,
+            text: threadText,
+            unfurl_links: false,
+            unfurl_media: false,
           });
 
           console.log(`Posted thread reply with ${unapprovedExpenses.length} unapproved transactions`);
@@ -408,13 +393,9 @@ export async function POST(request: Request) {
     console.error('Error type:', error?.constructor?.name);
     console.error('Error message:', error?.message);
     console.error('Error stack:', error?.stack);
-    
+
     return NextResponse.json(
-      {
-        success: false,
-        error: error?.message || 'Unknown error occurred',
-        errorType: error?.constructor?.name || 'Unknown',
-      },
+      { success: false, error: 'Internal server error' },
       { status: 500 }
     );
   }
