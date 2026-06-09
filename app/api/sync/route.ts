@@ -30,6 +30,23 @@ export async function POST() {
 
     console.log('=== Starting Vendor Bill Sync ===');
 
+    // Cheap mutex: refuse to start while another sync is running, so interleaved
+    // delete/upsert phases can't clobber each other. "running" rows older than 10
+    // minutes are treated as dead (crashed before the catch could mark them).
+    const staleCutoff = new Date(Date.now() - 10 * 60 * 1000).toISOString();
+    const { data: activeSyncs } = await supabaseAdmin
+      .from('sync_logs')
+      .select('id')
+      .eq('status', 'running')
+      .gte('sync_started_at', staleCutoff)
+      .limit(1);
+    if (activeSyncs && activeSyncs.length > 0) {
+      return NextResponse.json(
+        { success: false, error: 'Another sync is already running. Please wait for it to finish.' },
+        { status: 409 }
+      );
+    }
+
     // Create sync log
     const { data: syncLog, error: syncLogError } = await supabaseAdmin
       .from('sync_logs')
@@ -71,12 +88,29 @@ export async function POST() {
     // --- Old-record cleanup: migrate old single-record-per-bill format for Feb+ ---
     // Skip IDs that this sync will reinsert (e.g., a bill with no expense lines whose new id is also bare).
     console.log('Checking for old-format Feb+ records to migrate...');
-    const { data: oldFormatRecords } = await supabaseAdmin
-      .from('expenses')
-      .select('netsuite_id, flag_category, approval_status, approval_modified_by, approval_modified_at')
-      .eq('transaction_type', 'Vendor Bill')
-      .gte('transaction_date', '2026-04-01')
-      .not('netsuite_id', 'like', '%-%');
+    // Paginated (PostgREST caps unpaged reads at 1000 rows) and error-checked:
+    // a partial read here would delete old-format rows without migrating flags.
+    const oldFormatRecords: any[] = [];
+    {
+      const PAGE = 1000;
+      let pageStart = 0;
+      while (true) {
+        const { data: page, error: pageError } = await supabaseAdmin
+          .from('expenses')
+          .select('netsuite_id, flag_category, approval_status, approval_modified_by, approval_modified_at')
+          .eq('transaction_type', 'Vendor Bill')
+          .gte('transaction_date', '2026-04-01')
+          .not('netsuite_id', 'like', '%-%')
+          .order('netsuite_id')
+          .range(pageStart, pageStart + PAGE - 1);
+        if (pageError) {
+          throw new Error(`Failed to fetch old-format records for migration: ${pageError.message}`);
+        }
+        oldFormatRecords.push(...(page || []));
+        if (!page || page.length < PAGE) break;
+        pageStart += PAGE;
+      }
+    }
 
     const oldFlagsMap = new Map<string, any>();
     const oldToDelete = (oldFormatRecords || []).filter(r => !newIdsSet.has(r.netsuite_id));
@@ -122,8 +156,18 @@ export async function POST() {
     let flagsPreserved = 0;
     const errors: any[] = [];
 
-    // Build expense data array
-    const expenseDataList: any[] = [];
+    // Build expense data array.
+    //
+    // Only sync-owned columns are written for existing rows. Manual columns
+    // (flag_category, approval_*) are omitted from their upsert payload so the
+    // DB keeps whatever value is there — including edits made while this sync
+    // is running, which the old read-snapshot/write-back approach would
+    // silently revert. New rows DO carry the flag/approval fields, since the
+    // old-format migration (oldFlagsMap) re-creates flags under the new
+    // {billId}-{line} ids. New and existing rows are upserted separately since
+    // PostgREST requires uniform keys within a batch.
+    const newRows: any[] = [];
+    const existingRows: any[] = [];
 
     for (const bill of bills) {
       const netsuiteId = bill.linesequencenumber != null
@@ -132,29 +176,6 @@ export async function POST() {
       const existing = existingMap.get(netsuiteId);
       const memo = bill.line_memo || bill.header_memo || bill.tranid || null;
       const amount = bill.line_amount != null ? bill.line_amount : bill.bill_total;
-
-      // Flag preservation: check existing line record first, then old-format bill record
-      let flagCategory = null;
-      let approvalStatus = null;
-      let approvalModifiedBy = null;
-      let approvalModifiedAt = null;
-
-      if (existing?.flag_category || existing?.approval_status) {
-        flagCategory = existing.flag_category;
-        approvalStatus = existing.approval_status;
-        approvalModifiedBy = existing.approval_modified_by;
-        approvalModifiedAt = existing.approval_modified_at;
-        flagsPreserved++;
-      } else {
-        const oldFlags = oldFlagsMap.get(bill.id.toString());
-        if (oldFlags && (oldFlags.flag_category || oldFlags.approval_status)) {
-          flagCategory = oldFlags.flag_category;
-          approvalStatus = oldFlags.approval_status;
-          approvalModifiedBy = oldFlags.approval_modified_by;
-          approvalModifiedAt = oldFlags.approval_modified_at;
-          flagsPreserved++;
-        }
-      }
 
       // Change detection logging
       if (existing) {
@@ -169,7 +190,7 @@ export async function POST() {
         recordsCreated++;
       }
 
-      expenseDataList.push({
+      const row: any = {
         netsuite_id: netsuiteId,
         transaction_date: bill.trandate,
         vendor_name: bill.vendor_name,
@@ -182,42 +203,56 @@ export async function POST() {
         category: bill.category,
         transaction_type: 'Vendor Bill',
         cardholder: null,
-        flag_category: flagCategory,
-        approval_status: approvalStatus,
-        approval_modified_by: approvalModifiedBy,
-        approval_modified_at: approvalModifiedAt,
         last_synced_at: new Date().toISOString(),
-      });
+      };
+
+      if (existing) {
+        if (existing.flag_category || existing.approval_status) flagsPreserved++;
+        existingRows.push(row);
+      } else {
+        // Migrate flags from a just-deleted old-format bill record, if any
+        const oldFlags = oldFlagsMap.get(bill.id.toString());
+        row.flag_category = oldFlags?.flag_category ?? null;
+        row.approval_status = oldFlags?.approval_status ?? null;
+        row.approval_modified_by = oldFlags?.approval_modified_by ?? null;
+        row.approval_modified_at = oldFlags?.approval_modified_at ?? null;
+        if (oldFlags && (oldFlags.flag_category || oldFlags.approval_status)) flagsPreserved++;
+        newRows.push(row);
+      }
     }
 
     // Batch upsert to Supabase (with per-record fallback on failure)
-    console.log(`Upserting ${expenseDataList.length} records...`);
+    console.log(`Upserting ${newRows.length + existingRows.length} records (${newRows.length} new, ${existingRows.length} existing)...`);
     const UPSERT_BATCH = 200;
-    for (let i = 0; i < expenseDataList.length; i += UPSERT_BATCH) {
-      const batch = expenseDataList.slice(i, i + UPSERT_BATCH);
-      const { error: batchError } = await supabaseAdmin
-        .from('expenses')
-        .upsert(batch, {
-          onConflict: 'netsuite_id',
-          ignoreDuplicates: false,
-        });
+    const upsertBatches = async (rows: any[]) => {
+      for (let i = 0; i < rows.length; i += UPSERT_BATCH) {
+        const batch = rows.slice(i, i + UPSERT_BATCH);
+        const { error: batchError } = await supabaseAdmin
+          .from('expenses')
+          .upsert(batch, {
+            onConflict: 'netsuite_id',
+            ignoreDuplicates: false,
+          });
 
-      if (batchError) {
-        console.log(`Batch upsert failed at offset ${i}, falling back to per-record...`);
-        for (const item of batch) {
-          const { error: itemError } = await supabaseAdmin
-            .from('expenses')
-            .upsert(item, { onConflict: 'netsuite_id', ignoreDuplicates: false });
-          if (itemError) {
-            errors.push({
-              netsuite_id: item.netsuite_id,
-              vendor: item.vendor_name,
-              error: itemError.message,
-            });
+        if (batchError) {
+          console.log(`Batch upsert failed at offset ${i}, falling back to per-record...`);
+          for (const item of batch) {
+            const { error: itemError } = await supabaseAdmin
+              .from('expenses')
+              .upsert(item, { onConflict: 'netsuite_id', ignoreDuplicates: false });
+            if (itemError) {
+              errors.push({
+                netsuite_id: item.netsuite_id,
+                vendor: item.vendor_name,
+                error: itemError.message,
+              });
+            }
           }
         }
       }
-    }
+    };
+    await upsertBatches(newRows);
+    await upsertBatches(existingRows);
 
     // Adjust counts for errors
     const errorIds = new Set(errors.map(e => e.netsuite_id));

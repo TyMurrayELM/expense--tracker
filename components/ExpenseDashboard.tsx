@@ -101,6 +101,14 @@ export default function ExpenseDashboard({
     return months;
   })();
 
+  // Format a YYYY-MM string for display. Avoids new Date('YYYY-MM-01'), which
+  // parses as UTC midnight and shifts the label back a month when formatted in
+  // US timezones.
+  const formatMonthLabel = (month: string, yearStyle: '2-digit' | 'numeric' = 'numeric') => {
+    const [y, m] = month.split('-').map(Number);
+    return new Date(y, m - 1, 1).toLocaleDateString('en-US', { month: 'short', year: yearStyle });
+  };
+
   // Helper function to get branch icon path
   const getBranchIcon = (branchName: string): string => {
     const iconMap: Record<string, string> = {
@@ -1736,8 +1744,7 @@ export default function ExpenseDashboard({
                       
                       {/* X-axis labels */}
                       {sortedMonths.map((month, i) => {
-                        const date = new Date(month + '-01');
-                        const label = date.toLocaleDateString('en-US', { month: 'short', year: '2-digit' });
+                        const label = formatMonthLabel(month, '2-digit');
                         return (
                           <text
                             key={month}
@@ -1807,7 +1814,13 @@ export default function ExpenseDashboard({
               <h3 className="text-xs font-medium text-gray-700 mb-1">Time Range</h3>
               <p className="text-base font-semibold text-gray-900">
                 {trendsFilteredExpenses.length > 0
-                  ? `${new Date(Math.min(...trendsFilteredExpenses.map(e => new Date(e.transaction_date).getTime()))).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })} - ${new Date(Math.max(...trendsFilteredExpenses.map(e => new Date(e.transaction_date).getTime()))).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}`
+                  ? (() => {
+                      // String min/max on YYYY-MM avoids UTC-parse day/month shift
+                      const months = trendsFilteredExpenses.map(e => e.transaction_date.substring(0, 7));
+                      const min = months.reduce((a, b) => (b < a ? b : a));
+                      const max = months.reduce((a, b) => (b > a ? b : a));
+                      return `${formatMonthLabel(min)} - ${formatMonthLabel(max)}`;
+                    })()
                   : 'No data'
                 }
               </p>
@@ -1843,8 +1856,7 @@ export default function ExpenseDashboard({
                       )).sort();
                       
                       return months.map(month => {
-                        const date = new Date(month + '-01');
-                        const label = date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+                        const label = formatMonthLabel(month);
                         return (
                           <th key={month} className="px-4 py-3 text-right text-xs font-medium text-gray-700 uppercase tracking-wider">
                             {label}

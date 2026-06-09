@@ -4,6 +4,10 @@ import { supabaseAdmin } from '@/lib/supabase';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 
+// This import can take several minutes; without this the platform default
+// (~15s) kills the run mid-upsert and leaves the sync_log stuck "running".
+export const maxDuration = 300;
+
 export async function POST() {
   // Hoisted so the catch can mark an in-progress sync_log as failed instead of
   // leaving it stuck "running" forever.
@@ -23,7 +27,24 @@ export async function POST() {
 
     console.log('=== Starting HISTORICAL Credit Card Import ===');
     console.log('Import range: May 1, 2026 to present');
-    
+
+    // Cheap mutex: refuse to start while another sync is running, so interleaved
+    // upsert phases can't clobber each other. "running" rows older than 10
+    // minutes are treated as dead (crashed before the catch could mark them).
+    const staleCutoff = new Date(Date.now() - 10 * 60 * 1000).toISOString();
+    const { data: activeSyncs } = await supabaseAdmin
+      .from('sync_logs')
+      .select('id')
+      .eq('status', 'running')
+      .gte('sync_started_at', staleCutoff)
+      .limit(1);
+    if (activeSyncs && activeSyncs.length > 0) {
+      return NextResponse.json(
+        { success: false, error: 'Another sync is already running. Please wait for it to finish.' },
+        { status: 409 }
+      );
+    }
+
     // Create sync log
     const { data: syncLog, error: syncLogError } = await supabaseAdmin
       .from('sync_logs')
@@ -212,6 +233,14 @@ export async function POST() {
     console.log(`Building ${allTransactions.length} expense rows...`);
 
     // Build expense data + tally created/updated/preserved counts.
+    //
+    // Only sync-owned columns are written. Manual columns (flag_category,
+    // approval_*) are omitted from the upsert payload so the DB keeps whatever
+    // value is there — including edits made while this import is running, which
+    // the old read-snapshot/write-back approach would silently revert.
+    // flag_category appears only on NEW rows (for the reimbursement auto-flag);
+    // new and existing rows are upserted separately since PostgREST requires
+    // uniform keys within a batch.
     interface ExpenseRow {
       netsuite_id: string;
       transaction_date: string;
@@ -225,14 +254,12 @@ export async function POST() {
       category: string | null;
       transaction_type: string;
       cardholder: string;
-      flag_category: string | null;
-      approval_status: string | null;
-      approval_modified_by: string | null;
-      approval_modified_at: string | null;
       bill_sync_status: string | null;
       last_synced_at: string;
+      flag_category?: string | null;
     }
-    const expenseDataList: ExpenseRow[] = [];
+    const newRows: ExpenseRow[] = [];
+    const existingRows: ExpenseRow[] = [];
 
     for (const { transaction, knownSyncStatus } of allTransactions) {
       try {
@@ -280,21 +307,7 @@ export async function POST() {
 
         const netsuiteId = `BILL-${transaction.id}`;
         const existing = existingMap.get(netsuiteId);
-
-        let flagCategory: string | null = null;
-        let approvalStatus: string | null = null;
-        let approvalModifiedBy: string | null = null;
-        let approvalModifiedAt: string | null = null;
-
-        if (existing) {
-          flagCategory = existing.flag_category;
-          approvalStatus = existing.approval_status;
-          approvalModifiedBy = existing.approval_modified_by;
-          approvalModifiedAt = existing.approval_modified_at;
-          if (existing.flag_category || existing.approval_status) flagsPreserved++;
-        } else if (category && category.toLowerCase().includes('reimburse')) {
-          flagCategory = 'Needs Review';
-        }
+        if (existing && (existing.flag_category || existing.approval_status)) flagsPreserved++;
 
         const billSyncStatus = knownSyncStatus;
         if (billSyncStatus === 'SYNCED') syncStatusBreakdown['SYNCED']++;
@@ -304,9 +317,11 @@ export async function POST() {
         if (existing) recordsUpdated++;
         else recordsCreated++;
 
-        expenseDataList.push({
+        const row: ExpenseRow = {
           netsuite_id: netsuiteId,
-          transaction_date: transaction.occurredTime.split('T')[0],
+          // occurredTime is UTC; truncating it directly dates evening purchases
+          // on the next day. Use the business timezone (en-CA gives YYYY-MM-DD).
+          transaction_date: new Date(transaction.occurredTime).toLocaleDateString('en-CA', { timeZone: 'America/Phoenix' }),
           vendor_name: vendorName,
           amount: parseFloat(amount.toString()) || 0,
           currency: 'USD',
@@ -317,13 +332,17 @@ export async function POST() {
           category,
           transaction_type: 'Credit Card',
           cardholder: cardholderName,
-          flag_category: flagCategory,
-          approval_status: approvalStatus,
-          approval_modified_by: approvalModifiedBy,
-          approval_modified_at: approvalModifiedAt,
           bill_sync_status: billSyncStatus,
           last_synced_at: new Date().toISOString(),
-        });
+        };
+
+        if (existing) {
+          existingRows.push(row);
+        } else {
+          row.flag_category =
+            category && category.toLowerCase().includes('reimburse') ? 'Needs Review' : null;
+          newRows.push(row);
+        }
       } catch (error: any) {
         console.error(`Error processing transaction ${transaction.id}:`, error);
         errors.push({
@@ -336,32 +355,36 @@ export async function POST() {
     }
 
     // Batch upsert (with per-record fallback on failure)
-    console.log(`Upserting ${expenseDataList.length} records...`);
+    console.log(`Upserting ${newRows.length + existingRows.length} records (${newRows.length} new, ${existingRows.length} existing)...`);
     const UPSERT_BATCH = 200;
-    for (let i = 0; i < expenseDataList.length; i += UPSERT_BATCH) {
-      const batch = expenseDataList.slice(i, i + UPSERT_BATCH);
-      const { error: batchError } = await supabaseAdmin
-        .from('expenses')
-        .upsert(batch, { onConflict: 'netsuite_id', ignoreDuplicates: false });
+    const upsertBatches = async (rows: ExpenseRow[]) => {
+      for (let i = 0; i < rows.length; i += UPSERT_BATCH) {
+        const batch = rows.slice(i, i + UPSERT_BATCH);
+        const { error: batchError } = await supabaseAdmin
+          .from('expenses')
+          .upsert(batch, { onConflict: 'netsuite_id', ignoreDuplicates: false });
 
-      if (batchError) {
-        console.log(`Batch upsert failed at offset ${i}, falling back to per-record...`);
-        for (const item of batch) {
-          const { error: itemError } = await supabaseAdmin
-            .from('expenses')
-            .upsert(item, { onConflict: 'netsuite_id', ignoreDuplicates: false });
-          if (itemError) {
-            errors.push({
-              netsuite_id: item.netsuite_id,
-              vendor: item.vendor_name,
-              error: itemError.message,
-            });
+        if (batchError) {
+          console.log(`Batch upsert failed at offset ${i}, falling back to per-record...`);
+          for (const item of batch) {
+            const { error: itemError } = await supabaseAdmin
+              .from('expenses')
+              .upsert(item, { onConflict: 'netsuite_id', ignoreDuplicates: false });
+            if (itemError) {
+              errors.push({
+                netsuite_id: item.netsuite_id,
+                vendor: item.vendor_name,
+                error: itemError.message,
+              });
+            }
           }
+        } else if ((i / UPSERT_BATCH) % 5 === 0 && i + UPSERT_BATCH < rows.length) {
+          console.log(`  Upserted ${i + batch.length}/${rows.length} records...`);
         }
-      } else if ((i / UPSERT_BATCH) % 5 === 0 && i + UPSERT_BATCH < expenseDataList.length) {
-        console.log(`  Upserted ${i + batch.length}/${expenseDataList.length} records...`);
       }
-    }
+    };
+    await upsertBatches(newRows);
+    await upsertBatches(existingRows);
 
     // Decrement created/updated for any rows that failed to persist
     const errorIds = new Set(errors.map(e => e.netsuite_id).filter(Boolean));

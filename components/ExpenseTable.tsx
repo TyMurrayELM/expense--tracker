@@ -92,8 +92,10 @@ export default function ExpenseTable({
           bValue = b.department?.toLowerCase() || '';
           break;
         case 'amount':
-          aValue = a.amount || 0;
-          bValue = b.amount || 0;
+          // Supabase returns numeric columns as strings; without Number() this
+          // sorts lexicographically ("9.50" > "100.00").
+          aValue = Number(a.amount) || 0;
+          bValue = Number(b.amount) || 0;
           break;
         case 'status':
           // This column renders the completion status (expense.status), so sort on
@@ -334,11 +336,17 @@ export default function ExpenseTable({
     };
     
     const currencyCode = currencyMap[currency] || currency;
-    
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: currencyCode,
-    }).format(amount);
+
+    // A currency name missing from the map reaches Intl as an invalid ISO code,
+    // which throws and would white-screen the whole table for one bad row.
+    try {
+      return new Intl.NumberFormat('en-US', {
+        style: 'currency',
+        currency: currencyCode,
+      }).format(amount);
+    } catch {
+      return `${new Intl.NumberFormat('en-US', { minimumFractionDigits: 2 }).format(amount)} ${currency}`;
+    }
   };
 
   const formatDate = (dateString: string) => {

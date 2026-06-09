@@ -16,16 +16,21 @@ async function getExpenses() {
   let offset = 0;
 
   while (true) {
+    // The id tiebreaker makes the page order stable: ordering by transaction_date
+    // alone lets rows with equal dates shuffle between page queries, duplicating
+    // or dropping rows (and silently skewing every KPI).
     const { data, error } = await supabaseAdmin
       .from('expenses')
       .select('*')
       .gte('transaction_date', '2025-10-01')
       .order('transaction_date', { ascending: false })
+      .order('id', { ascending: true })
       .range(offset, offset + PAGE_SIZE - 1);
 
     if (error) {
-      console.error('Error fetching expenses:', error);
-      break;
+      // Throw instead of returning a partial dataset — incomplete totals with no
+      // indication are worse than an error page.
+      throw new Error(`Failed to fetch expenses: ${error.message}`);
     }
 
     allExpenses.push(...(data as Expense[]));

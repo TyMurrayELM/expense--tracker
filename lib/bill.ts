@@ -185,30 +185,42 @@ export class BillClient {
     console.log(`Fetching transactions with syncStatus=${syncStatus}, filters: ${filters}`);
 
     let currentOptions: any = {
-      max: 25,
+      max: 50,
       filters: filters
     };
 
     let pageCount = 0;
-    const maxPages = 20;
+    const maxPages = 40;
+    let complete = false;
 
     while (pageCount < maxPages) {
       pageCount++;
-      
+
       const response = await this.getTransactions(currentOptions);
-      
+
       if (response.results && response.results.length > 0) {
         transactions.push(...response.results);
-        
+
         if (response.nextPage) {
           currentOptions.nextPage = response.nextPage;
           await new Promise(resolve => setTimeout(resolve, 500));
         } else {
+          complete = true;
           break;
         }
       } else {
+        complete = true;
         break;
       }
+    }
+
+    // Throw rather than silently truncate: a capped result would make the sync
+    // report success while transactions are missing from the dashboard.
+    if (!complete) {
+      throw new Error(
+        `Bill.com transactions query for syncStatus=${syncStatus} exceeded ${maxPages} pages ` +
+        `(${maxPages * currentOptions.max} rows) without completing; aborting to avoid a truncated sync.`
+      );
     }
 
     // Filter to only include CLEAR (posted) transactions
@@ -242,28 +254,39 @@ export class BillClient {
 
     let pageCount = 0;
     const maxPages = 100; // Higher limit for historical
+    let complete = false;
 
     while (pageCount < maxPages) {
       pageCount++;
-      
+
       if (pageCount % 10 === 0) {
         console.log(`  Page ${pageCount} for syncStatus=${syncStatus}...`);
       }
-      
+
       const response = await this.getTransactions(currentOptions);
-      
+
       if (response.results && response.results.length > 0) {
         transactions.push(...response.results);
-        
+
         if (response.nextPage) {
           currentOptions.nextPage = response.nextPage;
           await new Promise(resolve => setTimeout(resolve, 300));
         } else {
+          complete = true;
           break;
         }
       } else {
+        complete = true;
         break;
       }
+    }
+
+    // Throw rather than silently truncate (see fetchTransactionsBySyncStatus).
+    if (!complete) {
+      throw new Error(
+        `Bill.com historical query for syncStatus=${syncStatus} exceeded ${maxPages} pages ` +
+        `(${maxPages * currentOptions.max} rows) without completing; aborting to avoid a truncated import.`
+      );
     }
 
     const filtered = transactions.filter(t => t.transactionType === 'CLEAR');
