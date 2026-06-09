@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { toast } from 'sonner';
 
 interface AutoCreateUsersButtonProps {
   onComplete?: () => void;
@@ -56,11 +57,11 @@ export default function AutoCreateUsersButton({ onComplete }: AutoCreateUsersBut
           onComplete();
         }
       } else {
-        alert(`Failed: ${data.message || 'Unknown error'}`);
+        toast.error(`Failed: ${data.message || 'Unknown error'}`);
       }
     } catch (error: any) {
       console.error('Error auto-creating users:', error);
-      alert(`Error: ${error.message}`);
+      toast.error(`Error: ${error.message}`);
     } finally {
       setCreating(false);
     }

@@ -2,10 +2,11 @@
 
 import { Expense, FLAG_CATEGORIES } from '@/types/expense';
 import { format } from 'date-fns';
-import { useState, useRef, useMemo } from 'react';
+import { useState, useRef, useMemo, useEffect } from 'react';
 import Image from 'next/image';
 import SlackNotifyButton from './SlackNotifyButton';
 import SyncStatusIcon from './SyncStatusIcon';
+import { toast } from 'sonner';
 
 interface ExpenseTableProps {
   expenses: Expense[];
@@ -45,7 +46,18 @@ export default function ExpenseTable({
   const [dropdownCoords, setDropdownCoords] = useState<{ top: number; left: number } | null>(null);
   const [sortField, setSortField] = useState<SortField>('date');
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
-  
+
+  // Render at most this many rows at once; broad filters (e.g. "All Months")
+  // can match thousands of expenses, and mounting a <tr> for each janks the
+  // page. KPI/summary math upstream still uses the full filtered set.
+  const PAGE_SIZE = 100;
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
+
+  // Reset the window when the underlying data changes (filter change)
+  useEffect(() => {
+    setVisibleCount(PAGE_SIZE);
+  }, [expenses]);
+
   const flagButtonRefs = useRef<{ [key: string]: HTMLButtonElement | null }>({});
   const approvalButtonRefs = useRef<{ [key: string]: HTMLButtonElement | null }>({});
 
@@ -114,6 +126,11 @@ export default function ExpenseTable({
       return 0;
     });
   }, [expenses, sortField, sortDirection]);
+
+  const visibleExpenses = useMemo(
+    () => sortedExpenses.slice(0, visibleCount),
+    [sortedExpenses, visibleCount]
+  );
 
   // Render sort icon
   const SortIcon = ({ field }: { field: SortField }) => {
@@ -397,11 +414,11 @@ export default function ExpenseTable({
         }
       } else {
         console.error('Failed to update flag:', data.error);
-        alert('Failed to update flag. Please try again.');
+        toast.error('Failed to update flag. Please try again.');
       }
     } catch (error) {
       console.error('Error updating flag:', error);
-      alert('Error updating flag. Please try again.');
+      toast.error('Error updating flag. Please try again.');
     } finally {
       setUpdatingFlags(prev => {
         const next = new Set(prev);
@@ -453,11 +470,11 @@ export default function ExpenseTable({
         }
       } else {
         console.error('Failed to update approval:', data.error);
-        alert('Failed to update approval. Please try again.');
+        toast.error('Failed to update approval. Please try again.');
       }
     } catch (error) {
       console.error('Error updating approval:', error);
-      alert('Error updating approval. Please try again.');
+      toast.error('Error updating approval. Please try again.');
     } finally {
       setUpdatingApprovals(prev => {
         const next = new Set(prev);
@@ -621,9 +638,9 @@ export default function ExpenseTable({
                 </td>
               </tr>
             ) : (
-              sortedExpenses.map((expense) => (
-                <tr 
-                  key={expense.id} 
+              visibleExpenses.map((expense) => (
+                <tr
+                  key={expense.id}
                   className={`hover:bg-gray-50 ${getRowBackgroundColor(expense.flag_category)}`}
                 >
                   {/* Flag Column with Icon and Dropdown - Admin Only (Not Masquerading) */}
@@ -927,7 +944,7 @@ export default function ExpenseTable({
             )}
           </div>
         ) : (
-          sortedExpenses.map((expense) => {
+          visibleExpenses.map((expense) => {
             const isExpanded = expandedRows.has(expense.id);
             const rowBgColor = getRowBackgroundColor(expense.flag_category);
             
@@ -1255,6 +1272,27 @@ export default function ExpenseTable({
           })
         )}
       </div>
+
+      {/* Pagination footer (shared by desktop table and mobile cards) */}
+      {sortedExpenses.length > visibleCount && (
+        <div className="flex flex-col sm:flex-row items-center justify-center gap-3 px-6 py-4 border-t border-gray-200 bg-gray-50">
+          <span className="text-sm text-gray-600">
+            Showing {visibleCount} of {sortedExpenses.length} expenses
+          </span>
+          <button
+            onClick={() => setVisibleCount(c => c + PAGE_SIZE)}
+            className="px-4 py-2 text-sm font-medium text-blue-600 border border-blue-200 rounded-lg hover:bg-blue-50 transition-colors"
+          >
+            Load {Math.min(PAGE_SIZE, sortedExpenses.length - visibleCount)} more
+          </button>
+          <button
+            onClick={() => setVisibleCount(sortedExpenses.length)}
+            className="px-4 py-2 text-sm font-medium text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-100 transition-colors"
+          >
+            Show all
+          </button>
+        </div>
+      )}
     </div>
   );
 }

@@ -3,6 +3,7 @@
 
 import { useState } from 'react';
 import { SlackSyncResponse } from '@/types/user';
+import { toast } from 'sonner';
 
 interface SlackSyncButtonProps {
   onSyncComplete?: () => void;
@@ -42,11 +43,11 @@ export default function SlackSyncButton({ onSyncComplete }: SlackSyncButtonProps
           onSyncComplete();
         }
       } else {
-        alert(`Sync failed: ${data.message || 'Unknown error'}`);
+        toast.error(`Sync failed: ${data.message || 'Unknown error'}`);
       }
     } catch (error: any) {
       console.error('Error syncing Slack users:', error);
-      alert(`Error: ${error.message}`);
+      toast.error(`Error: ${error.message}`);
     } finally {
       setSyncing(false);
     }

@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { UserWithPermissions } from '@/types/user';
 import SlackSyncButton from './SlackSyncButton';
 import AutoCreateUsersButton from './AutoCreateUsersButton';
+import { toast } from 'sonner';
 
 interface AdminDashboardProps {
   availableBranches: string[];
@@ -54,7 +55,7 @@ export default function AdminDashboard({ availableBranches, availableDepartments
 
   const handleCreateUser = async () => {
     if (!formData.email || !formData.full_name) {
-      alert('Email and full name are required');
+      toast.warning('Email and full name are required');
       return;
     }
 
@@ -74,10 +75,10 @@ export default function AdminDashboard({ availableBranches, availableDepartments
         resetForm();
         if (onUsersChange) onUsersChange();
       } else {
-        alert(`Failed to create user: ${data.error}`);
+        toast.error(`Failed to create user: ${data.error}`);
       }
     } catch (err: any) {
-      alert(`Error: ${err.message}`);
+      toast.error(`Error: ${err.message}`);
     } finally {
       setSaving(false);
     }
@@ -102,10 +103,10 @@ export default function AdminDashboard({ availableBranches, availableDepartments
         resetForm();
         if (onUsersChange) onUsersChange();
       } else {
-        alert(`Failed to update user: ${data.error}`);
+        toast.error(`Failed to update user: ${data.error}`);
       }
     } catch (err: any) {
-      alert(`Error: ${err.message}`);
+      toast.error(`Error: ${err.message}`);
     } finally {
       setSaving(false);
     }
@@ -125,7 +126,7 @@ export default function AdminDashboard({ availableBranches, availableDepartments
       if (!data.success) {
         // Revert on failure
         setUsers(users.map(u => u.id === user.id ? { ...u, can_send_slack: !newValue } : u));
-        alert(`Failed to update: ${data.error}`);
+        toast.error(`Failed to update: ${data.error}`);
       }
     } catch {
       setUsers(users.map(u => u.id === user.id ? { ...u, can_send_slack: !newValue } : u));
@@ -146,10 +147,10 @@ export default function AdminDashboard({ availableBranches, availableDepartments
         setUsers(users.filter(u => u.id !== userId));
         if (onUsersChange) onUsersChange();
       } else {
-        alert(`Failed to delete user: ${data.error}`);
+        toast.error(`Failed to delete user: ${data.error}`);
       }
     } catch (err: any) {
-      alert(`Error: ${err.message}`);
+      toast.error(`Error: ${err.message}`);
     }
   };
 

@@ -19,9 +19,12 @@ async function getExpenses() {
     // The id tiebreaker makes the page order stable: ordering by transaction_date
     // alone lets rows with equal dates shuffle between page queries, duplicating
     // or dropping rows (and silently skewing every KPI).
+    // Explicit column list: this entire result set is serialized into the page
+    // payload, so columns the UI never reads (sync timestamps, created/updated)
+    // are dead weight on every load.
     const { data, error } = await supabaseAdmin
       .from('expenses')
-      .select('*')
+      .select('id, netsuite_id, transaction_date, vendor_name, amount, currency, status, department, branch, memo, category, transaction_type, cardholder, flag_category, approval_status, approval_modified_by, approval_modified_at, bill_sync_status, slack_notification_count, slack_last_notified_at')
       .gte('transaction_date', '2025-10-01')
       .order('transaction_date', { ascending: false })
       .order('id', { ascending: true })

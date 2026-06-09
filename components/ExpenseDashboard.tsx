@@ -5,6 +5,7 @@ import { Expense, isBillSynced } from '@/types/expense';
 import ExpenseTable from './ExpenseTable';
 import FilterBar from './FilterBar';
 import KPICard from './KPICard';
+import { toast } from 'sonner';
 
 interface ExpenseDashboardProps {
   initialExpenses: Expense[];
@@ -847,7 +848,7 @@ export default function ExpenseDashboard({
   // Handler for sending department summary to Slack
   const handleSlackDepartmentSummary = async (department: string, data: { amount: number; count: number; unapprovedAmount: number; unapprovedCount: number }) => {
     if (!filters.branch || filters.branch === 'all') {
-      alert('Please select a branch first before sending to Slack.');
+      toast.warning('Please select a branch first before sending to Slack.');
       return;
     }
 
@@ -855,7 +856,7 @@ export default function ExpenseDashboard({
     // specific month selected — otherwise the message would silently report the
     // current month and not match what's on screen.
     if (filters.months.length !== 1 || filters.months[0] === 'all') {
-      alert('Please select a single month before sending to Slack.');
+      toast.warning('Please select a single month before sending to Slack.');
       return;
     }
 
@@ -884,13 +885,13 @@ export default function ExpenseDashboard({
       const result = await response.json();
 
       if (result.success) {
-        alert(`✅ ${result.message}`);
+        toast.success(result.message);
       } else {
-        alert(`❌ Failed: ${result.error}\n${result.suggestion || ''}`);
+        toast.error(`Failed: ${result.error}`, { description: result.suggestion || undefined });
       }
     } catch (error: any) {
       console.error('Error sending Slack notification:', error);
-      alert(`Error: ${error.message}`);
+      toast.error(`Error: ${error.message}`);
     } finally {
       setSlackSendingDepartment(null);
     }

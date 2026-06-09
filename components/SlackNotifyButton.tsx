@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { toast } from 'sonner';
 
 interface SlackNotifyButtonProps {
   expenseId: string;
@@ -166,24 +167,24 @@ export default function SlackNotifyButton({
 
   const handleSendNotification = async () => {
     if (!hasChanges()) {
-      alert('Please specify at least one correction or check "Description needs improvement" before sending.');
+      toast.warning('Please specify at least one correction or check "Description needs improvement" before sending.');
       return;
     }
 
     if (sendMode === 'channel' && !selectedChannelId) {
-      alert('Please select a channel.');
+      toast.warning('Please select a channel.');
       return;
     }
 
     if (sendMode === 'group' && additionalUserIds.length === 0) {
-      alert(isVendorBill
+      toast.warning(isVendorBill
         ? 'This is a vendor bill with no cardholder. Please select at least one recipient.'
         : 'Please select at least one additional recipient.');
       return;
     }
 
     if (sendMode === 'dm' && isVendorBill) {
-      alert('This is a vendor bill with no cardholder. Please use Group Message or Channel.');
+      toast.warning('This is a vendor bill with no cardholder. Please use Group Message or Channel.');
       return;
     }
 
@@ -226,7 +227,7 @@ export default function SlackNotifyButton({
       const data = await response.json();
 
       if (data.success) {
-        alert(`\u2705 ${data.message}`);
+        toast.success(data.message);
         setShowModal(false);
         setImproveDescription(false);
         setSendMode(isVendorBill ? 'group' : 'dm');
@@ -235,11 +236,11 @@ export default function SlackNotifyButton({
         setAdditionalMessage('');
         onNotificationSent?.();
       } else {
-        alert(`\u274C Failed: ${data.error}\n${data.suggestion || ''}`);
+        toast.error(`Failed: ${data.error}`, { description: data.suggestion || undefined });
       }
     } catch (error: any) {
       console.error('Error sending notification:', error);
-      alert(`Error: ${error.message}`);
+      toast.error(`Error: ${error.message}`);
     } finally {
       setSending(false);
     }

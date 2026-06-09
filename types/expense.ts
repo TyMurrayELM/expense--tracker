@@ -14,9 +14,10 @@ export interface Expense {
   cardholder: string | null;
   flag_category: string | null;
   approval_status: 'approved' | 'rejected' | null; // NEW: Approval status
-  last_synced_at: string;
-  created_at: string;
-  updated_at: string;
+  // Optional: excluded from the dashboard page query (unused by the UI)
+  last_synced_at?: string;
+  created_at?: string;
+  updated_at?: string;
   approval_modified_by: string | null;
   approval_modified_at: string | null;
   bill_sync_status: string | null; // NEW: PENDING, SYNCED, ERROR, MANUAL_SYNCED, NOT_SYNCED
