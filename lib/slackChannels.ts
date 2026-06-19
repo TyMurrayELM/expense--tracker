@@ -7,6 +7,8 @@ export const DEPARTMENT_SLACK_CHANNELS: Record<string, Record<string, string>> =
     'Maintenance : Maintenance': 'C06J7ULQXV4',
     'Maintenance : Maintenance Recurring': 'C06J7ULQXV4',
     'Irrigation': 'C06J7ULQXV4',
+    // Enhancements for all Phoenix sub-branches route to the shared Phoenix Enhancements channel
+    'Enhancements': 'C06JTB3QS0Z',
   },
   'Phoenix - SouthEast': {
     'Maintenance': 'C06JT7JU81F',
@@ -14,6 +16,7 @@ export const DEPARTMENT_SLACK_CHANNELS: Record<string, Record<string, string>> =
     'Maintenance : Maintenance': 'C06JT7JU81F',
     'Maintenance : Maintenance Recurring': 'C06JT7JU81F',
     'Irrigation': 'C06JT7JU81F',
+    'Enhancements': 'C06JTB3QS0Z',
   },
   'Phoenix - North': {
     'Maintenance': 'C0738AHV23H',
@@ -21,6 +24,7 @@ export const DEPARTMENT_SLACK_CHANNELS: Record<string, Record<string, string>> =
     'Maintenance : Maintenance': 'C0738AHV23H',
     'Maintenance : Maintenance Recurring': 'C0738AHV23H',
     'Irrigation': 'C0738AHV23H',
+    'Enhancements': 'C06JTB3QS0Z',
   },
   'Phoenix': {
     'Enhancements': 'C06JTB3QS0Z',
