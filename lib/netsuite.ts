@@ -116,10 +116,11 @@ export class NetSuiteClient {
     }
 
     // Single query fetches bill details + every expense line + vendor name.
-    // line_amount is negated, not ABS'd: NetSuite stores vendor-bill expense
-    // lines with negative foreignamount, so negation yields positive expenses
-    // while keeping genuine credit/discount lines negative (ABS flipped a -$50
-    // adjustment into +$50 of reported spend).
+    // line_amount uses foreignamount as-is (not negated, not ABS'd): NetSuite
+    // stores vendor-bill expense lines with POSITIVE foreignamount, so the raw
+    // value is already the reported spend, while genuine credit/discount lines
+    // stay negative (ABS would flip a -$50 adjustment into +$50 of spend, and
+    // negation would turn every normal expense line negative).
     const query = `
       SELECT
         t.id,
@@ -127,7 +128,7 @@ export class NetSuiteClient {
         t.trandate,
         t.entity,
         ABS(t.foreigntotal) as bill_total,
-        -tl.foreignamount as line_amount,
+        tl.foreignamount as line_amount,
         t.memo as header_memo,
         BUILTIN.DF(t.status) as status_display,
         BUILTIN.DF(t.currency) as currency_display,
