@@ -76,6 +76,81 @@ export default function SlackNotifyButton({
   // Additional message
   const [additionalMessage, setAdditionalMessage] = useState('');
 
+  // Notification history for this expense (what was requested each time).
+  // Latest row prefills the form so a follow-up is open -> Send, no retyping.
+  interface NotificationHistoryRow {
+    id: string;
+    sent_by: string;
+    sent_at: string;
+    send_mode: SendMode;
+    channel_id: string | null;
+    additional_slack_ids: string[] | null;
+    correct_branch: string | null;
+    correct_department: string | null;
+    correct_category: string | null;
+    improve_description: boolean;
+    additional_message: string | null;
+  }
+  const [history, setHistory] = useState<NotificationHistoryRow[] | null>(null);
+  const [prefilledFromHistory, setPrefilledFromHistory] = useState(false);
+  // Group-mode recipients come back as slack_ids; availableUsers loads lazily,
+  // so stash them and apply once the user list arrives.
+  const [pendingPrefillSlackIds, setPendingPrefillSlackIds] = useState<string[] | null>(null);
+
+  useEffect(() => {
+    if (!showModal) return;
+    let alive = true;
+    fetch(`/api/notify/slack/history?expenseId=${expenseId}`)
+      .then(r => (r.ok ? r.json() : Promise.reject()))
+      .then(data => {
+        if (!alive || !data.success) return;
+        const rows: NotificationHistoryRow[] = data.history ?? [];
+        setHistory(rows);
+        const last = rows[0];
+        if (!last) return;
+        // Prefill the follow-up from the last request
+        setCorrections({
+          branch: last.correct_branch ?? currentBranch ?? '',
+          department: last.correct_department ?? currentDepartment ?? '',
+          category: last.correct_category ?? currentCategory ?? '',
+        });
+        setImproveDescription(last.improve_description);
+        setAdditionalMessage(last.additional_message ?? '');
+        if (last.send_mode === 'channel' && last.channel_id) {
+          setSendMode('channel');
+          setSelectedChannelId(last.channel_id);
+        } else if (last.send_mode === 'group') {
+          setSendMode('group');
+          setPendingPrefillSlackIds(last.additional_slack_ids ?? []);
+        }
+        setPrefilledFromHistory(true);
+      })
+      .catch(() => { /* no history — start blank */ });
+    return () => { alive = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showModal, expenseId]);
+
+  // Apply stashed group recipients once the user list has loaded
+  useEffect(() => {
+    if (!pendingPrefillSlackIds || availableUsers.length === 0) return;
+    const ids = availableUsers
+      .filter(u => pendingPrefillSlackIds.includes(u.slack_id))
+      .map(u => u.id);
+    if (ids.length > 0) setAdditionalUserIds(ids);
+    setPendingPrefillSlackIds(null);
+  }, [pendingPrefillSlackIds, availableUsers]);
+
+  // One-line summary of a past request, for the history panel
+  const historySummary = (row: NotificationHistoryRow): string => {
+    const parts: string[] = [];
+    if (row.correct_branch) parts.push(`Branch → ${row.correct_branch}`);
+    if (row.correct_department) parts.push(`Dept → ${row.correct_department}`);
+    if (row.correct_category) parts.push(`Category → ${row.correct_category}`);
+    if (row.improve_description) parts.push('Better description');
+    if (row.additional_message) parts.push(`“${row.additional_message}”`);
+    return parts.join(' · ') || 'No corrections recorded';
+  };
+
   // Fetch users when group mode is active
   useEffect(() => {
     if (showModal && sendMode === 'group' && availableUsers.length === 0) {
@@ -234,6 +309,8 @@ export default function SlackNotifyButton({
         setAdditionalUserIds([]);
         setSelectedChannelId('');
         setAdditionalMessage('');
+        setPrefilledFromHistory(false);
+        setHistory(null);
         onNotificationSent?.();
       } else {
         toast.error(`Failed: ${data.error}`, { description: data.suggestion || undefined });
@@ -301,6 +378,28 @@ export default function SlackNotifyButton({
                 <strong>Expense:</strong> {vendor} - ${amount.toFixed(2)} on {date}
               </p>
             </div>
+
+            {/* Previous requests — the follow-up trail */}
+            {history && history.length > 0 && (
+              <div className="mb-5 p-3 bg-purple-50 rounded-lg border border-purple-200">
+                <p className="text-xs font-semibold text-purple-800 mb-1.5">
+                  Previous requests ({history.length})
+                  {prefilledFromHistory && (
+                    <span className="ml-2 font-normal text-purple-600">— form prefilled from the latest</span>
+                  )}
+                </p>
+                <ul className="space-y-1 max-h-28 overflow-y-auto">
+                  {history.map(row => (
+                    <li key={row.id} className="text-xs text-purple-900">
+                      <span className="text-purple-500 tabular-nums">
+                        {new Date(row.sent_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                      </span>{' '}
+                      {historySummary(row)}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
 
             {/* Send As selector */}
             <div className="mb-5">

@@ -573,6 +573,34 @@ export async function POST(request: Request) {
       }
     }
 
+    // Record WHAT was requested, not just that something was sent — the notify
+    // modal prefills follow-ups from the latest row so repeat nudges don't
+    // require retyping the corrections. Fail-soft: the message is already out.
+    try {
+      const { error: historyError } = await supabaseAdmin
+        .from('expense_notifications')
+        .insert({
+          expense_id: expenseId,
+          sent_by: session.user.email.toLowerCase(),
+          send_mode: channelOverride ? 'channel' : (additionalSlackIds && additionalSlackIds.length > 0 ? 'group' : 'dm'),
+          channel_id: channelOverride || null,
+          additional_slack_ids: additionalSlackIds && additionalSlackIds.length > 0 ? additionalSlackIds : null,
+          correct_branch: correctBranch,
+          correct_department: correctDepartment,
+          correct_category: correctCategory,
+          improve_description: improveDescription,
+          additional_message: additionalMessage,
+          slack_message_ts: slackData.ts || null,
+        });
+      if (historyError) {
+        // Table missing (sql/expense_notifications.sql not run yet) or insert
+        // failure — tracking below still advances, prefill just won't have data.
+        console.error('Failed to record notification history:', historyError.message);
+      }
+    } catch (historyError: any) {
+      console.error('Exception recording notification history:', historyError?.message);
+    }
+
     // Atomically increment the notification count + stamp the timestamp so that
     // concurrent sends for the same expense can't clobber each other's increment.
     const { error: updateError } = await supabaseAdmin
