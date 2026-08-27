@@ -97,6 +97,20 @@ export default function SlackNotifyButton({
   // so stash them and apply once the user list arrives.
   const [pendingPrefillSlackIds, setPendingPrefillSlackIds] = useState<string[] | null>(null);
 
+  // Last group recipients used on ANY expense — the default crew when this
+  // expense has no history of its own ("same people every time").
+  const LAST_GROUP_KEY = 'slackNotifyLastGroupRecipients';
+  const readLastGroup = (): string[] => {
+    try {
+      const raw = localStorage.getItem(LAST_GROUP_KEY);
+      const parsed = raw ? JSON.parse(raw) : null;
+      return Array.isArray(parsed) ? parsed.filter((x): x is string => typeof x === 'string') : [];
+    } catch { return []; }
+  };
+  const saveLastGroup = (slackIds: string[]) => {
+    try { localStorage.setItem(LAST_GROUP_KEY, JSON.stringify(slackIds)); } catch { /* ignore */ }
+  };
+
   useEffect(() => {
     if (!showModal) return;
     let alive = true;
@@ -107,7 +121,15 @@ export default function SlackNotifyButton({
         const rows: NotificationHistoryRow[] = data.history ?? [];
         setHistory(rows);
         const last = rows[0];
-        if (!last) return;
+        if (!last) {
+          // No history for this expense — if it's a group send (vendor bills
+          // default to group), preselect the last crew used anywhere.
+          if (isVendorBill) {
+            const lastGroup = readLastGroup();
+            if (lastGroup.length > 0) setPendingPrefillSlackIds(lastGroup);
+          }
+          return;
+        }
         // Prefill the follow-up from the last request
         setCorrections({
           branch: last.correct_branch ?? currentBranch ?? '',
@@ -311,6 +333,9 @@ export default function SlackNotifyButton({
         setAdditionalMessage('');
         setPrefilledFromHistory(false);
         setHistory(null);
+        if (sendMode === 'group' && additionalSlackIds.length > 0) {
+          saveLastGroup(additionalSlackIds);
+        }
         onNotificationSent?.();
       } else {
         toast.error(`Failed: ${data.error}`, { description: data.suggestion || undefined });
@@ -413,6 +438,12 @@ export default function SlackNotifyButton({
                       setSendMode(opt.value);
                       if (opt.value !== 'group') setAdditionalUserIds([]);
                       if (opt.value !== 'channel') setSelectedChannelId('');
+                      // Switching to Group with nothing selected: preselect the
+                      // last crew used anywhere, so repeat sends skip the picking
+                      if (opt.value === 'group' && additionalUserIds.length === 0) {
+                        const lastGroup = readLastGroup();
+                        if (lastGroup.length > 0) setPendingPrefillSlackIds(lastGroup);
+                      }
                     }}
                     disabled={opt.disabled}
                     className={`px-3 py-1.5 text-sm font-medium transition-colors ${
