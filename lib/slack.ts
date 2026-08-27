@@ -8,6 +8,8 @@ interface SlackUser {
   };
   is_bot: boolean;
   deleted: boolean;
+  is_restricted?: boolean;       // multi-channel guest
+  is_ultra_restricted?: boolean; // single-channel guest
 }
 
 interface SlackUsersListResponse {
@@ -107,14 +109,17 @@ export class SlackClient {
       // Filter and process users
       const userData: SlackUserData[] = allMembers
         .filter(member => {
-          // Exclude bots, deleted users, and users without email
+          // Exclude bots, deleted users, guests (single/multi-channel), and
+          // users without email. Guests are contractors/externals invited to a
+          // channel — not employees to import.
           const hasEmail = member.profile && member.profile.email;
-          const isValid = !member.is_bot && !member.deleted && hasEmail;
-          
+          const isGuest = member.is_restricted || member.is_ultra_restricted;
+          const isValid = !member.is_bot && !member.deleted && !isGuest && hasEmail;
+
           if (!isValid) {
-            console.log(`Filtering out user: bot=${member.is_bot}, deleted=${member.deleted}, hasEmail=${hasEmail}`);
+            console.log(`Filtering out user: bot=${member.is_bot}, deleted=${member.deleted}, guest=${!!isGuest}, hasEmail=${hasEmail}`);
           }
-          
+
           return isValid;
         })
         .map(member => ({

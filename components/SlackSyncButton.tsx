@@ -18,7 +18,7 @@ export default function SlackSyncButton({ onSyncComplete }: SlackSyncButtonProps
     if (syncing) return;
 
     const confirmed = window.confirm(
-      'This will sync Slack user data (IDs and display names) with existing users in the database by matching email addresses. Continue?'
+      'This will sync Slack user data (IDs and display names) with existing users by email, and CREATE accounts for company-domain Slack members not yet in the database. Continue?'
     );
 
     if (!confirmed) return;
@@ -43,7 +43,8 @@ export default function SlackSyncButton({ onSyncComplete }: SlackSyncButtonProps
           onSyncComplete();
         }
       } else {
-        toast.error(`Sync failed: ${data.message || 'Unknown error'}`);
+        // Failure responses carry `error`, not `message`
+        toast.error(`Sync failed: ${data.error || data.message || 'Unknown error'}`);
       }
     } catch (error: any) {
       console.error('Error syncing Slack users:', error);
@@ -133,6 +134,13 @@ export default function SlackSyncButton({ onSyncComplete }: SlackSyncButtonProps
                 <span className="text-gray-700">Failed:</span>
                 <span className="font-semibold text-orange-600">{syncResults.stats.notFound}</span>
               </div>
+
+              {(syncResults.stats.skippedExternal ?? 0) > 0 && (
+                <div className="flex justify-between items-center py-2 border-b">
+                  <span className="text-gray-700">Skipped (external domain):</span>
+                  <span className="font-semibold text-gray-500">{syncResults.stats.skippedExternal}</span>
+                </div>
+              )}
             </div>
 
             {syncResults.errors && syncResults.errors.length > 0 && (

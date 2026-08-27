@@ -56,11 +56,13 @@ export interface SlackSyncStats {
   updated: number;
   created: number;
   notFound: number;
+  skippedExternal?: number; // Slack members outside the company domain (not created)
 }
 
 export interface SlackSyncResponse {
   success: boolean;
   message: string;
+  error?: string; // set on failure responses (message is only on success)
   stats: SlackSyncStats;
   errors?: string[];
 }

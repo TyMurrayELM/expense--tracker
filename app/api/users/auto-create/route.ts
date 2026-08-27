@@ -55,7 +55,10 @@ export async function POST() {
     }
 
     const existingEmails = new Set(existingUsers.map(u => u.email.toLowerCase()));
-    const existingNames = new Set(existingUsers.map(u => u.full_name.toLowerCase()));
+    // full_name can be null on older rows — a bare .toLowerCase() would 500 the route
+    const existingNames = new Set(
+      existingUsers.map(u => u.full_name?.toLowerCase()).filter(Boolean)
+    );
 
     let created = 0;
     let skipped = 0;

@@ -110,7 +110,7 @@ export async function POST(request: Request) {
     try {
       const result = await supabaseAdmin
         .from('users')
-        .select('id, email, slack_id');
+        .select('id, email, slack_id, slack_display_name');
 
       if (result.error) {
         throw new Error(`Failed to fetch users from database: ${result.error.message}`);
@@ -129,10 +129,17 @@ export async function POST(request: Request) {
     // Create email-to-user mapping for faster lookups
     const emailMap = new Map(dbUsers.map(u => [u.email.toLowerCase(), u]));
 
+    // Only CREATE users for company-domain emails (same domain auth allows at
+    // sign-in). Slack workspaces can contain external guests; matching/updating
+    // an existing row is fine for anyone, but creating login rows for
+    // outside-domain members just pollutes the user list.
+    const allowedDomain = process.env.ALLOWED_EMAIL_DOMAIN || 'encorelm.com';
+
     let matched = 0;
     let updated = 0;
     let created = 0;
     let notFound = 0;
+    let skippedExternal = 0;
     const errors: string[] = [];
 
     console.log('Starting user matching...');
@@ -142,6 +149,11 @@ export async function POST(request: Request) {
       const dbUser = emailMap.get(slackUser.email);
 
       if (!dbUser) {
+        if (!slackUser.email.endsWith(`@${allowedDomain}`)) {
+          skippedExternal++;
+          console.log(`Skipped external-domain Slack user: ${slackUser.email}`);
+          continue;
+        }
         // User exists in Slack but not in our database - auto-create them
         console.log(`Creating new user from Slack: ${slackUser.email} (${slackUser.displayName})`);
         try {
@@ -154,6 +166,13 @@ export async function POST(request: Request) {
               slack_display_name: slackUser.displayName,
               slack_synced_at: new Date().toISOString(),
               is_admin: false,
+              // Without this, the row pre-exists at first login WITHOUT
+              // is_active, so auth's "exists but inactive" branch locks the
+              // user out (AccountInactive) — and the signIn auto-create path
+              // that would have set it never runs. Every other creation path
+              // (signIn, auto-create, users POST) sets it explicitly.
+              is_active: true,
+              can_send_slack: false,
             });
 
           if (insertError) {
@@ -174,8 +193,12 @@ export async function POST(request: Request) {
 
       matched++;
 
-      // Check if Slack data needs updating
-      const needsUpdate = dbUser.slack_id !== slackUser.slackId;
+      // Check if Slack data needs updating. Compare the display name too — a
+      // slack_id never changes for a person, so comparing only it meant a
+      // renamed user kept their stale display name forever.
+      const needsUpdate =
+        dbUser.slack_id !== slackUser.slackId ||
+        dbUser.slack_display_name !== slackUser.displayName;
 
       if (needsUpdate) {
         // Update user with Slack data
@@ -211,6 +234,7 @@ export async function POST(request: Request) {
       updated,
       created,
       notFound,
+      skippedExternal,
     };
 
     console.log('=== Slack sync completed ===');
@@ -218,7 +242,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json({
       success: true,
-      message: `Synced ${updated} users with Slack data`,
+      message: `Matched ${matched}, updated ${updated}, created ${created}`,
       stats,
       errors: errors.length > 0 ? errors : undefined,
     });
