@@ -206,10 +206,28 @@ export default function ExpenseDashboard({
   useEffect(() => {
     const storedFilters = getStoredFilters();
     if (storedFilters) {
+      // Drop stored selections that no longer exist in this user's data. A
+      // native <select> whose value isn't among its options renders as if
+      // "All" were chosen while the invisible filter still applies — the
+      // table looks mysteriously empty with no visible cause (vendor gone
+      // from the data, or permissions changed since the filter was saved).
+      if (storedFilters.vendor !== 'all' && !vendors.includes(storedFilters.vendor)) {
+        storedFilters.vendor = 'all';
+      }
+      storedFilters.purchaser = storedFilters.purchaser.filter(p => purchasers.includes(p));
+      const statusSet = new Set(initialExpenses.map(e => e.status).filter(Boolean));
+      if (storedFilters.status !== 'all' && !statusSet.has(storedFilters.status)) {
+        storedFilters.status = 'all';
+      }
+      const branchSet = new Set(initialExpenses.map(e => e.branch).filter(Boolean));
+      if (storedFilters.branch !== 'all' && !branchSet.has(storedFilters.branch)) {
+        storedFilters.branch = 'all';
+      }
       setFilters(storedFilters);
     }
     // Mark that we've completed the initial load
     hasLoadedFromStorage.current = true;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // Run once on mount
 
   // Save filters to localStorage whenever they change (but only after initial load)
@@ -560,6 +578,10 @@ export default function ExpenseDashboard({
       }
       if (filters.purchaser.length > 0 && (!expense.cardholder || !filters.purchaser.includes(expense.cardholder))) return false;
       if (filters.transactionType !== 'all' && expense.transaction_type !== filters.transactionType) return false;
+      // Date range cascades too — otherwise the dropdown offers categories
+      // whose only rows fall outside the selected range (guaranteed 0 results)
+      if (filters.dateFrom && expense.transaction_date.substring(0, 10) < filters.dateFrom) return false;
+      if (filters.dateTo && expense.transaction_date.substring(0, 10) > filters.dateTo) return false;
       return true;
     });
     const categories = new Set(
@@ -568,7 +590,7 @@ export default function ExpenseDashboard({
         .filter((category): category is string => category !== null && category !== undefined && category !== '')
     );
     return Array.from(categories).sort();
-  }, [expenses, filters.months, filters.branch, filters.vendor, filters.department, filters.purchaser, filters.transactionType]);
+  }, [expenses, filters.months, filters.branch, filters.vendor, filters.department, filters.purchaser, filters.transactionType, filters.dateFrom, filters.dateTo]);
 
   // Get unique statuses from all expenses
   const uniqueStatuses = useMemo(() => {
@@ -779,10 +801,8 @@ export default function ExpenseDashboard({
         const months = current as string[];
         const isDefault = months.length === 1 && months[0] === getCurrentMonth();
         if (!isDefault) {
-          const displayValue = months.includes('all')
-            ? 'All Months'
-            : months.length === 0
-            ? 'None selected'
+          const displayValue = months.includes('all') || months.length === 0
+            ? 'All Months' // empty selection filters nothing — same as All
             : months.map(m => availableMonths.find(am => am.value === m)?.shortLabel || m).join(', ');
           entries.push({ key, label: labelMap[key], value: displayValue, colors: filterColorMap[key] ?? defaultChipColor });
         }
@@ -933,10 +953,9 @@ export default function ExpenseDashboard({
                 className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm text-left focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white hover:bg-gray-50 flex items-center justify-between"
               >
                 <span className="text-gray-700">
-                  {filters.months.includes('all') 
-                    ? 'All Months' 
-                    : filters.months.length === 0
-                    ? 'Select months...'
+                  {/* Empty selection filters nothing, so label it honestly as All Months */}
+                  {filters.months.includes('all') || filters.months.length === 0
+                    ? 'All Months'
                     : filters.months.length === 1
                     ? (availableMonths.find(m => m.value === filters.months[0])?.shortLabel || filters.months[0])
                     : `${filters.months.length} months selected`
@@ -977,14 +996,24 @@ export default function ExpenseDashboard({
                                 }));
                               } else {
                                 setFilters(prev => {
+                                  // From "All Months", every box shows checked — unchecking
+                                  // one should keep the rest, not collapse to just it.
+                                  if (isAllSelected) {
+                                    return {
+                                      ...prev,
+                                      months: availableMonths
+                                        .map(m => m.value)
+                                        .filter(v => v !== month.value),
+                                    };
+                                  }
                                   let newMonths = prev.months.filter(m => m !== 'all');
-                                  
+
                                   if (isSelected) {
                                     newMonths = newMonths.filter(m => m !== month.value);
                                   } else {
                                     newMonths = [...newMonths, month.value];
                                   }
-                                  
+
                                   return { ...prev, months: newMonths };
                                 });
                               }

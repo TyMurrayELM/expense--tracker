@@ -119,8 +119,9 @@ export default function FilterBar({ vendors, purchasers, categories, statuses, o
     <div className="bg-white border border-gray-200 rounded-lg p-4">
       <div className="flex flex-wrap gap-4">
         <div className="flex-1 min-w-[200px]">
-          <label className="block text-sm font-medium text-gray-700 mb-1">Vendor</label>
+          <label htmlFor="filter-vendor" className="block text-sm font-medium text-gray-700 mb-1">Vendor</label>
           <select
+            id="filter-vendor"
             className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
             value={currentFilters.vendor}
             onChange={(e) => onFilterChange('vendor', e.target.value)}
@@ -153,8 +154,9 @@ export default function FilterBar({ vendors, purchasers, categories, statuses, o
         </div>
 
         <div className="flex-1 min-w-[200px]">
-          <label className="block text-sm font-medium text-gray-700 mb-1">Show Flagged</label>
+          <label htmlFor="filter-show-flagged" className="block text-sm font-medium text-gray-700 mb-1">Show Flagged</label>
           <select
+            id="filter-show-flagged"
             className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
             value={currentFilters.showFlagged}
             onChange={(e) => onFilterChange('showFlagged', e.target.value)}
@@ -176,8 +178,9 @@ export default function FilterBar({ vendors, purchasers, categories, statuses, o
         </div>
 
         <div className="flex-1 min-w-[200px]">
-          <label className="block text-sm font-medium text-gray-700 mb-1">Transaction Type</label>
+          <label htmlFor="filter-transaction-type" className="block text-sm font-medium text-gray-700 mb-1">Transaction Type</label>
           <select
+            id="filter-transaction-type"
             className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
             value={currentFilters.transactionType}
             onChange={(e) => onFilterChange('transactionType', e.target.value)}
@@ -203,8 +206,9 @@ export default function FilterBar({ vendors, purchasers, categories, statuses, o
         </div>
 
         <div className="flex-1 min-w-[200px]">
-          <label className="block text-sm font-medium text-gray-700 mb-1">Completion Status</label>
+          <label htmlFor="filter-completion-status" className="block text-sm font-medium text-gray-700 mb-1">Completion Status</label>
           <select
+            id="filter-completion-status"
             className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
             value={currentFilters.status}
             onChange={(e) => onFilterChange('status', e.target.value)}
@@ -217,11 +221,12 @@ export default function FilterBar({ vendors, purchasers, categories, statuses, o
         </div>
 
         <div className="flex-1 min-w-[200px]">
-          <label className="block text-sm font-medium text-gray-700 mb-1">
+          <label htmlFor="filter-sync-status" className="block text-sm font-medium text-gray-700 mb-1">
             Sync Status
-            <span className="text-xs text-gray-700 ml-1">(Credit Cards)</span>
+            <span className="text-xs font-normal text-gray-400 ml-1">(credit cards only)</span>
           </label>
           <select
+            id="filter-sync-status"
             className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
             value={currentFilters.syncStatus}
             onChange={(e) => onFilterChange('syncStatus', e.target.value)}
