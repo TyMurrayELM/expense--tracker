@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createBillClient } from '@/lib/bill';
+import { HISTORICAL_IMPORT_START, HISTORICAL_IMPORT_START_LABEL } from '@/lib/historicalImport';
 import { supabaseAdmin } from '@/lib/supabase';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
@@ -26,7 +27,7 @@ export async function POST() {
     }
 
     console.log('=== Starting HISTORICAL Credit Card Import ===');
-    console.log('Import range: May 1, 2026 to present');
+    console.log(`Import range: ${HISTORICAL_IMPORT_START_LABEL} to present`);
 
     // Cheap mutex: refuse to start while another sync is running, so interleaved
     // upsert phases can't clobber each other. "running" rows older than 10
@@ -66,12 +67,12 @@ export async function POST() {
     const billClient = createBillClient();
     console.log('Bill.com client initialized');
 
-    // Calculate days back from May 1, 2026 to today
-    const startDate = new Date('2026-05-01');
+    // Calculate days back from HISTORICAL_IMPORT_START to today
+    const startDate = new Date(HISTORICAL_IMPORT_START);
     const today = new Date();
     const daysBack = Math.ceil((today.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
 
-    console.log(`Fetching ALL credit card transactions from May 1, 2026 (${daysBack} days back)...`);
+    console.log(`Fetching ALL credit card transactions from ${HISTORICAL_IMPORT_START_LABEL} (${daysBack} days back)...`);
     console.log('⚠️  This may take several minutes for large transaction volumes...');
     
     // Fetch transactions by sync status to get complete coverage (same approach as daily sync)
@@ -419,7 +420,7 @@ export async function POST() {
         updated: recordsUpdated,
         flagsPreserved: flagsPreserved,
         errors: errors.length,
-        dateRange: `May 1, 2026 - ${new Date().toLocaleDateString()}`,
+        dateRange: `${HISTORICAL_IMPORT_START_LABEL} - ${new Date().toLocaleDateString()}`,
         daysImported: daysBack,
         syncStatusBreakdown,
       },
