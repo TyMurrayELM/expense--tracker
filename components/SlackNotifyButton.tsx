@@ -70,6 +70,10 @@ export default function SlackNotifyButton({
 
   // Channel
   const [selectedChannelId, setSelectedChannelId] = useState<string>('');
+  // Which picker option is chosen. Several options share one channel id (every
+  // Las Vegas department posts to the same channel), so the id alone can't say
+  // which label to show — it always resolved to the first match ("Arbor").
+  const [selectedChannelLabel, setSelectedChannelLabel] = useState<string>('');
   const [availableChannels, setAvailableChannels] = useState<{ label: string; channelId: string }[]>([]);
   const [loadingChannels, setLoadingChannels] = useState(false);
 
@@ -141,6 +145,7 @@ export default function SlackNotifyButton({
         if (last.send_mode === 'channel' && last.channel_id) {
           setSendMode('channel');
           setSelectedChannelId(last.channel_id);
+          setSelectedChannelLabel('');
         } else if (last.send_mode === 'group') {
           setSendMode('group');
           setPendingPrefillSlackIds(last.additional_slack_ids ?? []);
@@ -238,11 +243,24 @@ export default function SlackNotifyButton({
     );
   };
 
+  const channelLabel = (() => {
+    if (!selectedChannelId) return '';
+    if (selectedChannelLabel) return selectedChannelLabel;
+    const sameChannel = availableChannels.filter(c => c.channelId === selectedChannelId);
+    const dept = (corrections.department || '').replace(/^Maintenance : /, '').replace(/ Recurring$/, '');
+    const branch = corrections.branch || '';
+    return (
+      sameChannel.find(c => c.label === `${branch} — ${dept}`) ??
+      sameChannel.find(c => dept && c.label.endsWith(`— ${dept}`)) ??
+      sameChannel[0]
+    )?.label ?? '';
+  })();
+
   // Build the "To" display text
   const getRecipientDisplay = () => {
     if (sendMode === 'channel') {
       if (selectedChannelId) {
-        return <span className="text-purple-600">{availableChannels.find(c => c.channelId === selectedChannelId)?.label || 'Channel'}</span>;
+        return <span className="text-purple-600">{channelLabel || 'Channel'}</span>;
       }
       return <span className="text-gray-400 italic">Select a channel below</span>;
     }
@@ -330,6 +348,7 @@ export default function SlackNotifyButton({
         setSendMode(isVendorBill ? 'group' : 'dm');
         setAdditionalUserIds([]);
         setSelectedChannelId('');
+        setSelectedChannelLabel('');
         setAdditionalMessage('');
         setPrefilledFromHistory(false);
         setHistory(null);
@@ -442,7 +461,10 @@ export default function SlackNotifyButton({
                       if (opt.disabled) return;
                       setSendMode(opt.value);
                       if (opt.value !== 'group') setAdditionalUserIds([]);
-                      if (opt.value !== 'channel') setSelectedChannelId('');
+                      if (opt.value !== 'channel') {
+                        setSelectedChannelId('');
+                        setSelectedChannelLabel('');
+                      }
                       // Switching to Group with nothing selected: preselect the
                       // last crew used anywhere, so repeat sends skip the picking
                       if (opt.value === 'group' && additionalUserIds.length === 0) {
@@ -518,13 +540,17 @@ export default function SlackNotifyButton({
                   <p className="text-sm text-gray-500">Loading channels...</p>
                 ) : (
                   <select
-                    value={selectedChannelId}
-                    onChange={(e) => setSelectedChannelId(e.target.value)}
+                    value={channelLabel}
+                    onChange={(e) => {
+                      const picked = availableChannels.find(c => c.label === e.target.value);
+                      setSelectedChannelLabel(picked?.label ?? '');
+                      setSelectedChannelId(picked?.channelId ?? '');
+                    }}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-purple-500 focus:border-purple-500"
                   >
                     <option value="">Choose a channel...</option>
                     {availableChannels.map((ch) => (
-                      <option key={ch.channelId + ch.label} value={ch.channelId}>
+                      <option key={ch.label} value={ch.label}>
                         {ch.label}
                       </option>
                     ))}
